@@ -52,6 +52,7 @@ function LanguageSwitcher() {
         { value: "ko-KR", label: "한국어 (Korean)" },
         { value: "uk-UA", label: "Українська (Ukrainian)" },
         { value: "ru-RU", label: "Русский (Russian)" },
+        { value: "vi-VN", label: "Tiếng Việt (Vietnamese)" },
         { value: "zh-CN", label: "中文 (简体)" },
       ]}
       value={language || "en-US"}

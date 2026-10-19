@@ -11,6 +11,7 @@ import {
   ptBR,
   ru,
   uk,
+  vi,
   zhCN,
 } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
@@ -28,6 +29,7 @@ const LOCALE_MAP: Record<string, Locale> = {
   "pt-BR": ptBR,
   "ru-RU": ru,
   "uk-UA": uk,
+  "vi-VN": vi,
   "zh-CN": zhCN,
 };
 
