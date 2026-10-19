@@ -1,4 +1,5 @@
 import * as React from "react";
+import i18n from "@/i18n.ts";
 import { z } from "zod/v4";
 import { useForm } from "@mantine/form";
 import { zod4Resolver } from "mantine-form-zod-resolver";
@@ -23,11 +24,11 @@ import { AuthLayout } from "./auth-layout.tsx";
 
 const formSchema = z.object({
   workspaceName: z.string().trim().max(50).optional(),
-  name: z.string().min(1, { message: "Name is required" }).max(50),
+  name: z.string().min(1, { error: () => i18n.t("Name is required") }).max(50),
   email: z
-    .email({ message: "Invalid email address" })
-    .min(1, { message: "Email is required" }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
+    .email({ error: () => i18n.t("Invalid email address") })
+    .min(1, { error: () => i18n.t("Email is required") }),
+  password: z.string().min(8, { error: () => i18n.t("Password must be at least 8 characters") }),
 });
 type FormValues = z.infer<typeof formSchema>;
 

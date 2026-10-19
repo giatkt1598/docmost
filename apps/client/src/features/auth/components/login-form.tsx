@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import i18n from "@/i18n.ts";
 import { useForm } from "@mantine/form";
 import { zod4Resolver } from "mantine-form-zod-resolver";
 import useAuth from "@/features/auth/hooks/use-auth";
@@ -25,9 +26,9 @@ import { AuthLayout } from "./auth-layout.tsx";
 
 const formSchema = z.object({
   email: z
-    .email()
-    .min(1, { message: "email is required" }),
-  password: z.string().min(1, { message: "Password is required" }),
+    .email({ error: () => i18n.t("Invalid email address") })
+    .min(1, { error: () => i18n.t("Email is required") }),
+  password: z.string().min(1, { error: () => i18n.t("Password is required") }),
 });
 type FormValues = z.infer<typeof formSchema>;
 

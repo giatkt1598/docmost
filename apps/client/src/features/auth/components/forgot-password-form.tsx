@@ -1,4 +1,5 @@
 import { useState } from "react";
+import i18n from "@/i18n.ts";
 import { z } from "zod/v4";
 import { useForm } from "@mantine/form";
 import { zod4Resolver } from "mantine-form-zod-resolver";
@@ -11,8 +12,8 @@ import { AuthLayout } from "./auth-layout.tsx";
 
 const formSchema = z.object({
   email: z
-    .email()
-    .min(1, { message: "Email is required" }),
+    .email({ error: () => i18n.t("Invalid email address") })
+    .min(1, { error: () => i18n.t("Email is required") }),
 });
 type FormValues = z.infer<typeof formSchema>;
 
@@ -48,7 +49,7 @@ export function ForgotPasswordForm() {
             <TextInput
               id="email"
               type="email"
-              label="Email"
+              label={t("Email")}
               placeholder="email@example.com"
               variant="filled"
               {...form.getInputProps("email")}

@@ -74,7 +74,7 @@ export default function AttachmentView(props: NodeViewProps) {
                 </Tooltip>
               )}
               <a href={getFileUrl(url)} target="_blank">
-                <ActionIcon variant="default" aria-label="download file">
+                <ActionIcon variant="default" aria-label={t("Download attachment")}>
                   <IconDownload size={18} />
                 </ActionIcon>
               </a>

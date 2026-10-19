@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { NodeViewProps, NodeViewWrapper } from "@tiptap/react";
 import { Popover, TextInput, Group, Box } from "@mantine/core";
 import { useDebouncedCallback } from "@mantine/hooks";
@@ -26,6 +27,7 @@ const colorClassMap: Record<StatusColor, string> = {
 };
 
 export default function StatusView(props: NodeViewProps) {
+  const { t } = useTranslation();
   const { node, updateAttributes, deleteNode, editor, getPos } = props;
   const { text, color } = node.attrs as {
     text: string;
@@ -121,7 +123,7 @@ export default function StatusView(props: NodeViewProps) {
                 editor.commands.focus(getPos() + node.nodeSize);
               }
             }}
-            placeholder="Status text"
+            placeholder={t("Status text")}
             size="sm"
             mb="xs"
           />

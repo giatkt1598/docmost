@@ -69,7 +69,7 @@ export default function ExportModal({
       onClose();
     } catch (err) {
       notifications.show({
-        message: "Export failed:" + err.response?.data.message,
+        message: t("Export failed:") + " " + (err.response?.data.message ?? ""),
         color: "red",
       });
       console.error("export error", err);

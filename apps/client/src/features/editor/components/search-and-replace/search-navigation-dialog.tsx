@@ -158,7 +158,7 @@ function SearchNavigationDialog({ editor }: SearchNavigationDialogProps) {
       w="auto"
       position={{ top: 90, right: 50 }}
       withBorder
-      aria-label="Search navigation"
+      aria-label={t("Search navigation")}
     >
       <Flex align="center" gap="xs">
         <Text size="xs" style={{ flex: 1 }}>
@@ -166,34 +166,34 @@ function SearchNavigationDialog({ editor }: SearchNavigationDialogProps) {
             ? `${resultState.resultIndex + 1}/${resultState.resultsLength}`
             : t("Not found")}
         </Text>
-        <Tooltip label="Previous match">
+        <Tooltip label={t("Previous match")}>
           <ActionIcon
             variant="subtle"
             color="gray"
             onClick={previous}
-            aria-label="Previous match"
+            aria-label={t("Previous match")}
             disabled={resultState.resultsLength === 0}
           >
             <IconArrowNarrowUp size={16} />
           </ActionIcon>
         </Tooltip>
-        <Tooltip label="Next match">
+        <Tooltip label={t("Next match")}>
           <ActionIcon
             variant="subtle"
             color="gray"
             onClick={next}
-            aria-label="Next match"
+            aria-label={t("Next match")}
             disabled={resultState.resultsLength === 0}
           >
             <IconArrowNarrowDown size={16} />
           </ActionIcon>
         </Tooltip>
-        <Tooltip label="Close">
+        <Tooltip label={t("Close")}>
           <ActionIcon
             variant="subtle"
             color="gray"
             onClick={close}
-            aria-label="Close"
+            aria-label={t("Close")}
           >
             <IconX size={16} />
           </ActionIcon>

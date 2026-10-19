@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import i18n from "@/i18n.ts";
 import { useForm } from "@mantine/form";
 import { zod4Resolver } from "mantine-form-zod-resolver";
 import useAuth from "@/features/auth/hooks/use-auth";
@@ -11,7 +12,7 @@ import { AuthLayout } from "./auth-layout.tsx";
 const formSchema = z.object({
   newPassword: z
     .string()
-    .min(8, { message: "Password must contain at least 8 characters" }),
+    .min(8, { error: () => i18n.t("Password must contain at least 8 characters") }),
 });
 type FormValues = z.infer<typeof formSchema>;
 

@@ -15,7 +15,7 @@ export default function WorkspaceSettings() {
   const { t } = useTranslation();
   return (
     <>
-      <DocumentTitle title="Workspace Settings" />
+      <DocumentTitle title={t("Workspace settings")} />
       <SettingsTitle title={t("General")} />
       <WorkspaceIcon />
       <WorkspaceNameForm />

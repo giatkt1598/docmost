@@ -1,4 +1,5 @@
 import { FC } from "react";
+import { useTranslation } from "react-i18next";
 import { useAtomValue } from "jotai";
 import type { Editor } from "@tiptap/react";
 import { pageEditorAtom } from "@/features/editor/atoms/editor-atoms";
@@ -25,6 +26,7 @@ export const FixedToolbar: FC<FixedToolbarProps> = ({
   editor: editorProp,
   templateMode = false,
 }) => {
+  const { t } = useTranslation();
   const editorFromAtom = useAtomValue(pageEditorAtom);
   const editor = editorProp ?? editorFromAtom;
   const state = useToolbarState(editor);
@@ -37,7 +39,7 @@ export const FixedToolbar: FC<FixedToolbarProps> = ({
         className={classes.fixedToolbar}
         data-fixed-toolbar="true"
         role="toolbar"
-        aria-label="Editor toolbar"
+        aria-label={t("Editor toolbar")}
         onMouseDown={(e) => e.preventDefault()}
       >
         <div className={classes.inner}>
