@@ -12,6 +12,7 @@ import {
 import { CommentService } from './comment.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
+import { SetCommentResolvedDto } from './dto/resolve-comment.dto';
 import { PageIdDto, CommentIdDto } from './dto/comments.input';
 import { AuthUser } from '../../common/decorators/auth-user.decorator';
 import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator';
@@ -156,6 +157,51 @@ export class CommentController {
         pageId: comment.pageId,
       },
     });
+
+    return updatedComment;
+  }
+
+  // Named set-resolved so it never collides with the enterprise /comments/resolve route.
+  @HttpCode(HttpStatus.OK)
+  @Post('set-resolved')
+  @OAuthScope('write')
+  async setResolved(
+    @Body() dto: SetCommentResolvedDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const comment = await this.commentRepo.findById(dto.commentId);
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    const page = await this.pageRepo.findById(comment.pageId);
+    if (!page || page.workspaceId !== workspace.id || page.deletedAt) {
+      throw new NotFoundException('Page not found');
+    }
+
+    await this.pageAccessService.validateCanComment(page, user, workspace.id);
+
+    const wasResolved = comment.resolvedAt != null;
+    const updatedComment = await this.commentService.setResolved(
+      comment,
+      dto.resolved,
+      user,
+    );
+
+    if (wasResolved !== dto.resolved) {
+      this.auditService.log({
+        event: dto.resolved
+          ? AuditEvent.COMMENT_RESOLVED
+          : AuditEvent.COMMENT_REOPENED,
+        resourceType: AuditResource.COMMENT,
+        resourceId: comment.id,
+        spaceId: comment.spaceId,
+        metadata: {
+          pageId: comment.pageId,
+        },
+      });
+    }
 
     return updatedComment;
   }

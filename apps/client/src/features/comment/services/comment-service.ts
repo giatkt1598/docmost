@@ -18,6 +18,14 @@ export async function resolveComment(data: IResolveComment): Promise<IComment> {
   return req.data;
 }
 
+export async function setCommentResolved(data: {
+  commentId: string;
+  resolved: boolean;
+}): Promise<IComment> {
+  const req = await api.post<IComment>(`/comments/set-resolved`, data);
+  return req.data;
+}
+
 export async function updateComment(
   data: Partial<IComment>,
 ): Promise<IComment> {

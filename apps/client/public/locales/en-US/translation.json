@@ -1586,5 +1586,6 @@
   "Create token": "Create token",
   "No MCP tokens yet": "No MCP tokens yet",
   "The MCP server is disabled. Set MCP_SERVER_ENABLED=true in the server environment to enable it.": "The MCP server is disabled. Set MCP_SERVER_ENABLED=true in the server environment to enable it.",
-  "MCP server URL": "MCP server URL"
+  "MCP server URL": "MCP server URL",
+  "Re-open comment": "Re-open comment"
 }
