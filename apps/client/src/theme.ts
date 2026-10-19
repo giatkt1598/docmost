@@ -34,6 +34,71 @@ const red: MantineColorsTuple = [
   "#93151b",
 ];
 
+// Dark scheme follows the Dracula theme for VS Code (https://draculatheme.com).
+// Greys map onto Mantine's dark scale: 7 = editor background, 8 = sidebar,
+// 9 = deepest panels, 4 = borders/selection, 0 = foreground.
+const draculaDark = [
+  "#f8f8f2",
+  "#e2e3dc",
+  "#9ea8c7",
+  "#6272a4",
+  "#44475a",
+  "#3c3f52",
+  "#343746",
+  "#282a36",
+  "#21222c",
+  "#191a21",
+];
+
+// [base accent, darker shade used behind white text (>= 4.5:1)]
+const draculaAccents: Record<string, [string, string]> = {
+  blue: ["#bd93f9", "#7653c9"],
+  violet: ["#bd93f9", "#7653c9"],
+  grape: ["#bd93f9", "#7653c9"],
+  indigo: ["#bd93f9", "#7653c9"],
+  pink: ["#ff79c6", "#b8337f"],
+  cyan: ["#8be9fd", "#1d7f96"],
+  teal: ["#8be9fd", "#1d7f96"],
+  green: ["#50fa7b", "#1c7a36"],
+  lime: ["#50fa7b", "#1c7a36"],
+  orange: ["#ffb86c", "#b25e10"],
+  red: ["#ff5555", "#c62f2f"],
+  yellow: ["#f1fa8c", "#6e6e0e"],
+};
+
+function hexToRgba(hex: string, alpha: number) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function draculaDarkVariables(): Record<string, string> {
+  const vars: Record<string, string> = {};
+
+  draculaDark.forEach((value, index) => {
+    vars[`--mantine-color-dark-${index}`] = value;
+  });
+
+  for (const [color, [base, filled]] of Object.entries(draculaAccents)) {
+    // shades 3-6 are what dark-mode text, icons and custom CSS reach for
+    for (const shade of [3, 4, 5, 6]) {
+      vars[`--mantine-color-${color}-${shade}`] = base;
+    }
+    vars[`--mantine-color-${color}-7`] = filled;
+    vars[`--mantine-color-${color}-8`] = filled;
+    vars[`--mantine-color-${color}-9`] = filled;
+    vars[`--mantine-color-${color}-text`] = base;
+    vars[`--mantine-color-${color}-filled`] = filled;
+    vars[`--mantine-color-${color}-filled-hover`] = filled;
+    vars[`--mantine-color-${color}-light`] = hexToRgba(base, 0.15);
+    vars[`--mantine-color-${color}-light-hover`] = hexToRgba(base, 0.22);
+    vars[`--mantine-color-${color}-light-color`] = base;
+    vars[`--mantine-color-${color}-outline`] = base;
+    vars[`--mantine-color-${color}-outline-hover`] = hexToRgba(base, 0.1);
+  }
+
+  return vars;
+}
+
 export const theme = createTheme({
   colors: {
     blue,
@@ -127,7 +192,25 @@ export const mantineCssResolver: CSSVariablesResolver = (theme) => ({
   },
   dark: {
     ...v8CssVariablesResolver(theme).dark,
-    "--mantine-color-dark-light-color": "var(--mantine-color-gray-4)",
+    ...draculaDarkVariables(),
+    "--mantine-color-dark-light-color": "var(--mantine-color-dark-1)",
     "--mantine-color-dark-light-hover": "var(--mantine-color-default-hover)",
+    "--mantine-color-text": "var(--mantine-color-dark-0)",
+    "--mantine-color-body": "var(--mantine-color-dark-7)",
+    "--mantine-color-dimmed": "var(--mantine-color-dark-2)",
+    // dimmed grey-blue: 6:1 on the editor background, distinct from text
+    "--mantine-color-placeholder": "var(--mantine-color-dark-2)",
+    // Dracula uses cyan for links
+    "--mantine-color-anchor": "#8be9fd",
+    "--mantine-color-default": "var(--mantine-color-dark-6)",
+    "--mantine-color-default-hover": "var(--mantine-color-dark-5)",
+    "--mantine-color-default-color": "var(--mantine-color-dark-0)",
+    "--mantine-color-default-border": "var(--mantine-color-dark-4)",
+    "--mantine-color-error": "#ff5555",
+    "--mantine-primary-color-filled": "var(--mantine-color-blue-filled)",
+    "--mantine-primary-color-filled-hover": "#6847b8",
+    "--mantine-primary-color-light": "var(--mantine-color-blue-light)",
+    "--mantine-primary-color-light-hover": "var(--mantine-color-blue-light-hover)",
+    "--mantine-primary-color-light-color": "var(--mantine-color-blue-light-color)",
   },
 });

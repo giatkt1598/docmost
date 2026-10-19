@@ -34,7 +34,7 @@
     .hljs-quote {
       color: light-dark(
         var(--mantine-color-gray-6),
-        var(--mantine-color-dark-2)
+        var(--mantine-color-dark-3)
       );
     }
 
@@ -48,7 +48,7 @@
     .hljs-name,
     .hljs-selector-id,
     .hljs-selector-class {
-      color: light-dark(var(--mantine-color-red-7), var(--mantine-color-red-5));
+      color: light-dark(var(--mantine-color-red-7), var(--mantine-color-green-5));
     }
 
     .hljs-number,
@@ -60,21 +60,21 @@
     .hljs-params {
       color: light-dark(
         var(--mantine-color-blue-7),
-        var(--mantine-color-cyan-5)
+        var(--mantine-color-violet-5)
       );
     }
 
     .hljs-string,
     .hljs-symbol,
     .hljs-bullet {
-      color: light-dark(var(--mantine-color-red-7), var(--mantine-color-red-5));
+      color: light-dark(var(--mantine-color-red-7), var(--mantine-color-yellow-5));
     }
 
     .hljs-title,
     .hljs-section {
       color: light-dark(
         var(--mantine-color-pink-7),
-        var(--mantine-color-yellow-5)
+        var(--mantine-color-green-5)
       );
     }
 
@@ -82,7 +82,7 @@
     .hljs-selector-tag {
       color: light-dark(
         var(--mantine-color-violet-7),
-        var(--mantine-color-violet-3)
+        var(--mantine-color-pink-5)
       );
     }
 
