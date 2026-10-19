@@ -55,6 +55,7 @@ export interface Attachments {
   mimeType: string | null;
   pageId: string | null;
   spaceId: string | null;
+  templateId: string | null;
   textContent: string | null;
   tsv: string | null;
   type: string | null;

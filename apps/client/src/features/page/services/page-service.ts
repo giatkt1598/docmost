@@ -10,6 +10,7 @@ import {
 } from '@/features/page/types/page.types';
 import { QueryParams } from "@/lib/types";
 import { IPagination } from "@/lib/types.ts";
+import { parseTemplateUploadTarget } from "@/features/template/template-upload-target";
 import { saveAs } from "file-saver";
 import { InfiniteData } from "@tanstack/react-query";
 import { IFileTask } from '@/features/file-task/types/file-task.types.ts';
@@ -202,7 +203,13 @@ export async function uploadFile(
   if (attachmentId) {
     formData.append("attachmentId", attachmentId);
   }
-  formData.append("pageId", pageId);
+  // template editors pass "template:<id>" so uploads belong to the template
+  const templateId = parseTemplateUploadTarget(pageId);
+  if (templateId) {
+    formData.append("templateId", templateId);
+  } else {
+    formData.append("pageId", pageId);
+  }
   formData.append("file", file);
 
   const req = await api.post<IAttachment>("/files/upload", formData, {

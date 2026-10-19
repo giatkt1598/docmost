@@ -1,23 +1,17 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Template, User, Workspace } from '@docmost/db/types/entity.types';
+import { User, Workspace } from '@docmost/db/types/entity.types';
 import { TemplateRepo } from '@docmost/db/repos/template/template.repo';
 import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { SpaceMemberRepo } from '@docmost/db/repos/space/space-member.repo';
 import { PaginationOptions } from '@docmost/db/pagination/pagination-options';
-import SpaceAbilityFactory from '../casl/abilities/space-ability.factory';
-import {
-  SpaceCaslAction,
-  SpaceCaslSubject,
-} from '../casl/interfaces/space-ability.type';
+import { SpaceCaslAction } from '../casl/interfaces/space-ability.type';
 import { PageAccessService } from '../page/page-access/page-access.service';
 import { PageService } from '../page/services/page.service';
-import { UserRole } from '../../common/helpers/types/permission';
 import { getPageTitle } from '../../common/helpers';
 import { jsonToNode, jsonToText } from '../../collaboration/collaboration.util';
 import { AuditEvent, AuditResource } from '../../common/events/audit-events';
@@ -25,6 +19,8 @@ import {
   AUDIT_SERVICE,
   IAuditService,
 } from '../../integrations/audit/audit.service';
+import { TemplateAccessService } from './template-access.service';
+import { TemplateAttachmentService } from './template-attachment.service';
 import {
   CreateTemplateDto,
   ListTemplatesDto,
@@ -38,7 +34,8 @@ export class TemplateService {
     private readonly templateRepo: TemplateRepo,
     private readonly pageRepo: PageRepo,
     private readonly spaceMemberRepo: SpaceMemberRepo,
-    private readonly spaceAbility: SpaceAbilityFactory,
+    private readonly templateAccess: TemplateAccessService,
+    private readonly templateAttachments: TemplateAttachmentService,
     private readonly pageAccessService: PageAccessService,
     private readonly pageService: PageService,
     @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
@@ -60,7 +57,9 @@ export class TemplateService {
     const items = await Promise.all(
       result.items.map(async (template) => ({
         ...template,
-        permissions: { canManage: await this.canManage(template, user) },
+        permissions: {
+          canManage: await this.templateAccess.canManage(template, user),
+        },
       })),
     );
 
@@ -68,20 +67,26 @@ export class TemplateService {
   }
 
   async getInfo(templateId: string, user: User, workspace: Workspace) {
-    const template = await this.findViewable(templateId, user, workspace, {
-      includeContent: true,
-    });
+    const template = await this.templateAccess.findViewable(
+      templateId,
+      user,
+      workspace.id,
+      { includeContent: true },
+    );
     return {
       ...template,
-      permissions: { canManage: await this.canManage(template, user) },
+      permissions: {
+        canManage: await this.templateAccess.canManage(template, user),
+      },
     };
   }
 
   async create(dto: CreateTemplateDto, user: User, workspace: Workspace) {
     const spaceId = dto.spaceId ?? null;
-    await this.assertCanCreateIn(spaceId, user);
+    await this.templateAccess.assertCanCreateIn(spaceId, user);
 
     let { title, icon, content } = dto;
+    let copies = [];
     if (dto.sourcePageId) {
       const page = await this.pageRepo.findById(dto.sourcePageId, {
         includeContent: true,
@@ -92,7 +97,15 @@ export class TemplateService {
       await this.pageAccessService.validateCanView(page, user);
       title = title ?? page.title;
       icon = icon ?? page.icon;
-      content = content ?? (page.content as Record<string, any>);
+
+      // the template gets its own copy of the page's files
+      const clone = await this.templateAttachments.prepareClone(
+        content ?? page.content,
+        { pageId: page.id },
+        workspace.id,
+      );
+      content = clone.content;
+      copies = clone.copies;
     }
 
     const { id } = await this.templateRepo.insertTemplate({
@@ -105,6 +118,12 @@ export class TemplateService {
       lastUpdatedById: user.id,
       ...this.contentFields(content),
     });
+
+    await this.templateAttachments.commitClone(
+      copies,
+      { templateId: id },
+      spaceId,
+    );
 
     this.auditService.log({
       event: AuditEvent.TEMPLATE_CREATED,
@@ -121,13 +140,17 @@ export class TemplateService {
   }
 
   async update(dto: UpdateTemplateDto, user: User, workspace: Workspace) {
-    const template = await this.findViewable(dto.templateId, user, workspace);
-    await this.assertCanManage(template, user);
+    const template = await this.templateAccess.findViewable(
+      dto.templateId,
+      user,
+      workspace.id,
+    );
+    await this.templateAccess.assertCanManage(template, user);
 
     const scopeChanged =
       dto.spaceId !== undefined && (dto.spaceId ?? null) !== template.spaceId;
     if (scopeChanged) {
-      await this.assertCanCreateIn(dto.spaceId ?? null, user);
+      await this.templateAccess.assertCanCreateIn(dto.spaceId ?? null, user);
     }
 
     await this.templateRepo.updateTemplate(
@@ -147,9 +170,14 @@ export class TemplateService {
   }
 
   async remove(templateId: string, user: User, workspace: Workspace) {
-    const template = await this.findViewable(templateId, user, workspace);
-    await this.assertCanManage(template, user);
+    const template = await this.templateAccess.findViewable(
+      templateId,
+      user,
+      workspace.id,
+    );
+    await this.templateAccess.assertCanManage(template, user);
 
+    await this.templateAttachments.deleteTemplateFiles(template.id);
     await this.templateRepo.deleteTemplate(template.id, workspace.id);
 
     this.auditService.log({
@@ -163,9 +191,12 @@ export class TemplateService {
 
   // Mirrors the permission checks of pages/create for the destination.
   async use(dto: UseTemplateDto, user: User, workspace: Workspace) {
-    const template = await this.findViewable(dto.templateId, user, workspace, {
-      includeContent: true,
-    });
+    const template = await this.templateAccess.findViewable(
+      dto.templateId,
+      user,
+      workspace.id,
+      { includeContent: true },
+    );
 
     if (dto.parentPageId) {
       const parentPage = await this.pageRepo.findById(dto.parentPageId);
@@ -178,19 +209,33 @@ export class TemplateService {
       }
       await this.pageAccessService.validateCanEdit(parentPage, user);
     } else {
-      await this.assertSpaceAction(user, dto.spaceId, SpaceCaslAction.Create);
+      await this.templateAccess.assertSpaceAction(
+        user,
+        dto.spaceId,
+        SpaceCaslAction.Create,
+      );
     }
+
+    // the new page gets its own copy of the template's files
+    const { content, copies } = await this.templateAttachments.prepareClone(
+      template.content,
+      { templateId: template.id },
+      workspace.id,
+    );
 
     const page = await this.pageService.create(user.id, workspace.id, {
       title: template.title ?? undefined,
       icon: template.icon ?? undefined,
       spaceId: dto.spaceId,
       parentPageId: dto.parentPageId,
-      ...(template.content && {
-        content: template.content as object,
-        format: 'json',
-      }),
+      ...(content && { content: content as object, format: 'json' }),
     });
+
+    await this.templateAttachments.commitClone(
+      copies,
+      { pageId: page.id },
+      dto.spaceId,
+    );
 
     this.auditService.log({
       event: AuditEvent.PAGE_CREATED,
@@ -204,76 +249,6 @@ export class TemplateService {
     });
 
     return page;
-  }
-
-  async canManage(template: Template, user: User): Promise<boolean> {
-    if (this.isWorkspaceAdmin(user)) return true;
-    if (template.creatorId === user.id) return true;
-    if (!template.spaceId) return false;
-    const ability = await this.spaceAbility.createForUser(
-      user,
-      template.spaceId,
-    );
-    return ability.can(SpaceCaslAction.Manage, SpaceCaslSubject.Settings);
-  }
-
-  private async assertCanManage(template: Template, user: User) {
-    if (!(await this.canManage(template, user))) {
-      throw new ForbiddenException();
-    }
-  }
-
-  private async assertCanCreateIn(spaceId: string | null, user: User) {
-    if (spaceId === null) {
-      if (!this.isWorkspaceAdmin(user)) {
-        throw new ForbiddenException(
-          'Only workspace admins can create workspace-wide templates',
-        );
-      }
-      return;
-    }
-    await this.assertSpaceAction(user, spaceId, SpaceCaslAction.Create);
-  }
-
-  private async assertSpaceAction(
-    user: User,
-    spaceId: string,
-    action: SpaceCaslAction,
-  ) {
-    const ability = await this.spaceAbility.createForUser(user, spaceId);
-    if (ability.cannot(action, SpaceCaslSubject.Page)) {
-      throw new ForbiddenException();
-    }
-  }
-
-  // Global templates are visible to everyone; space templates to space members.
-  private async findViewable(
-    templateId: string,
-    user: User,
-    workspace: Workspace,
-    opts?: { includeContent?: boolean },
-  ): Promise<Template> {
-    const template = await this.templateRepo.findById(
-      templateId,
-      workspace.id,
-      {
-        includeContent: opts?.includeContent,
-      },
-    );
-    if (!template) {
-      throw new NotFoundException('Template not found');
-    }
-    if (template.spaceId) {
-      const spaceIds = await this.spaceMemberRepo.getUserSpaceIds(user.id);
-      if (!spaceIds.includes(template.spaceId)) {
-        throw new NotFoundException('Template not found');
-      }
-    }
-    return template;
-  }
-
-  private isWorkspaceAdmin(user: User): boolean {
-    return user.role === UserRole.ADMIN || user.role === UserRole.OWNER;
   }
 
   private contentFields(content: Record<string, any> | null | undefined) {

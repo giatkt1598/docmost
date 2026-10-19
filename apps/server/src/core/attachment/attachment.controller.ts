@@ -20,6 +20,7 @@ import {
 import { AttachmentService } from './services/attachment.service';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { FileInterceptor } from '../../common/interceptors/file.interceptor';
+import { TemplateAccessService } from '../template/template-access.service';
 import * as bytes from 'bytes';
 import { AuthUser } from '../../common/decorators/auth-user.decorator';
 import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator';
@@ -84,6 +85,7 @@ export class AttachmentController {
     private readonly tokenService: TokenService,
     private readonly pageAccessService: PageAccessService,
     private readonly domainService: DomainService,
+    private readonly templateAccess: TemplateAccessService,
     @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
   ) {}
 
@@ -118,20 +120,33 @@ export class AttachmentController {
     }
 
     const pageId = file.fields?.pageId?.value;
+    // template editors upload into the template instead of a page
+    const templateId = pageId ? undefined : file.fields?.templateId?.value;
 
-    if (!pageId) {
+    let spaceId: string | null;
+    if (pageId) {
+      const page = await this.pageRepo.findById(pageId);
+
+      if (!page) {
+        throw new NotFoundException('Page not found');
+      }
+
+      await this.pageAccessService.validateCanEdit(page, user);
+      spaceId = page.spaceId;
+    } else if (templateId) {
+      if (!isValidUUID(templateId)) {
+        throw new BadRequestException('Invalid template id');
+      }
+      const template = await this.templateAccess.findViewable(
+        templateId,
+        user,
+        workspace.id,
+      );
+      await this.templateAccess.assertCanManage(template, user);
+      spaceId = template.spaceId;
+    } else {
       throw new BadRequestException('PageId is required');
     }
-
-    const page = await this.pageRepo.findById(pageId);
-
-    if (!page) {
-      throw new NotFoundException('Page not found');
-    }
-
-    await this.pageAccessService.validateCanEdit(page, user);
-
-    const spaceId = page.spaceId;
 
     const attachmentId = file.fields?.attachmentId?.value;
     if (attachmentId && !isValidUUID(attachmentId)) {
@@ -142,6 +157,7 @@ export class AttachmentController {
       const fileResponse = await this.attachmentService.uploadFile({
         filePromise: file,
         pageId: pageId,
+        templateId,
         spaceId: spaceId,
         userId: user.id,
         workspaceId: workspace.id,
@@ -156,6 +172,7 @@ export class AttachmentController {
         metadata: {
           fileName: fileResponse?.fileName,
           pageId,
+          ...(templateId && { templateId }),
           spaceId,
         },
       });
@@ -202,6 +219,13 @@ export class AttachmentController {
       if (attachment.creatorId !== user.id) {
         throw new NotFoundException();
       }
+    } else if (attachment.templateId) {
+      // readable by anyone who can see the template
+      await this.templateAccess.findViewable(
+        attachment.templateId,
+        user,
+        workspace.id,
+      );
     } else {
       if (!attachment.pageId || !attachment.spaceId) {
         throw new NotFoundException();

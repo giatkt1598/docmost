@@ -44,12 +44,14 @@ export class AttachmentService {
   async uploadFile(opts: {
     filePromise: Promise<MultipartFile>;
     pageId?: string;
+    templateId?: string;
     userId: string;
     spaceId: string;
     workspaceId: string;
     attachmentId?: string;
   }) {
-    const { filePromise, pageId, spaceId, userId, workspaceId } = opts;
+    const { filePromise, pageId, templateId, spaceId, userId, workspaceId } =
+      opts;
     const preparedFile: PreparedFile = await prepareFile(filePromise, {
       skipBuffer: true,
     });
@@ -70,7 +72,8 @@ export class AttachmentService {
       }
 
       if (
-        existingAttachment.pageId !== pageId ||
+        (existingAttachment.pageId ?? null) !== (pageId ?? null) ||
+        (existingAttachment.templateId ?? null) !== (templateId ?? null) ||
         existingAttachment.fileExt !== preparedFile.fileExtension ||
         existingAttachment.workspaceId !== workspaceId
       ) {
@@ -113,6 +116,7 @@ export class AttachmentService {
           spaceId,
           workspaceId,
           pageId,
+          templateId,
         });
       }
 
@@ -262,6 +266,7 @@ export class AttachmentService {
     userId: string;
     workspaceId: string;
     pageId?: string;
+    templateId?: string;
     spaceId?: string;
     trx?: KyselyTransaction;
   }): Promise<Attachment> {
@@ -273,6 +278,7 @@ export class AttachmentService {
       userId,
       workspaceId,
       pageId,
+      templateId,
       spaceId,
       trx,
     } = opts;
@@ -288,6 +294,7 @@ export class AttachmentService {
         creatorId: userId,
         workspaceId: workspaceId,
         pageId: pageId,
+        templateId: templateId ?? null,
         spaceId: spaceId,
       },
       trx,

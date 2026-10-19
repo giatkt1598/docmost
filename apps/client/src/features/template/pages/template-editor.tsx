@@ -12,7 +12,14 @@ import {
   TextInput,
 } from "@mantine/core";
 import { IconArrowLeft, IconTemplate } from "@tabler/icons-react";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { Editor, EditorContent, useEditor } from "@tiptap/react";
+import { useAtomValue } from "jotai";
+import { currentUserAtom } from "@/features/user/atoms/current-user-atom";
+import {
+  handleFileDrop,
+  handlePaste,
+} from "@/features/editor/components/common/editor-paste-handler";
+import { templateUploadTarget } from "@/features/template/template-upload-target";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { DocumentTitle } from "@/components/ui/document-title.tsx";
@@ -116,11 +123,36 @@ function TemplateEditorForm({
   );
 
   const extensions = useMemo(() => mainExtensions, []);
+  const currentUser = useAtomValue(currentUserAtom);
+  const uploadTarget = templateUploadTarget(templateId);
+  const editorRef = useRef<Editor | null>(null);
   const editor = useEditor({
     extensions,
     content: initial.content ?? "",
     editable: canManage,
     immediatelyRender: true,
+    editorProps: {
+      // same paste/drop upload handling as the page editor
+      handlePaste: (_view, event) => {
+        if (!editorRef.current) return false;
+        return handlePaste(
+          editorRef.current,
+          event,
+          uploadTarget,
+          currentUser?.user.id,
+        );
+      },
+      handleDrop: (_view, event, _slice, moved) => {
+        if (!editorRef.current) return false;
+        return handleFileDrop(editorRef.current, event, moved, uploadTarget);
+      },
+    },
+    onCreate: ({ editor }) => {
+      // upload actions read the destination from editor.storage.pageId
+      // @ts-ignore
+      editor.storage.pageId = uploadTarget;
+      editorRef.current = editor;
+    },
     onUpdate: ({ editor }) => queueSave({ content: editor.getJSON() }),
   });
 

@@ -29,6 +29,7 @@ export class AttachmentRepo {
     'creatorId',
     'pageId',
     'spaceId',
+    'templateId',
     'aiChatId',
     'workspaceId',
     'createdAt',
