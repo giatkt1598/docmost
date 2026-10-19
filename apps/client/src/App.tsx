@@ -76,7 +76,7 @@ const AiSettings = lazyWithPrefetch(() => import("@/ee/ai/pages/ai-settings.tsx"
 const BasePage = lazyWithPrefetch(() => import("@/ee/base/pages/base-page.tsx"));
 const AuditLogs = lazyWithPrefetch(() => import("@/ee/audit/pages/audit-logs.tsx"));
 const VerifiedPages = lazyWithPrefetch(
-  () => import("@/ee/page-verification/pages/verified-pages.tsx"),
+  () => import("@/features/page-verification/pages/verified-pages.tsx"),
 );
 const TemplateList = lazyWithPrefetch(() => import("@/ee/template/pages/template-list"));
 const TemplateEditor = lazyWithPrefetch(

@@ -22,6 +22,7 @@ import { CommentNotificationService } from './services/comment.notification';
 import { PageNotificationService } from './services/page.notification';
 import { VerificationNotificationService } from './services/verification.notification';
 import { DomainService } from '../../integrations/environment/domain.service';
+import { PageVerificationScheduler } from '../page-verification/page-verification.scheduler';
 
 @Processor(QueueName.NOTIFICATION_QUEUE)
 export class NotificationProcessor
@@ -190,9 +191,11 @@ export class NotificationProcessor
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       eeModule = require('../../ee/page-verification/page-verification-scheduler.service');
     } catch {
-      this.logger.debug(
-        'VERIFICATION_RECONCILE fired but EE scheduler not bundled in this build',
-      );
+      // without the enterprise build, fall back to the core recurring-verification scheduler
+      const coreScheduler = this.moduleRef.get(PageVerificationScheduler, {
+        strict: false,
+      });
+      await coreScheduler?.reconcile();
       return;
     }
 

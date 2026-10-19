@@ -12,7 +12,8 @@ import { getSsoProviders } from "@/ee/security/services/security-service.ts";
 import { getShares } from "@/features/share/services/share-service.ts";
 import { getApiKeys } from "@/ee/api-key";
 import { getAuditLogs } from "@/ee/audit/services/audit-service";
-import { getVerificationList } from "@/ee/page-verification/services/page-verification-service";
+import { getPageVerifications } from "@/features/page-verification/services/page-verification-service";
+import { VERIFICATION_LIST_KEY } from "@/features/page-verification/queries/page-verification-query";
 import { getScimTokens } from "@/ee/scim/services/scim-token-service";
 
 export const prefetchWorkspaceMembers = () => {
@@ -93,10 +94,11 @@ export const prefetchAuditLogs = () => {
 };
 
 export const prefetchVerifiedPages = () => {
-  const params = { limit: 50 };
+  // matches the default params of the Verified pages settings page
+  const params = { limit: 20 };
   queryClient.prefetchQuery({
-    queryKey: ["verification-list", params],
-    queryFn: () => getVerificationList(params),
+    queryKey: [VERIFICATION_LIST_KEY, params],
+    queryFn: () => getPageVerifications(params),
   });
 };
 

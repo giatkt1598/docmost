@@ -50,10 +50,8 @@ import PageAttachmentsModal from "@/features/attachments/components/page-attachm
 import PresentationModal from "@/features/editor/components/presentation/presentation-modal.tsx";
 import { useTimeAgo } from "@/hooks/use-time-ago.tsx";
 import { PageShareModal } from "@/ee/page-permission";
-import {
-  PageVerificationMenuItem,
-  PageVerificationModal,
-} from "@/ee/page-verification";
+import { PageVerificationMenuItem } from "@/features/page-verification/components/page-verification-menu-item";
+import { PageVerificationModal } from "@/features/page-verification/components/page-verification-modal";
 import {
   useFavoriteIds,
   useAddFavoriteMutation,
