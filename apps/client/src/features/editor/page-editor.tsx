@@ -87,6 +87,7 @@ import { BasePasteMenu } from "@/features/editor/components/base-embed/base-past
 import { getInstalledIntegrations } from "@/features/integration/services/integration-service";
 import { TransclusionLookupProvider } from "@/features/editor/components/transclusion/transclusion-lookup-context";
 import { useTranslation } from "react-i18next";
+import { isSuggestionMenuKey } from "@/features/editor/utils/suggestion-menu-keys";
 import {
   acquireCollabSocket,
   getCollabSocket,
@@ -317,25 +318,8 @@ function CollabPageEditor({
               searchSpotlight.open();
               return true;
             }
-            if (["ArrowUp", "ArrowDown", "Enter"].includes(event.key)) {
-              const slashCommand = document.querySelector("#slash-command");
-              if (slashCommand) {
-                return true;
-              }
-            }
-            if (
-              [
-                "ArrowUp",
-                "ArrowDown",
-                "ArrowLeft",
-                "ArrowRight",
-                "Enter",
-              ].includes(event.key)
-            ) {
-              const emojiCommand = document.querySelector("#emoji-command");
-              if (emojiCommand) {
-                return true;
-              }
+            if (isSuggestionMenuKey(event)) {
+              return true;
             }
           },
         },

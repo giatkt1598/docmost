@@ -20,6 +20,7 @@ import {
   handlePaste,
 } from "@/features/editor/components/common/editor-paste-handler";
 import { templateUploadTarget } from "@/features/template/template-upload-target";
+import { isSuggestionMenuKey } from "@/features/editor/utils/suggestion-menu-keys";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { DocumentTitle } from "@/components/ui/document-title.tsx";
@@ -132,6 +133,10 @@ function TemplateEditorForm({
     editable: canManage,
     immediatelyRender: true,
     editorProps: {
+      handleDOMEvents: {
+        // let the slash and emoji menus own the navigation keys
+        keydown: (_view, event) => isSuggestionMenuKey(event) || undefined,
+      },
       // same paste/drop upload handling as the page editor
       handlePaste: (_view, event) => {
         if (!editorRef.current) return false;
