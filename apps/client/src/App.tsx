@@ -96,6 +96,9 @@ const Connections = lazyWithPrefetch(
 const McpTokens = lazyWithPrefetch(
   () => import("@/pages/settings/account/mcp-tokens.tsx"),
 );
+const AiMcpSettings = lazyWithPrefetch(
+  () => import("@/pages/settings/ai/ai-mcp-settings.tsx"),
+);
 
 export default function App() {
   const { t } = useTranslation();
@@ -205,7 +208,7 @@ export default function App() {
             <Route path={"sharing"} element={<Shares />} />
             <Route path={"security"} element={<Security />} />
             <Route path={"ai"} element={<AiSettings />} />
-            <Route path={"ai/mcp"} element={<AiSettings />} />
+            <Route path={"ai/mcp"} element={<AiMcpSettings />} />
             <Route path={"audit"} element={<AuditLogs />} />
             <Route path={"audit/siem"} element={<AuditLogs />} />
             <Route
