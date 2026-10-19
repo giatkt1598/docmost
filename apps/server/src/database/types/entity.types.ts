@@ -11,6 +11,7 @@ import {
   Integrations as _Integrations,
   IntegrationConnections as _IntegrationConnections,
   Labels,
+  McpTokens,
   Notifications,
   PageLabels,
   PageAccess as _PageAccess,
@@ -231,6 +232,11 @@ export type InsertableIntegrationConnection =
 export type UpdatableIntegrationConnection = Updateable<
   Omit<_IntegrationConnections, 'id'>
 >;
+
+// MCP Token
+export type McpToken = Selectable<McpTokens>;
+export type InsertableMcpToken = Insertable<McpTokens>;
+export type UpdatableMcpToken = Updateable<Omit<McpTokens, 'id'>>;
 
 // Label
 export type Label = Selectable<Labels>;

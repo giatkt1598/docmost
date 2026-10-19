@@ -14,6 +14,7 @@ import {
   IconWorld,
   IconSparkles,
   IconPlug,
+  IconPlugConnected,
   IconHistory,
   IconShieldCheck,
 } from "@tabler/icons-react";
@@ -45,6 +46,7 @@ import { mobileSidebarAtom } from "@/components/layouts/global/hooks/atoms/sideb
 import { useToggleSidebar } from "@/components/layouts/global/hooks/hooks/use-toggle-sidebar.ts";
 import { useSettingsNavigation } from "@/hooks/use-settings-navigation";
 import { useInstalledIntegrations } from "@/features/integration/queries/integration-query";
+import { useMcpServerInfoQuery } from "@/features/mcp/queries/mcp-token-query";
 
 type DataItem = {
   label: string;
@@ -54,6 +56,7 @@ type DataItem = {
   role?: "admin" | "owner";
   env?: "cloud" | "selfhosted";
   requiresInstalledIntegration?: boolean;
+  requiresMcpServer?: boolean;
 };
 
 type DataGroup = {
@@ -82,6 +85,12 @@ const groupedData: DataGroup[] = [
         icon: IconPlug,
         path: "/settings/account/connections",
         requiresInstalledIntegration: true,
+      },
+      {
+        label: "MCP",
+        icon: IconPlugConnected,
+        path: "/settings/account/mcp",
+        requiresMcpServer: true,
       },
     ],
   },
@@ -170,6 +179,7 @@ export default function SettingsSidebar() {
   }, [location.pathname]);
 
   const { data: installedIntegrations } = useInstalledIntegrations();
+  const { data: mcpServerInfo } = useMcpServerInfoQuery();
 
   const hasFeature = (f: string) =>
     entitlements?.features?.includes(f) ?? false;
@@ -180,6 +190,9 @@ export default function SettingsSidebar() {
     if (item.role === "admin" && !isAdmin) return false;
     if (item.role === "owner" && !isOwner) return false;
     if (item.requiresInstalledIntegration && !installedIntegrations?.length) {
+      return false;
+    }
+    if (item.requiresMcpServer && !mcpServerInfo?.enabled) {
       return false;
     }
     return true;

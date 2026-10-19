@@ -1,0 +1,63 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { notifications } from "@mantine/notifications";
+import { useTranslation } from "react-i18next";
+import {
+  createMcpToken,
+  getMcpServerInfo,
+  getMcpTokens,
+  revokeMcpToken,
+} from "@/features/mcp/services/mcp-token-service";
+import { ICreateMcpToken } from "@/features/mcp/types/mcp-token.types";
+
+const MCP_TOKENS_KEY = "mcp-tokens";
+const MCP_SERVER_INFO_KEY = "mcp-server-info";
+
+export function useMcpServerInfoQuery() {
+  return useQuery({
+    queryKey: [MCP_SERVER_INFO_KEY],
+    queryFn: getMcpServerInfo,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useMcpTokensQuery(enabled = true) {
+  return useQuery({
+    queryKey: [MCP_TOKENS_KEY],
+    queryFn: getMcpTokens,
+    enabled,
+  });
+}
+
+export function useCreateMcpTokenMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ICreateMcpToken) => createMcpToken(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [MCP_TOKENS_KEY] });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        message: error?.response?.data?.message ?? error.message,
+        color: "red",
+      });
+    },
+  });
+}
+
+export function useRevokeMcpTokenMutation() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  return useMutation({
+    mutationFn: (tokenId: string) => revokeMcpToken(tokenId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [MCP_TOKENS_KEY] });
+      notifications.show({ message: t("Token revoked") });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        message: error?.response?.data?.message ?? error.message,
+        color: "red",
+      });
+    },
+  });
+}

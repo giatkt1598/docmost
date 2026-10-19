@@ -571,6 +571,18 @@ export interface IntegrationConnections {
   updatedAt: Generated<Timestamp>;
 }
 
+export interface McpTokens {
+  id: Generated<string>;
+  name: string;
+  tokenHash: string;
+  userId: string;
+  workspaceId: string;
+  lastUsedAt: Timestamp | null;
+  expiresAt: Timestamp | null;
+  revokedAt: Timestamp | null;
+  createdAt: Generated<Timestamp>;
+}
+
 export interface Labels {
   id: Generated<string>;
   name: string;
@@ -779,6 +791,7 @@ export interface DB {
   integrationConnections: IntegrationConnections;
   integrations: Integrations;
   labels: Labels;
+  mcpTokens: McpTokens;
   notifications: Notifications;
   pageAccess: PageAccess;
   pageTransclusionReferences: PageTransclusionReferences;

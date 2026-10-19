@@ -378,6 +378,13 @@ export class EnvironmentService {
     return disabled === 'true';
   }
 
+  isMcpServerEnabled(): boolean {
+    const enabled = this.configService
+      .get<string>('MCP_SERVER_ENABLED', 'false')
+      .toLowerCase();
+    return enabled === 'true';
+  }
+
   isIframeEmbedAllowed(): boolean {
     const allowed = this.configService
       .get<string>('IFRAME_EMBED_ALLOWED', 'false')
