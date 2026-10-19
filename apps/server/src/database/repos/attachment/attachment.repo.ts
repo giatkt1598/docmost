@@ -204,6 +204,33 @@ export class AttachmentRepo {
       .execute();
   }
 
+  // Page-level restrictions are not applied here; callers must filter by page access.
+  async searchByFileName(opts: {
+    workspaceId: string;
+    spaceIds: string[];
+    query: string;
+    limit: number;
+  }): Promise<Attachment[]> {
+    if (opts.spaceIds.length === 0) return [];
+
+    return this.db
+      .selectFrom('attachments')
+      .innerJoin('pages', 'pages.id', 'attachments.pageId')
+      .selectAll('attachments')
+      .where('attachments.workspaceId', '=', opts.workspaceId)
+      .where('attachments.spaceId', 'in', opts.spaceIds)
+      .where('attachments.deletedAt', 'is', null)
+      .where('pages.deletedAt', 'is', null)
+      .where(
+        sql`f_unaccent(attachments.file_name)`,
+        'ilike',
+        sql`f_unaccent(${'%' + opts.query + '%'})`,
+      )
+      .orderBy('attachments.createdAt', 'desc')
+      .limit(opts.limit)
+      .execute();
+  }
+
   async deleteAttachmentById(attachmentId: string): Promise<void> {
     await this.db
       .deleteFrom('attachments')
