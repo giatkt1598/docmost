@@ -16,9 +16,11 @@ import {
   IconPrinter,
   IconStar,
   IconStarFilled,
+  IconTemplate,
   IconTrash,
   IconWifiOff,
 } from "@tabler/icons-react";
+import { CreateTemplateModal } from "@/features/template/components/create-template-modal";
 import { useEffect, useRef, useState } from "react";
 import type { Content } from "@tiptap/react";
 import { useAsideTriggerProps } from "@/hooks/use-toggle-aside.tsx";
@@ -167,6 +169,10 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
   const [
     verificationOpened,
     { open: openVerificationModal, close: closeVerificationModal },
+  ] = useDisclosure(false);
+  const [
+    saveAsTemplateOpened,
+    { open: openSaveAsTemplate, close: closeSaveAsTemplate },
   ] = useDisclosure(false);
   const [
     attachmentsOpened,
@@ -349,6 +355,15 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
             />
           )}
 
+          {!readOnly && !page?.isBase && (
+            <Menu.Item
+              leftSection={<IconTemplate size={16} />}
+              onClick={openSaveAsTemplate}
+            >
+              {t("Save as template")}
+            </Menu.Item>
+          )}
+
           <Menu.Divider />
 
           {!readOnly && (
@@ -443,6 +458,14 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
         pageId={page.id}
         opened={verificationOpened}
         onClose={closeVerificationModal}
+      />
+
+      <CreateTemplateModal
+        opened={saveAsTemplateOpened}
+        onClose={closeSaveAsTemplate}
+        sourcePageId={page.id}
+        defaultTitle={page.title ?? ""}
+        defaultSpaceId={page.spaceId}
       />
 
       <PageAttachmentsModal

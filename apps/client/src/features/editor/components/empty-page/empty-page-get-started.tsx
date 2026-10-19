@@ -18,13 +18,13 @@ import {
 } from "@/features/editor/atoms/editor-atoms";
 import { useHasFeature } from "@/ee/hooks/use-feature";
 import { Feature } from "@/ee/features";
-import { ITemplate } from "@/ee/template/types/template.types";
-import { getTemplateById } from "@/ee/template/services/template-service.ts";
-import { applyTemplateToPage } from "@/ee/template/template.utils";
+import { ITemplate } from "@/features/template/types/template.types";
+import { getTemplateById } from "@/features/template/services/template-service";
+import { applyTemplateToPage } from "@/features/template/template.utils";
 import classes from "./empty-page-get-started.module.css";
 
 const TemplatePickerModal = lazy(
-  () => import("@/ee/template/components/template-picker-modal"),
+  () => import("@/features/template/components/template-picker-modal"),
 );
 
 type EmptyPageGetStartedProps = {
@@ -43,7 +43,6 @@ export function EmptyPageGetStarted({
   const titleEditor = useAtomValue(titleEditorAtom);
   const isSynced = useAtomValue(yjsSyncedAtom);
   const hasBases = useHasFeature(Feature.BASES);
-  const hasTemplates = useHasFeature(Feature.TEMPLATES);
   const convertMutation = useConvertPageToBaseMutation();
   const [
     templatePickerOpened,
@@ -112,17 +111,13 @@ export function EmptyPageGetStarted({
           },
         ]
       : []),
-    ...(hasTemplates
-      ? [
-          {
-            key: "template",
-            label: t("Template"),
-            icon: IconTemplate,
-            onClick: openTemplatePicker,
-            disabled: false,
-          },
-        ]
-      : []),
+    {
+      key: "template",
+      label: t("Template"),
+      icon: IconTemplate,
+      onClick: openTemplatePicker,
+      disabled: false,
+    },
   ];
 
   const showChips =
@@ -151,7 +146,7 @@ export function EmptyPageGetStarted({
         </div>
       )}
 
-      {hasTemplates && templatePickerOpened && (
+      {templatePickerOpened && (
         <ErrorBoundary fallbackRender={() => null}>
           <Suspense fallback={null}>
             <TemplatePickerModal

@@ -78,9 +78,11 @@ const AuditLogs = lazyWithPrefetch(() => import("@/ee/audit/pages/audit-logs.tsx
 const VerifiedPages = lazyWithPrefetch(
   () => import("@/features/page-verification/pages/verified-pages.tsx"),
 );
-const TemplateList = lazyWithPrefetch(() => import("@/ee/template/pages/template-list"));
+const TemplateList = lazyWithPrefetch(
+  () => import("@/features/template/pages/template-list"),
+);
 const TemplateEditor = lazyWithPrefetch(
-  () => import("@/ee/template/pages/template-editor"),
+  () => import("@/features/template/pages/template-editor"),
 );
 const FavoritesPage = lazyWithPrefetch(() => import("@/pages/favorites/favorites-page"));
 const AiChat = lazyWithPrefetch(() => import("@/ee/ai-chat/pages/ai-chat.tsx"));

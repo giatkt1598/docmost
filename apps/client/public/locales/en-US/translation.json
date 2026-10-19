@@ -1614,5 +1614,12 @@
   "Verification updated": "Verification updated",
   "Verification removed": "Verification removed",
   "Page verified": "Page verified",
-  "Not verified": "Not verified"
+  "Not verified": "Not verified",
+  "Template created": "Template created",
+  "Save as template": "Save as template",
+  "Global templates are available in every space. Only workspace admins can create them.": "Global templates are available in every space. Only workspace admins can create them.",
+  "Choose where to create the page": "Choose where to create the page",
+  "You can use this template but not edit it.": "You can use this template but not edit it.",
+  "No description": "No description",
+  "Template deleted": "Template deleted"
 }
