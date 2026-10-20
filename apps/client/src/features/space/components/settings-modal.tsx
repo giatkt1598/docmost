@@ -98,19 +98,28 @@ export default function SpaceSettingsModal({
                 </Tabs.Panel>
 
                 <Tabs.Panel value="members">
-                  <Group my="md" justify="flex-end">
-                    {spaceAbility.can(
-                      SpaceCaslAction.Manage,
-                      SpaceCaslSubject.Member,
-                    ) && <AddSpaceMembersModal spaceId={space?.id} />}
-                  </Group>
+                  {space?.isPersonal ? (
+                    <Text size="sm" c="dimmed" my="md">
+                      {t("Only you can access your personal space.")}
+                    </Text>
+                  ) : (
+                    <Group my="md" justify="flex-end">
+                      {spaceAbility.can(
+                        SpaceCaslAction.Manage,
+                        SpaceCaslSubject.Member,
+                      ) && <AddSpaceMembersModal spaceId={space?.id} />}
+                    </Group>
+                  )}
 
                   <SpaceMembersList
                     spaceId={space?.id}
-                    readOnly={spaceAbility.cannot(
-                      SpaceCaslAction.Manage,
-                      SpaceCaslSubject.Member,
-                    )}
+                    readOnly={
+                      space?.isPersonal ||
+                      spaceAbility.cannot(
+                        SpaceCaslAction.Manage,
+                        SpaceCaslSubject.Member,
+                      )
+                    }
                   />
                 </Tabs.Panel>
 

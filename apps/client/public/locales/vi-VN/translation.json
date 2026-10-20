@@ -1892,5 +1892,6 @@
   "Optional. Trust a private certificate authority for TLS.": "Không bắt buộc. Tin cậy một CA riêng cho TLS.",
   "ACS URL": "URL ACS",
   "Where your identity provider sends the SAML response.": "Nơi nhà cung cấp danh tính gửi phản hồi SAML.",
-  "Entity ID / metadata URL": "Entity ID / URL metadata"
+  "Entity ID / metadata URL": "Entity ID / URL metadata",
+  "Only you can access your personal space.": "Chỉ bạn mới truy cập được không gian cá nhân của mình."
 }

@@ -1892,5 +1892,6 @@
   "Optional. Trust a private certificate authority for TLS.": "Optional. Trust a private certificate authority for TLS.",
   "ACS URL": "ACS URL",
   "Where your identity provider sends the SAML response.": "Where your identity provider sends the SAML response.",
-  "Entity ID / metadata URL": "Entity ID / metadata URL"
+  "Entity ID / metadata URL": "Entity ID / metadata URL",
+  "Only you can access your personal space.": "Only you can access your personal space."
 }

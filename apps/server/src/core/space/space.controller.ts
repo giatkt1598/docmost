@@ -35,6 +35,7 @@ import {
 } from '../casl/interfaces/workspace-ability.type';
 import WorkspaceAbilityFactory from '../casl/abilities/workspace-ability.factory';
 import { CreateSpaceDto } from './dto/create-space.dto';
+import { SpaceRepo } from '@docmost/db/repos/space/space.repo';
 
 @UseGuards(JwtAuthGuard)
 @Controller('spaces')
@@ -45,6 +46,7 @@ export class SpaceController {
     private readonly spaceMemberRepo: SpaceMemberRepo,
     private readonly spaceAbility: SpaceAbilityFactory,
     private readonly workspaceAbility: WorkspaceAbilityFactory,
+    private readonly spaceRepo: SpaceRepo,
   ) {}
 
   @HttpCode(HttpStatus.OK)
@@ -225,6 +227,7 @@ export class SpaceController {
     if (ability.cannot(SpaceCaslAction.Manage, SpaceCaslSubject.Member)) {
       throw new ForbiddenException();
     }
+    await this.assertNotPersonalSpace(dto.spaceId, workspace.id);
 
     return this.spaceMemberService.addMembersToSpaceBatch(
       dto,
@@ -246,6 +249,7 @@ export class SpaceController {
     if (ability.cannot(SpaceCaslAction.Manage, SpaceCaslSubject.Member)) {
       throw new ForbiddenException();
     }
+    await this.assertNotPersonalSpace(dto.spaceId, workspace.id);
 
     return this.spaceMemberService.removeMemberFromSpace(dto, workspace.id);
   }
@@ -263,8 +267,19 @@ export class SpaceController {
     if (ability.cannot(SpaceCaslAction.Manage, SpaceCaslSubject.Member)) {
       throw new ForbiddenException();
     }
+    await this.assertNotPersonalSpace(dto.spaceId, workspace.id);
 
     return this.spaceMemberService.updateSpaceMemberRole(dto, workspace.id);
+  }
+
+  // personal spaces belong to their creator alone
+  private async assertNotPersonalSpace(spaceId: string, workspaceId: string) {
+    const space = await this.spaceRepo.findById(spaceId, workspaceId);
+    if (space?.isPersonal) {
+      throw new BadRequestException(
+        'Personal spaces cannot have other members',
+      );
+    }
   }
 
   validateIds(dto: RemoveSpaceMemberDto | UpdateSpaceMemberRoleDto) {

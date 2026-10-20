@@ -401,17 +401,6 @@ export class WorkspaceService {
         }
       }
 
-      if (typeof updateWorkspaceDto.allowPersonalSpaces !== 'undefined') {
-        if (
-          !this.licenseCheckService.hasFeature(
-            ws.licenseKey,
-            Feature.PERSONAL_SPACES,
-            ws.plan,
-          )
-        ) {
-          throw new ForbiddenException('This feature requires a valid license');
-        }
-      }
 
       if (
         typeof updateWorkspaceDto.aiChatReadOnly !== 'undefined' ||
