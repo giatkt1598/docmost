@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { AuthService } from './services/auth.service';
 import {
+  CORE_MFA_SUPPORTED,
   CORE_SSO_PROVIDER_TYPES,
   isMfaSupported,
   isSsoProviderTypeSupported,
@@ -9,9 +10,7 @@ import {
 describe('auth capabilities without the enterprise build', () => {
   it('reports MFA support only when an implementation exists', () => {
     // the ee submodule is not bundled in this checkout
-    expect(isMfaSupported()).toBe(
-      require('./auth-capabilities').CORE_MFA_SUPPORTED,
-    );
+    expect(isMfaSupported()).toBe(CORE_MFA_SUPPORTED);
   });
 
   it('only supports SSO provider types core implements', () => {

@@ -1840,5 +1840,8 @@
   "Pages you favorite will show up here.": "Pages you favorite will show up here.",
   "Page not found": "Page not found",
   "Sign-up restrictions": "Sign-up restrictions",
-  "Only users with email addresses from these domains can join this workspace through invitations or SSO.": "Only users with email addresses from these domains can join this workspace through invitations or SSO."
+  "Only users with email addresses from these domains can join this workspace through invitations or SSO.": "Only users with email addresses from these domains can join this workspace through invitations or SSO.",
+  "{{count}} backup codes left": "{{count}} backup codes left",
+  "Failed to set up MFA": "Failed to set up MFA",
+  "Your sign-in session has expired. Please log in again.": "Your sign-in session has expired. Please log in again."
 }

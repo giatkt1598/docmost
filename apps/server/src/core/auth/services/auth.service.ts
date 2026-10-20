@@ -67,6 +67,16 @@ export class AuthService {
   ) {}
 
   async login(loginDto: LoginDto, workspaceId: string) {
+    const user = await this.verifyCredentials(loginDto, workspaceId);
+    return this.completeLogin(user, workspaceId, 'password');
+  }
+
+  // First half of a login: checks the password but creates no session, so
+  // a second factor can be required before completeLogin.
+  async verifyCredentials(
+    loginDto: LoginDto,
+    workspaceId: string,
+  ): Promise<User> {
     const user = await this.userRepo.findByEmail(loginDto.email, workspaceId, {
       includePassword: true,
     });
@@ -93,6 +103,15 @@ export class AuthService {
       appSecret: this.environmentService.getAppSecret(),
     });
 
+    return user;
+  }
+
+  // Second half of a login: records it and issues the session token.
+  async completeLogin(
+    user: User,
+    workspaceId: string,
+    source: string,
+  ): Promise<string> {
     user.lastLoginAt = new Date();
     await this.userRepo.updateLastLogin(user.id, workspaceId);
 
@@ -100,7 +119,7 @@ export class AuthService {
       event: AuditEvent.USER_LOGIN,
       resourceType: AuditResource.USER,
       resourceId: user.id,
-      metadata: { source: 'password' },
+      metadata: { source },
     });
 
     return this.sessionService.createSessionAndToken(user);

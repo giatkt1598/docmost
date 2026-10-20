@@ -4,6 +4,7 @@ import SettingsTitle from "@/components/settings/settings-title.tsx";
 import { DocumentTitle } from "@/components/ui/document-title.tsx";
 import useUserRole from "@/hooks/use-user-role.tsx";
 import { DisablePublicSharing } from "@/features/security/components/disable-public-sharing";
+import { EnforceMfa } from "@/features/security/components/enforce-mfa";
 import { TrashRetention } from "@/features/security/components/trash-retention";
 import { AllowedDomains } from "@/features/security/components/allowed-domains";
 
@@ -18,6 +19,8 @@ export default function SecuritySettings() {
       <DocumentTitle title={t("Security")} />
       <SettingsTitle title={t("Security")} />
 
+      <EnforceMfa />
+      <Divider my="lg" />
       <DisablePublicSharing />
       <Divider my="lg" />
       <TrashRetention />

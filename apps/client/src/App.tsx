@@ -59,15 +59,11 @@ const PublicSpaceDirectoryPage = lazyWithPrefetch(
   () => import("@/pages/public-space/public-space-directory-page.tsx"),
 );
 const SpacesPage = lazyWithPrefetch(() => import("@/pages/spaces/spaces.tsx"));
-const MfaChallengePage = lazyWithPrefetch(() =>
-  import("@/ee/mfa/pages/mfa-challenge-page").then((m) => ({
-    default: m.MfaChallengePage,
-  })),
+const MfaChallengePage = lazyWithPrefetch(
+  () => import("@/pages/auth/two-factor-challenge.tsx"),
 );
-const MfaSetupRequiredPage = lazyWithPrefetch(() =>
-  import("@/ee/mfa/pages/mfa-setup-required-page").then((m) => ({
-    default: m.MfaSetupRequiredPage,
-  })),
+const MfaSetupRequiredPage = lazyWithPrefetch(
+  () => import("@/pages/auth/two-factor-setup-required.tsx"),
 );
 const SpaceTrash = lazyWithPrefetch(() => import("@/pages/space/space-trash.tsx"));
 const UserApiKeys = lazyWithPrefetch(() => import("@/ee/api-key/pages/user-api-keys"));

@@ -31,6 +31,9 @@ import { PasswordResetDto } from './dto/password-reset.dto';
 import { VerifyUserTokenDto } from './dto/verify-user-token.dto';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { ModuleRef } from '@nestjs/core';
+import { TwoFactorService } from '../two-factor/two-factor.service';
+import { TokenService } from './services/token.service';
+import { setMfaTokenCookie } from './auth-cookies';
 import { AuditEvent, AuditResource } from '../../common/events/audit-events';
 import {
   AUDIT_SERVICE,
@@ -49,6 +52,8 @@ export class AuthController {
     private environmentService: EnvironmentService,
     private moduleRef: ModuleRef,
     @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
+    private twoFactorService: TwoFactorService,
+    private tokenService: TokenService,
   ) {}
 
   @HttpCode(HttpStatus.OK)
@@ -102,7 +107,36 @@ export class AuthController {
       }
     }
 
-    const authToken = await this.authService.login(loginInput, workspace.id);
+    // core two-factor: check the password, then require the second step
+    // before any session is issued
+    const user = await this.authService.verifyCredentials(
+      loginInput,
+      workspace.id,
+    );
+    const requirement = await this.twoFactorService.getLoginRequirement(
+      user,
+      workspace,
+    );
+    if (requirement !== 'none') {
+      setMfaTokenCookie(
+        res,
+        await this.tokenService.generateMfaToken(user, workspace.id),
+        this.environmentService,
+      );
+      return requirement === 'verify'
+        ? {
+            userHasMfa: true,
+            requiresMfaSetup: false,
+            isMfaEnforced: !!workspace.enforceMfa,
+          }
+        : { userHasMfa: false, requiresMfaSetup: true, isMfaEnforced: true };
+    }
+
+    const authToken = await this.authService.completeLogin(
+      user,
+      workspace.id,
+      'password',
+    );
     this.setAuthCookie(res, authToken);
   }
 

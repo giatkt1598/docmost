@@ -1,6 +1,6 @@
 import React from "react";
-import { MfaSettings } from "@/ee/mfa";
+import { TwoFactorSettings } from "@/features/two-factor/components/two-factor-settings";
 
 export function AccountMfaSection() {
-  return <MfaSettings />;
+  return <TwoFactorSettings />;
 }

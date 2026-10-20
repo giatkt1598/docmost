@@ -19,6 +19,8 @@ export enum EncryptionPurpose {
   SIEM_CREDENTIALS = 'siem-credentials',
   INTEGRATION_TOKENS = 'integration-tokens',
   OAUTH_COMPLETION = 'oauth-completion',
+  MFA_SECRET = 'mfa-secret',
+  SSO_CREDENTIALS = 'sso-credentials',
 }
 
 const KEY_ID = 'app-secret';
