@@ -60,6 +60,7 @@ export class OidcService {
     }
 
     return {
+      idToken: tokens.id_token,
       providerUserId: String(claims.sub),
       email: claims.email,
       name:
@@ -74,6 +75,21 @@ export class OidcService {
         ? claims.groups.map(String)
         : undefined,
     };
+  }
+
+  // RP-initiated logout; null when the provider has no end_session_endpoint
+  async buildLogoutUrl(
+    provider: OidcProvider,
+    idToken: string,
+    postLogoutRedirectUri: string,
+  ): Promise<string | null> {
+    const config = await this.getConfig(provider);
+    if (!config.serverMetadata().end_session_endpoint) return null;
+    return oidc.buildEndSessionUrl(config, {
+      id_token_hint: idToken,
+      post_logout_redirect_uri: postLogoutRedirectUri,
+      client_id: provider.oidcClientId,
+    }).href;
   }
 
   private async getConfig(provider: OidcProvider): Promise<oidc.Configuration> {

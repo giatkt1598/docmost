@@ -111,6 +111,8 @@ export class AuthService {
     user: User,
     workspaceId: string,
     source: string,
+    // stored on the session, e.g. what is needed to sign out of an IdP
+    sessionMetadata?: Record<string, unknown>,
   ): Promise<string> {
     user.lastLoginAt = new Date();
     await this.userRepo.updateLastLogin(user.id, workspaceId);
@@ -122,7 +124,7 @@ export class AuthService {
       metadata: { source },
     });
 
-    return this.sessionService.createSessionAndToken(user);
+    return this.sessionService.createSessionAndToken(user, sessionMetadata);
   }
 
   async register(createUserDto: CreateUserDto, workspaceId: string) {

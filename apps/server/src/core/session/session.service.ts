@@ -4,6 +4,7 @@ import { TokenService } from '../auth/services/token.service';
 import { UserSessionRepo } from '@docmost/db/repos/session/user-session.repo';
 import { EnvironmentService } from '../../integrations/environment/environment.service';
 import { User } from '@docmost/db/types/entity.types';
+import { Json } from '@docmost/db/types/db';
 import { ClsService } from 'nestjs-cls';
 import {
   AuditContext,
@@ -38,7 +39,10 @@ export class SessionService {
     }
   }
 
-  async createSessionAndToken(user: User): Promise<string> {
+  async createSessionAndToken(
+    user: User,
+    metadata?: Record<string, unknown>,
+  ): Promise<string> {
     const auditContext = this.cls.get<AuditContext>(AUDIT_CONTEXT_KEY);
     const ipAddress = auditContext?.ipAddress ?? null;
     const userAgent = auditContext?.userAgent ?? null;
@@ -52,6 +56,7 @@ export class SessionService {
       deviceName,
       ipAddress,
       expiresAt,
+      ...(metadata && { metadata: metadata as Json }),
     });
 
     return this.tokenService.generateAccessToken(user, session.id);

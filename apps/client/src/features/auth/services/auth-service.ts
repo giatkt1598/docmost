@@ -16,8 +16,10 @@ export async function login(data: ILogin): Promise<ILoginResponse> {
   return response.data;
 }
 
-export async function logout(): Promise<void> {
-  await api.post<void>("/auth/logout");
+// logoutUrl is set when the identity provider session should end too
+export async function logout(): Promise<{ logoutUrl?: string } | undefined> {
+  const req = await api.post<{ logoutUrl?: string }>("/auth/logout");
+  return req?.data;
 }
 
 export async function changePassword(

@@ -8,6 +8,7 @@ import { SsoLoginService } from './sso-login.service';
 import { OidcService } from './oidc.service';
 import { LdapService } from './ldap.service';
 import { SamlService } from './saml.service';
+import { SsoLogoutService } from './sso-logout.service';
 
 @Module({
   imports: [AuthModule, TokenModule],
@@ -18,7 +19,8 @@ import { SamlService } from './saml.service';
     OidcService,
     LdapService,
     SamlService,
+    SsoLogoutService,
   ],
-  exports: [SsoProviderService, SsoLoginService],
+  exports: [SsoProviderService, SsoLoginService, SsoLogoutService],
 })
 export class SsoModule {}

@@ -15,6 +15,14 @@ import { SignupService } from '../auth/services/signup.service';
 import { AuthService } from '../auth/services/auth.service';
 import { validateAllowedEmail } from '../auth/auth.util';
 import { isUserDisabled } from '../../common/helpers';
+import {
+  EncryptionPurpose,
+  EncryptionService,
+} from '../../integrations/encryption/encryption.service';
+
+export type SsoSessionMetadata = {
+  sso: { providerId: string; idToken: string };
+};
 
 export type SsoIdentity = {
   providerUserId: string;
@@ -22,6 +30,8 @@ export type SsoIdentity = {
   name?: string | null;
   emailVerified?: boolean;
   groups?: string[];
+  // OIDC only: kept (encrypted) on the session for signing out of the IdP
+  idToken?: string;
 };
 
 type LoginProvider = {
@@ -43,6 +53,7 @@ export class SsoLoginService {
     private readonly authProviderRepo: AuthProviderRepo,
     private readonly signupService: SignupService,
     private readonly authService: AuthService,
+    private readonly encryptionService: EncryptionService,
   ) {}
 
   async login(
@@ -55,6 +66,17 @@ export class SsoLoginService {
       user,
       workspace.id,
       `sso:${provider.type}`,
+      identity.idToken
+        ? ({
+            sso: {
+              providerId: provider.id,
+              idToken: this.encryptionService.encrypt(
+                identity.idToken,
+                EncryptionPurpose.SSO_CREDENTIALS,
+              ),
+            },
+          } satisfies SsoSessionMetadata)
+        : undefined,
     );
     return { user, authToken };
   }

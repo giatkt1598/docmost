@@ -1,4 +1,7 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
+
+// openid-client is ESM-only; the logout service only needs the class token
+jest.mock('./oidc.service', () => ({ OidcService: class {} }));
 import { SsoLoginService } from './sso-login.service';
 import { GOOGLE_ISSUER, SsoProviderService } from './sso-provider.service';
 import {
@@ -59,6 +62,7 @@ function loginService(opts: { existing?: any; account?: any } = {}) {
     deps.authProviderRepo as any,
     deps.signupService as any,
     deps.authService as any,
+    { encrypt: (v: string) => `enc:${v}` } as any,
   );
   return { service, deps };
 }
@@ -83,8 +87,19 @@ describe('SsoLoginService', () => {
       { id: 'u_1' },
       'ws_1',
       'sso:oidc',
+      undefined,
     );
     expect(result.authToken).toBe('token');
+  });
+
+  it('keeps the encrypted id token on the session for IdP logout', async () => {
+    const { service, deps } = loginService({ existing: { id: 'u_1' } });
+
+    await service.login(provider, workspace, { ...identity, idToken: 'idt' });
+
+    expect(deps.authService.completeLogin.mock.calls[0][3]).toEqual({
+      sso: { providerId: 'prov_1', idToken: 'enc:idt' },
+    });
   });
 
   it('prefers the linked account over the email', async () => {
@@ -365,5 +380,66 @@ describe('trustedReturnOrigin', () => {
     expect(trustedReturnOrigin('https://evil.com', app, true)).toBeUndefined();
     expect(trustedReturnOrigin('http://undefined', app, true)).toBeUndefined();
     expect(trustedReturnOrigin('garbage', app, true)).toBeUndefined();
+  });
+});
+
+describe('SsoLogoutService', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { SsoLogoutService } = require('./sso-logout.service');
+  const ws = { ...workspace, hostname: null };
+
+  function logoutService(stored: any) {
+    const oidc = {
+      buildLogoutUrl: jest.fn().mockResolvedValue('https://idp/logout?x'),
+    };
+    const service = new SsoLogoutService(
+      { findById: jest.fn().mockResolvedValue(stored) } as any,
+      {
+        appUrl: () => 'https://docs.acme.com',
+        getForLogin: jest.fn().mockResolvedValue({ id: 'p1' }),
+      } as any,
+      oidc as any,
+      { decrypt: (v: string) => v.replace(/^enc:/, '') } as any,
+      { isDevelopment: () => false } as any,
+    );
+    return { service, oidc };
+  }
+  const meta = { sso: { providerId: 'p1', idToken: 'enc:idt' } };
+
+  it('builds the IdP logout URL back to the login page', async () => {
+    const { service, oidc } = logoutService({
+      id: 'p1',
+      type: 'oidc',
+      isEnabled: true,
+    });
+
+    await expect(
+      service.getLogoutUrl(meta, ws, 'https://docs.acme.com'),
+    ).resolves.toBe('https://idp/logout?x');
+    expect(oidc.buildLogoutUrl).toHaveBeenCalledWith(
+      { id: 'p1' },
+      'idt',
+      'https://docs.acme.com/login?logout=1',
+    );
+  });
+
+  it('skips sessions without SSO, disabled providers and unknown origins', async () => {
+    const enabled = logoutService({ id: 'p1', type: 'oidc', isEnabled: true });
+    await expect(
+      enabled.service.getLogoutUrl(null, ws, 'https://docs.acme.com'),
+    ).resolves.toBeNull();
+    await expect(
+      enabled.service.getLogoutUrl(meta, ws, 'https://evil.com'),
+    ).resolves.toBeNull();
+
+    const disabled = logoutService({
+      id: 'p1',
+      type: 'oidc',
+      isEnabled: false,
+    });
+    await expect(
+      disabled.service.getLogoutUrl(meta, ws, 'https://docs.acme.com'),
+    ).resolves.toBeNull();
+    expect(disabled.oidc.buildLogoutUrl).not.toHaveBeenCalled();
   });
 });

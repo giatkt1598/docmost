@@ -34,6 +34,8 @@ import { ModuleRef } from '@nestjs/core';
 import { TwoFactorService } from '../two-factor/two-factor.service';
 import { TokenService } from './services/token.service';
 import { setMfaTokenCookie } from './auth-cookies';
+import { UserSessionRepo } from '@docmost/db/repos/session/user-session.repo';
+import { SsoLogoutService } from '../sso/sso-logout.service';
 import { AuditEvent, AuditResource } from '../../common/events/audit-events';
 import {
   AUDIT_SERVICE,
@@ -54,6 +56,7 @@ export class AuthController {
     @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
     private twoFactorService: TwoFactorService,
     private tokenService: TokenService,
+    private userSessionRepo: UserSessionRepo,
   ) {}
 
   @HttpCode(HttpStatus.OK)
@@ -237,10 +240,14 @@ export class AuthController {
   @Post('logout')
   async logout(
     @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
     @Req() req: FastifyRequest,
     @Res({ passthrough: true }) res: FastifyReply,
   ) {
     const sessionId = (req.raw as any).sessionId;
+    const logoutUrl = sessionId
+      ? await this.getSsoLogoutUrl(sessionId, workspace, req)
+      : null;
     if (sessionId) {
       await this.sessionService.revokeSession(
         sessionId,
@@ -256,6 +263,31 @@ export class AuthController {
       resourceType: AuditResource.USER,
       resourceId: user.id,
     });
+
+    return logoutUrl ? { logoutUrl } : undefined;
+  }
+
+  // Where to send the browser to also end the identity provider's session.
+  private async getSsoLogoutUrl(
+    sessionId: string,
+    workspace: Workspace,
+    req: FastifyRequest,
+  ) {
+    try {
+      const session = await this.userSessionRepo.findActiveById(sessionId);
+      if (!session?.metadata) return null;
+      const ssoLogout = this.moduleRef.get(SsoLogoutService, {
+        strict: false,
+      });
+      return await ssoLogout.getLogoutUrl(
+        session.metadata,
+        workspace,
+        `${req.protocol}://${req.headers.host}`,
+      );
+    } catch (err) {
+      this.logger.warn(`SSO logout skipped: ${(err as Error)?.message}`);
+      return null;
+    }
   }
 
   setAuthCookie(res: FastifyReply, token: string) {

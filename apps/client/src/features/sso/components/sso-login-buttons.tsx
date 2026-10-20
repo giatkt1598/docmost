@@ -31,6 +31,8 @@ export function SsoLoginButtons({
     []) as unknown as IPublicAuthProvider[];
   const ssoError = searchParams.get("ssoError");
   const localLogin = searchParams.has(LOCAL_LOGIN_PARAM);
+  // right after a logout, don't bounce straight back to the IdP
+  const justLoggedOut = searchParams.has("logout");
   const redirect = getRedirectParam();
   const [ldapProvider, setLdapProvider] = useState<IPublicAuthProvider | null>(
     null,
@@ -41,7 +43,8 @@ export function SsoLoginButtons({
     providers.length === 1 &&
     providers[0].type !== "ldap" &&
     !ssoError &&
-    !localLogin;
+    !localLogin &&
+    !justLoggedOut;
 
   useEffect(() => {
     if (autoRedirect) {
