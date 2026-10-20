@@ -21,6 +21,7 @@ export enum EncryptionPurpose {
   OAUTH_COMPLETION = 'oauth-completion',
   MFA_SECRET = 'mfa-secret',
   SSO_CREDENTIALS = 'sso-credentials',
+  SSO_STATE = 'sso-state',
 }
 
 const KEY_ID = 'app-secret';

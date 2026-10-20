@@ -15,13 +15,16 @@ import {
 } from "@mantine/core";
 import classes from "./auth.module.css";
 import { useRedirectIfAuthenticated } from "@/features/auth/hooks/use-redirect-if-authenticated.ts";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import APP_ROUTE from "@/lib/app-route.ts";
 import { useTranslation } from "react-i18next";
-import SsoLogin from "@/ee/components/sso-login.tsx";
+import {
+  LOCAL_LOGIN_PARAM,
+  SsoLoginButtons,
+} from "@/features/sso/components/sso-login-buttons";
 import { useWorkspacePublicDataQuery } from "@/features/workspace/queries/workspace-query.ts";
 import { Error404 } from "@/components/ui/error-404.tsx";
-import React from "react";
+import React, { useState } from "react";
 import { AuthLayout } from "./auth-layout.tsx";
 
 const formSchema = z.object({
@@ -36,6 +39,10 @@ export function LoginForm() {
   const { t } = useTranslation();
   const { signIn, isLoading } = useAuth();
   useRedirectIfAuthenticated();
+  const [searchParams] = useSearchParams();
+  const [usePassword, setUsePassword] = useState(
+    searchParams.has(LOCAL_LOGIN_PARAM),
+  );
   const {
     data,
     isLoading: isDataLoading,
@@ -62,6 +69,8 @@ export function LoginForm() {
     }
   }
 
+  const showPasswordForm = !data?.enforceSso || usePassword;
+
   if (isDataLoading) {
    return null;
   }
@@ -78,9 +87,12 @@ export function LoginForm() {
             {t("Login")}
           </Title>
 
-          <SsoLogin />
+          <SsoLoginButtons
+            showPasswordForm={showPasswordForm}
+            onUsePassword={() => setUsePassword(true)}
+          />
 
-          {!data?.enforceSso && (
+          {showPasswordForm && (
             <>
               <form onSubmit={form.onSubmit(onSubmit, handleValidationFailure)}>
                 <TextInput

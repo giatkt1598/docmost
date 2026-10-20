@@ -7,6 +7,8 @@ import { DisablePublicSharing } from "@/features/security/components/disable-pub
 import { EnforceMfa } from "@/features/security/components/enforce-mfa";
 import { TrashRetention } from "@/features/security/components/trash-retention";
 import { AllowedDomains } from "@/features/security/components/allowed-domains";
+import { SsoProviderList } from "@/features/sso/components/sso-provider-list";
+import { EnforceSso } from "@/features/sso/components/enforce-sso";
 
 export default function SecuritySettings() {
   const { t } = useTranslation();
@@ -29,6 +31,13 @@ export default function SecuritySettings() {
         {t("Sign-up restrictions")}
       </Title>
       <AllowedDomains />
+
+      <Title order={4} mt="xl" mb="md">
+        {t("Single sign-on")}
+      </Title>
+      <SsoProviderList />
+      <Divider my="lg" />
+      <EnforceSso />
     </>
   );
 }

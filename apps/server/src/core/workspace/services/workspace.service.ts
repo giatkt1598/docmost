@@ -114,6 +114,7 @@ export class WorkspaceService {
               'authProviders.type',
             ])
             .where('authProviders.isEnabled', '=', true)
+            .where('authProviders.deletedAt', 'is', null)
             .where('workspaceId', '=', workspaceId),
         ).as('authProviders'),
       )
@@ -126,7 +127,13 @@ export class WorkspaceService {
 
     const { licenseKey, plan, ...rest } = workspace;
 
-    return rest;
+    // only show sign-in buttons for providers this server can handle
+    return {
+      ...rest,
+      authProviders: (rest.authProviders ?? []).filter((p) =>
+        isSsoProviderTypeSupported(p.type),
+      ),
+    };
   }
 
   async create(

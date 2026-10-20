@@ -8,7 +8,8 @@ import { getGroups } from "@/features/group/services/group-service.ts";
 import { QueryParams } from "@/lib/types.ts";
 import { getWorkspaceMembers } from "@/features/workspace/services/workspace-service.ts";
 import { getLicenseInfo } from "@/ee/licence/services/license-service.ts";
-import { getSsoProviders } from "@/ee/security/services/security-service.ts";
+import { getSsoProviders } from "@/features/sso/services/sso-service";
+import { SSO_PROVIDERS_KEY } from "@/features/sso/queries/sso-query";
 import { getShares } from "@/features/share/services/share-service.ts";
 import { getApiKeys } from "@/ee/api-key";
 import { getAuditLogs } from "@/ee/audit/services/audit-service";
@@ -59,7 +60,7 @@ export const prefetchLicense = () => {
 
 export const prefetchSsoProviders = () => {
   queryClient.prefetchQuery({
-    queryKey: ["sso-providers"],
+    queryKey: SSO_PROVIDERS_KEY,
     queryFn: () => getSsoProviders(),
   });
 };
