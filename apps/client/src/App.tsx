@@ -38,7 +38,9 @@ const PasswordReset = lazyWithPrefetch(() => import("./pages/auth/password-reset
 const Billing = lazyWithPrefetch(() => import("@/ee/billing/pages/billing.tsx"));
 const CloudLogin = lazyWithPrefetch(() => import("@/ee/pages/cloud-login.tsx"));
 const CreateWorkspace = lazyWithPrefetch(() => import("@/ee/pages/create-workspace.tsx"));
-const Security = lazyWithPrefetch(() => import("@/ee/security/pages/security.tsx"));
+const Security = lazyWithPrefetch(
+  () => import("@/pages/settings/security/security.tsx"),
+);
 const License = lazyWithPrefetch(() => import("@/ee/licence/pages/license.tsx"));
 const SharedPage = lazyWithPrefetch(() => import("@/pages/share/shared-page.tsx"));
 const PdfRenderPage = lazyWithPrefetch(() => import("@/ee/pdf-export/pdf-render-page.tsx"));

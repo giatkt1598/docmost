@@ -1838,5 +1838,7 @@
   "Failed to fetch favorite pages": "Không thể tải các trang yêu thích",
   "No favorite pages": "Chưa có trang yêu thích nào",
   "Pages you favorite will show up here.": "Các trang bạn thêm vào mục yêu thích sẽ hiển thị ở đây.",
-  "Page not found": "Không tìm thấy trang"
+  "Page not found": "Không tìm thấy trang",
+  "Sign-up restrictions": "Giới hạn đăng ký",
+  "Only users with email addresses from these domains can join this workspace through invitations or SSO.": "Chỉ người dùng có địa chỉ email thuộc các tên miền này mới có thể tham gia không gian làm việc qua lời mời hoặc SSO."
 }

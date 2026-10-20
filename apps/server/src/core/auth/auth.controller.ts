@@ -30,7 +30,6 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { PasswordResetDto } from './dto/password-reset.dto';
 import { VerifyUserTokenDto } from './dto/verify-user-token.dto';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { validateSsoEnforcement } from './auth.util';
 import { ModuleRef } from '@nestjs/core';
 import { AuditEvent, AuditResource } from '../../common/events/audit-events';
 import {
@@ -59,7 +58,10 @@ export class AuthController {
     @Res({ passthrough: true }) res: FastifyReply,
     @Body() loginInput: LoginDto,
   ) {
-    validateSsoEnforcement(workspace);
+    await this.authService.assertPasswordLoginAllowed(
+      loginInput.email,
+      workspace,
+    );
 
     let MfaModule: any;
     let isMfaModuleReady = false;
@@ -143,7 +145,10 @@ export class AuthController {
     @Body() forgotPasswordDto: ForgotPasswordDto,
     @AuthWorkspace() workspace: Workspace,
   ) {
-    validateSsoEnforcement(workspace);
+    await this.authService.assertPasswordLoginAllowed(
+      forgotPasswordDto.email,
+      workspace,
+    );
     return this.authService.forgotPassword(forgotPasswordDto, workspace);
   }
 

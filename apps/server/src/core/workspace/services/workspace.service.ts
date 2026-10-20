@@ -53,6 +53,10 @@ import {
 import { IntegrationConnectionRepo } from '../../integration/repos/integration-connection.repo';
 import { WsService } from '../../../ws/ws.service';
 import { CollabAccessService } from '../../../collaboration/services/collab-access.service';
+import {
+  isMfaSupported,
+  isSsoProviderTypeSupported,
+} from '../../auth/auth-capabilities';
 
 @Injectable()
 export class WorkspaceService {
@@ -301,16 +305,25 @@ export class WorkspaceService {
     if (updateWorkspaceDto.enforceSso) {
       const sso = await this.db
         .selectFrom('authProviders')
-        .select(['id'])
+        .select(['id', 'type'])
         .where('isEnabled', '=', true)
         .where('workspaceId', '=', workspaceId)
+        .where('deletedAt', 'is', null)
         .execute();
 
-      if (sso && sso?.length === 0) {
+      // only providers this server can actually log people in with count,
+      // otherwise enforcing SSO would lock everyone out
+      if (!sso.some((provider) => isSsoProviderTypeSupported(provider.type))) {
         throw new BadRequestException(
           'There must be at least one active SSO provider to enforce SSO.',
         );
       }
+    }
+
+    if (updateWorkspaceDto.enforceMfa && !isMfaSupported()) {
+      throw new BadRequestException(
+        'Two-factor authentication is not available on this server.',
+      );
     }
 
     if (updateWorkspaceDto.emailDomains) {
@@ -420,9 +433,8 @@ export class WorkspaceService {
         }
       }
 
+      // public sharing and trash retention are enforced by core and need no license
       if (
-        typeof updateWorkspaceDto.disablePublicSharing !== 'undefined' ||
-        typeof updateWorkspaceDto.trashRetentionDays !== 'undefined' ||
         typeof updateWorkspaceDto.restrictApiToAdmins !== 'undefined' ||
         typeof updateWorkspaceDto.allowMemberTemplates !== 'undefined'
       ) {

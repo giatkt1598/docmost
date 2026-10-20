@@ -20,7 +20,8 @@ import {
   isUserDisabled,
   nanoIdGen,
 } from '../../../common/helpers';
-import { throwIfEmailNotVerified } from '../auth.util';
+import { throwIfEmailNotVerified, validateSsoEnforcement } from '../auth.util';
+import { UserRole } from '../../../common/helpers/types/permission';
 import { ChangePasswordDto } from '../dto/change-password.dto';
 import { MailService } from '../../../integrations/mail/mail.service';
 import ChangePasswordEmail from '@docmost/transactional/emails/change-password-email';
@@ -175,6 +176,18 @@ export class AuthService {
       subject: 'Your password has been changed',
       template: emailTemplate,
     });
+  }
+
+  // The workspace owner can always use their password, so an SSO outage or
+  // misconfiguration never locks the workspace out.
+  async assertPasswordLoginAllowed(
+    email: string,
+    workspace: Workspace,
+  ): Promise<void> {
+    if (!workspace.enforceSso) return;
+    const user = await this.userRepo.findByEmail(email, workspace.id);
+    if (user?.role === UserRole.OWNER && !isUserDisabled(user)) return;
+    validateSsoEnforcement(workspace);
   }
 
   async forgotPassword(

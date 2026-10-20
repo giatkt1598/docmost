@@ -33,10 +33,8 @@ import {
   prefetchBilling,
   prefetchGroups,
   prefetchLicense,
-  prefetchScimTokens,
   prefetchShares,
   prefetchSpaces,
-  prefetchSsoProviders,
   prefetchWorkspaceMembers,
   prefetchAuditLogs,
   prefetchVerifiedPages,
@@ -112,7 +110,6 @@ const groupedData: DataGroup[] = [
         label: "Security & SSO",
         icon: IconLock,
         path: "/settings/security",
-        feature: Feature.SECURITY_SETTINGS,
         role: "admin",
       },
       { label: "Groups", icon: IconUsersGroup, path: "/settings/groups" },
@@ -238,12 +235,6 @@ export default function SettingsSidebar() {
               if (entitlements?.tier !== "free") {
                 prefetchHandler = prefetchLicense;
               }
-              break;
-            case "Security & SSO":
-              prefetchHandler = () => {
-                prefetchSsoProviders();
-                prefetchScimTokens();
-              };
               break;
             case "Public sharing":
               prefetchHandler = prefetchShares;

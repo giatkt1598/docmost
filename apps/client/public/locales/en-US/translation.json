@@ -1838,5 +1838,7 @@
   "Failed to fetch favorite pages": "Failed to fetch favorite pages",
   "No favorite pages": "No favorite pages",
   "Pages you favorite will show up here.": "Pages you favorite will show up here.",
-  "Page not found": "Page not found"
+  "Page not found": "Page not found",
+  "Sign-up restrictions": "Sign-up restrictions",
+  "Only users with email addresses from these domains can join this workspace through invitations or SSO.": "Only users with email addresses from these domains can join this workspace through invitations or SSO."
 }
