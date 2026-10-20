@@ -50,6 +50,22 @@ export class SsoLoginService {
     workspace: Workspace,
     identity: SsoIdentity,
   ): Promise<{ user: User; authToken: string }> {
+    const user = await this.resolveUser(provider, workspace, identity);
+    const authToken = await this.authService.completeLogin(
+      user,
+      workspace.id,
+      `sso:${provider.type}`,
+    );
+    return { user, authToken };
+  }
+
+  // Finds or creates the Docmost user for a confirmed identity, links the
+  // account and syncs groups, without issuing a session.
+  async resolveUser(
+    provider: LoginProvider,
+    workspace: Workspace,
+    identity: SsoIdentity,
+  ): Promise<User> {
     const email = identity.email?.trim().toLowerCase();
     if (!email || !identity.providerUserId) {
       throw new BadRequestException(
@@ -85,13 +101,7 @@ export class SsoLoginService {
     ) {
       await this.syncGroups(user, workspace, identity.groups);
     }
-
-    const authToken = await this.authService.completeLogin(
-      user,
-      workspace.id,
-      `sso:${provider.type}`,
-    );
-    return { user, authToken };
+    return user;
   }
 
   private async findOrCreateUser(
@@ -155,7 +165,9 @@ export class SsoLoginService {
           );
         }
       } catch (err) {
-        this.logger.warn(`Group sync failed for "${name}": ${(err as Error)?.message}`);
+        this.logger.warn(
+          `Group sync failed for "${name}": ${(err as Error)?.message}`,
+        );
       }
     }
   }

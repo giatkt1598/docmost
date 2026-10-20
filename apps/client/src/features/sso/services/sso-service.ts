@@ -33,3 +33,11 @@ export function buildSsoLoginUrl(providerId: string, redirect?: string | null) {
   const query = params.toString();
   return `/api/auth-sso/${providerId}/login${query ? `?${query}` : ""}`;
 }
+
+export async function ldapLogin(
+  providerId: string,
+  data: { username: string; password: string },
+): Promise<{ userHasMfa?: boolean; requiresMfaSetup?: boolean } | undefined> {
+  const req = await api.post(`/auth-sso/${providerId}/ldap-login`, data);
+  return req.data;
+}

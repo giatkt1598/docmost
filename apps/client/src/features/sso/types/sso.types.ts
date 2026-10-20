@@ -23,6 +23,7 @@ export interface ISsoProvider {
   ldapTlsCaCert: string | null;
   isSupported: boolean;
   callbackUrl: string;
+  samlEntityId: string | null;
   createdAt: string;
 }
 
@@ -34,6 +35,7 @@ export type ISsoProviderInput = Partial<
     | "hasLdapBindPassword"
     | "isSupported"
     | "callbackUrl"
+    | "samlEntityId"
     | "createdAt"
   >
 > & {

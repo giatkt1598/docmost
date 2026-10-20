@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Anchor, Button, Divider, Stack, Text } from "@mantine/core";
 import { IconBrandGoogle, IconKey, IconLock } from "@tabler/icons-react";
 import { useSearchParams } from "react-router-dom";
@@ -7,6 +7,7 @@ import { useWorkspacePublicDataQuery } from "@/features/workspace/queries/worksp
 import { getRedirectParam } from "@/lib/app-route.ts";
 import { buildSsoLoginUrl } from "@/features/sso/services/sso-service";
 import { IPublicAuthProvider } from "@/features/sso/types/sso.types";
+import { LdapLoginModal } from "@/features/sso/components/ldap-login-modal";
 
 interface SsoLoginButtonsProps {
   // whether the password form is currently shown below the buttons
@@ -31,9 +32,16 @@ export function SsoLoginButtons({
   const ssoError = searchParams.get("ssoError");
   const localLogin = searchParams.has(LOCAL_LOGIN_PARAM);
   const redirect = getRedirectParam();
+  const [ldapProvider, setLdapProvider] = useState<IPublicAuthProvider | null>(
+    null,
+  );
 
   const autoRedirect =
-    data?.enforceSso && providers.length === 1 && !ssoError && !localLogin;
+    data?.enforceSso &&
+    providers.length === 1 &&
+    providers[0].type !== "ldap" &&
+    !ssoError &&
+    !localLogin;
 
   useEffect(() => {
     if (autoRedirect) {
@@ -56,8 +64,12 @@ export function SsoLoginButtons({
           {providers.map((provider) => (
             <Button
               key={provider.id}
-              component="a"
-              href={buildSsoLoginUrl(provider.id, redirect)}
+              {...(provider.type === "ldap"
+                ? { onClick: () => setLdapProvider(provider) }
+                : {
+                    component: "a" as const,
+                    href: buildSsoLoginUrl(provider.id, redirect),
+                  })}
               variant="default"
               fullWidth
               leftSection={
@@ -75,6 +87,11 @@ export function SsoLoginButtons({
           ))}
         </Stack>
       )}
+
+      <LdapLoginModal
+        provider={ldapProvider}
+        onClose={() => setLdapProvider(null)}
+      />
 
       {providers.length > 0 && showPasswordForm && (
         <Divider my="lg" label={t("or")} labelPosition="center" />

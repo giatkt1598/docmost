@@ -22,6 +22,6 @@ import {
     TwoFactorService,
     MfaTokenGuard,
   ],
-  exports: [SignupService, AuthService],
+  exports: [SignupService, AuthService, TwoFactorService],
 })
 export class AuthModule {}

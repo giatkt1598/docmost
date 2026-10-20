@@ -115,6 +115,27 @@ export class SsoProviderService {
     };
   }
 
+  // SAML metadata is needed while the provider is still being set up, so
+  // this does not require it to be enabled.
+  async getSamlProvider(providerId: string, workspaceId: string) {
+    const provider = await this.find(providerId, workspaceId);
+    if (provider.type !== 'saml') {
+      throw new NotFoundException('SSO provider not found');
+    }
+    return provider;
+  }
+
+  samlUrls(provider: { id: string }, workspace: Workspace) {
+    const base = this.domainService.getUrl(workspace.hostname ?? undefined);
+    return {
+      entityId: `${base}/api/auth-sso/${provider.id}/saml/metadata`,
+      callbackUrl: this.callbackUrl(
+        { id: provider.id, type: 'saml' },
+        workspace,
+      ),
+    };
+  }
+
   callbackUrl(provider: { id: string; type: string }, workspace: Workspace) {
     const base = this.domainService.getUrl(workspace.hostname ?? undefined);
     const suffix = provider.type === 'saml' ? 'saml/callback' : 'callback';
@@ -197,6 +218,24 @@ export class SsoProviderService {
     if (values.oidcIssuer && !/^https?:\/\//i.test(values.oidcIssuer)) {
       throw new BadRequestException('Issuer URL must start with http(s)://');
     }
+    if (values.samlUrl && !/^https?:\/\//i.test(values.samlUrl)) {
+      throw new BadRequestException(
+        'SAML sign-in URL must start with http(s)://',
+      );
+    }
+    if (values.ldapUrl && !/^ldaps?:\/\//i.test(values.ldapUrl)) {
+      throw new BadRequestException(
+        'LDAP URL must start with ldap:// or ldaps://',
+      );
+    }
+    if (
+      values.ldapUserSearchFilter &&
+      !values.ldapUserSearchFilter.includes('{{username}}')
+    ) {
+      throw new BadRequestException(
+        'The user search filter must contain {{username}}',
+      );
+    }
   }
 
   private async find(providerId: string, workspaceId: string) {
@@ -239,6 +278,8 @@ export class SsoProviderService {
       ldapTlsCaCert: p.ldapTlsCaCert,
       isSupported: isSsoProviderTypeSupported(p.type),
       callbackUrl: this.callbackUrl(p, workspace),
+      samlEntityId:
+        p.type === 'saml' ? this.samlUrls(p, workspace).entityId : null,
       createdAt: p.createdAt,
     };
   }

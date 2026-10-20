@@ -1,25 +1,39 @@
 import {
+  Body,
   Controller,
   Get,
+  HttpCode,
   HttpException,
+  HttpStatus,
   Logger,
   Param,
   ParseUUIDPipe,
+  Post,
   Query,
   Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
+import {
+  ALL_NAMED_THROTTLERS_SKIPPED,
+  AUTH_THROTTLER,
+} from '../../integrations/throttle/throttler-names';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { Workspace } from '@docmost/db/types/entity.types';
 import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator';
 import { EnvironmentService } from '../../integrations/environment/environment.service';
 import { EncryptionService } from '../../integrations/encryption/encryption.service';
-import { setAuthCookie } from '../auth/auth-cookies';
+import { setAuthCookie, setMfaTokenCookie } from '../auth/auth-cookies';
+import { TokenService } from '../auth/services/token.service';
+import { AuthService } from '../auth/services/auth.service';
+import { TwoFactorService } from '../two-factor/two-factor.service';
 import { SsoProviderService } from './sso-provider.service';
 import { SsoLoginService } from './sso-login.service';
 import { OidcService } from './oidc.service';
+import { LdapService } from './ldap.service';
+import { SamlService } from './saml.service';
+import { LdapLoginDto } from './dto/sso-provider.dto';
 import { openSsoState, safeRedirectPath, sealSsoState } from './sso-state';
 
 const STATE_COOKIE = 'ssoState';
@@ -27,6 +41,9 @@ const STATE_COOKIE_PATH = '/api/auth-sso';
 
 // Browser-facing SSO login flows. Errors send the user back to /login with
 // a readable message instead of a JSON response.
+// Only the LDAP password check is rate limited; the redirect steps are
+// bounded by the identity provider.
+@SkipThrottle({ ...ALL_NAMED_THROTTLERS_SKIPPED, [AUTH_THROTTLER]: false })
 @UseGuards(ThrottlerGuard)
 @Controller('auth-sso')
 export class SsoAuthController {
@@ -36,10 +53,16 @@ export class SsoAuthController {
     private readonly ssoProviderService: SsoProviderService,
     private readonly ssoLoginService: SsoLoginService,
     private readonly oidcService: OidcService,
+    private readonly ldapService: LdapService,
+    private readonly samlService: SamlService,
+    private readonly twoFactorService: TwoFactorService,
+    private readonly tokenService: TokenService,
+    private readonly authService: AuthService,
     private readonly encryptionService: EncryptionService,
     private readonly environmentService: EnvironmentService,
   ) {}
 
+  @SkipThrottle({ [AUTH_THROTTLER]: true })
   @Get(':providerId/login')
   async login(
     @Param('providerId', ParseUUIDPipe) providerId: string,
@@ -52,6 +75,20 @@ export class SsoAuthController {
         providerId,
         workspace.id,
       );
+      if (provider.type === 'saml') {
+        // the IdP posts back cross-site, where a lax cookie is not sent, so
+        // the state travels in RelayState instead
+        const relayState = sealSsoState(this.encryptionService, {
+          providerId,
+          redirect: safeRedirectPath(redirect),
+        });
+        const url = await this.samlService.buildLoginUrl(
+          provider,
+          this.ssoProviderService.samlUrls(provider, workspace),
+          relayState,
+        );
+        return res.redirect(url, 302);
+      }
       if (provider.type !== 'oidc' && provider.type !== 'google') {
         return this.fail(
           res,
@@ -86,6 +123,7 @@ export class SsoAuthController {
     }
   }
 
+  @SkipThrottle({ [AUTH_THROTTLER]: true })
   @Get(':providerId/callback')
   async callback(
     @Param('providerId', ParseUUIDPipe) providerId: string,
@@ -133,6 +171,128 @@ export class SsoAuthController {
     } catch (err) {
       return this.fail(res, err);
     }
+  }
+
+  @SkipThrottle({ [AUTH_THROTTLER]: true })
+  @Post(':providerId/saml/callback')
+  async samlCallback(
+    @Param('providerId', ParseUUIDPipe) providerId: string,
+    @AuthWorkspace() workspace: Workspace,
+    @Body() body: Record<string, string>,
+    @Res() res: FastifyReply,
+  ) {
+    const state = openSsoState(
+      this.encryptionService,
+      body?.RelayState,
+      providerId,
+    );
+    if (!state || typeof body?.SAMLResponse !== 'string') {
+      return this.fail(res, 'Your sign-in attempt expired. Please try again.');
+    }
+
+    try {
+      const provider = await this.ssoProviderService.getForLogin(
+        providerId,
+        workspace.id,
+      );
+      if (provider.type !== 'saml') {
+        return this.fail(res, 'SSO provider not found');
+      }
+      let identity;
+      try {
+        identity = await this.samlService.handleCallback(
+          provider,
+          this.ssoProviderService.samlUrls(provider, workspace),
+          { SAMLResponse: body.SAMLResponse },
+        );
+      } catch (err) {
+        this.logger.warn(`SAML response rejected: ${(err as Error)?.message}`);
+        return this.fail(res, 'The SAML response could not be verified');
+      }
+      const { authToken } = await this.ssoLoginService.login(
+        provider,
+        workspace,
+        identity,
+      );
+      setAuthCookie(res, authToken, this.environmentService);
+      return res.redirect(state.redirect, 302);
+    } catch (err) {
+      return this.fail(res, err);
+    }
+  }
+
+  @SkipThrottle({ [AUTH_THROTTLER]: true })
+  @Get(':providerId/saml/metadata')
+  async samlMetadata(
+    @Param('providerId', ParseUUIDPipe) providerId: string,
+    @AuthWorkspace() workspace: Workspace,
+    @Res() res: FastifyReply,
+  ) {
+    const provider = await this.ssoProviderService.getSamlProvider(
+      providerId,
+      workspace.id,
+    );
+    const xml = this.samlService.metadata(
+      provider,
+      this.ssoProviderService.samlUrls(provider, workspace),
+    );
+    return res.type('application/xml').send(xml);
+  }
+
+  // LDAP has no redirect: the login page posts the directory credentials.
+  // The response matches the password login, including the two-factor step.
+  @HttpCode(HttpStatus.OK)
+  @Post(':providerId/ldap-login')
+  async ldapLogin(
+    @Param('providerId', ParseUUIDPipe) providerId: string,
+    @AuthWorkspace() workspace: Workspace,
+    @Body() dto: LdapLoginDto,
+    @Res({ passthrough: true }) res: FastifyReply,
+  ) {
+    const provider = await this.ssoProviderService.getForLogin(
+      providerId,
+      workspace.id,
+    );
+    if (provider.type !== 'ldap') {
+      throw new HttpException('SSO provider not found', HttpStatus.NOT_FOUND);
+    }
+
+    const identity = await this.ldapService.authenticate(
+      provider,
+      dto.username,
+      dto.password,
+    );
+    const user = await this.ssoLoginService.resolveUser(
+      provider,
+      workspace,
+      identity,
+    );
+
+    const requirement = await this.twoFactorService.getLoginRequirement(
+      user,
+      workspace,
+    );
+    if (requirement !== 'none') {
+      setMfaTokenCookie(
+        res,
+        await this.tokenService.generateMfaToken(user, workspace.id),
+        this.environmentService,
+      );
+      return requirement === 'verify'
+        ? {
+            userHasMfa: true,
+            requiresMfaSetup: false,
+            isMfaEnforced: !!workspace.enforceMfa,
+          }
+        : { userHasMfa: false, requiresMfaSetup: true, isMfaEnforced: true };
+    }
+
+    const authToken = await this.authService.completeLogin(
+      user,
+      workspace.id,
+      'sso:ldap',
+    );
+    setAuthCookie(res, authToken, this.environmentService);
   }
 
   private fail(res: FastifyReply, err: unknown) {

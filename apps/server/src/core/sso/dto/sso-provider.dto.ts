@@ -107,3 +107,15 @@ export class SsoProviderIdDto {
   @IsUUID()
   providerId: string;
 }
+
+export class LdapLoginDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  username: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1024)
+  password: string;
+}

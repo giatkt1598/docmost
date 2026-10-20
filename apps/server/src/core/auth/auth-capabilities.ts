@@ -3,7 +3,12 @@
 // without an implementation they either do nothing or lock everyone out.
 
 // Provider types handled by the core SSO module.
-export const CORE_SSO_PROVIDER_TYPES: string[] = ['oidc', 'google'];
+export const CORE_SSO_PROVIDER_TYPES: string[] = [
+  'oidc',
+  'google',
+  'saml',
+  'ldap',
+];
 
 // Whether core ships a two-factor implementation.
 export const CORE_MFA_SUPPORTED = true;
