@@ -1,7 +1,12 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { SsoLoginService } from './sso-login.service';
 import { GOOGLE_ISSUER, SsoProviderService } from './sso-provider.service';
-import { openSsoState, safeRedirectPath, sealSsoState } from './sso-state';
+import {
+  openSsoState,
+  safeRedirectPath,
+  sealSsoState,
+  trustedReturnOrigin,
+} from './sso-state';
 
 const workspace = {
   id: 'ws_1',
@@ -329,5 +334,36 @@ describe('sso state', () => {
     expect(safeRedirectPath('//evil.com')).toBe('/home');
     expect(safeRedirectPath('/\\evil.com')).toBe('/home');
     expect(safeRedirectPath(undefined)).toBe('/home');
+  });
+});
+
+describe('trustedReturnOrigin', () => {
+  const app = 'https://docs.acme.com';
+
+  it('accepts the app origin', () => {
+    expect(trustedReturnOrigin('https://docs.acme.com', app, false)).toBe(app);
+  });
+
+  it('accepts localhost ports only in development', () => {
+    expect(
+      trustedReturnOrigin(
+        'http://localhost:5173',
+        'http://localhost:3000',
+        true,
+      ),
+    ).toBe('http://localhost:5173');
+    expect(
+      trustedReturnOrigin(
+        'http://localhost:5173',
+        'http://localhost:3000',
+        false,
+      ),
+    ).toBeUndefined();
+  });
+
+  it('rejects other hosts', () => {
+    expect(trustedReturnOrigin('https://evil.com', app, true)).toBeUndefined();
+    expect(trustedReturnOrigin('http://undefined', app, true)).toBeUndefined();
+    expect(trustedReturnOrigin('garbage', app, true)).toBeUndefined();
   });
 });

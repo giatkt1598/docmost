@@ -34,7 +34,13 @@ import { OidcService } from './oidc.service';
 import { LdapService } from './ldap.service';
 import { SamlService } from './saml.service';
 import { LdapLoginDto } from './dto/sso-provider.dto';
-import { openSsoState, safeRedirectPath, sealSsoState } from './sso-state';
+import {
+  openSsoState,
+  safeRedirectPath,
+  sealSsoState,
+  SsoState,
+  trustedReturnOrigin,
+} from './sso-state';
 
 const STATE_COOKIE = 'ssoState';
 const STATE_COOKIE_PATH = '/api/auth-sso';
@@ -68,8 +74,10 @@ export class SsoAuthController {
     @Param('providerId', ParseUUIDPipe) providerId: string,
     @Query('redirect') redirect: string,
     @AuthWorkspace() workspace: Workspace,
+    @Req() req: FastifyRequest,
     @Res() res: FastifyReply,
   ) {
+    const origin = this.returnOrigin(req, workspace);
     try {
       const provider = await this.ssoProviderService.getForLogin(
         providerId,
@@ -81,6 +89,7 @@ export class SsoAuthController {
         const relayState = sealSsoState(this.encryptionService, {
           providerId,
           redirect: safeRedirectPath(redirect),
+          origin,
         });
         const url = await this.samlService.buildLoginUrl(
           provider,
@@ -93,6 +102,7 @@ export class SsoAuthController {
         return this.fail(
           res,
           'This SSO provider does not use a redirect login',
+          origin,
         );
       }
 
@@ -105,6 +115,7 @@ export class SsoAuthController {
         sealSsoState(this.encryptionService, {
           providerId,
           redirect: safeRedirectPath(redirect),
+          origin,
           state: login.state,
           nonce: login.nonce,
           codeVerifier: login.codeVerifier,
@@ -119,7 +130,7 @@ export class SsoAuthController {
       );
       return res.redirect(login.url, 302);
     } catch (err) {
-      return this.fail(res, err);
+      return this.fail(res, err, origin);
     }
   }
 
@@ -167,9 +178,9 @@ export class SsoAuthController {
         identity,
       );
       setAuthCookie(res, authToken, this.environmentService);
-      return res.redirect(state.redirect, 302);
+      return this.redirectAfterLogin(res, state);
     } catch (err) {
-      return this.fail(res, err);
+      return this.fail(res, err, state.origin);
     }
   }
 
@@ -196,7 +207,7 @@ export class SsoAuthController {
         workspace.id,
       );
       if (provider.type !== 'saml') {
-        return this.fail(res, 'SSO provider not found');
+        return this.fail(res, 'SSO provider not found', state.origin);
       }
       let identity;
       try {
@@ -207,7 +218,11 @@ export class SsoAuthController {
         );
       } catch (err) {
         this.logger.warn(`SAML response rejected: ${(err as Error)?.message}`);
-        return this.fail(res, 'The SAML response could not be verified');
+        return this.fail(
+          res,
+          'The SAML response could not be verified',
+          state.origin,
+        );
       }
       const { authToken } = await this.ssoLoginService.login(
         provider,
@@ -215,9 +230,9 @@ export class SsoAuthController {
         identity,
       );
       setAuthCookie(res, authToken, this.environmentService);
-      return res.redirect(state.redirect, 302);
+      return this.redirectAfterLogin(res, state);
     } catch (err) {
-      return this.fail(res, err);
+      return this.fail(res, err, state.origin);
     }
   }
 
@@ -295,7 +310,19 @@ export class SsoAuthController {
     setAuthCookie(res, authToken, this.environmentService);
   }
 
-  private fail(res: FastifyReply, err: unknown) {
+  private returnOrigin(req: FastifyRequest, workspace: Workspace) {
+    return trustedReturnOrigin(
+      `${req.protocol}://${req.headers.host}`,
+      this.ssoProviderService.appUrl(workspace),
+      this.environmentService.isDevelopment(),
+    );
+  }
+
+  private redirectAfterLogin(res: FastifyReply, state: SsoState) {
+    return res.redirect(`${state.origin ?? ''}${state.redirect}`, 302);
+  }
+
+  private fail(res: FastifyReply, err: unknown, origin?: string) {
     const message =
       typeof err === 'string'
         ? err
@@ -305,6 +332,9 @@ export class SsoAuthController {
     if (!(typeof err === 'string' || err instanceof HttpException)) {
       this.logger.error(err);
     }
-    return res.redirect(`/login?ssoError=${encodeURIComponent(message)}`, 302);
+    return res.redirect(
+      `${origin ?? ''}/login?ssoError=${encodeURIComponent(message)}`,
+      302,
+    );
   }
 }

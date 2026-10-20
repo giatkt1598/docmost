@@ -8,6 +8,8 @@ const STATE_TTL_MS = 10 * 60 * 1000;
 export type SsoState = {
   providerId: string;
   redirect: string;
+  // origin the login started from, when it differs from the callback's
+  origin?: string;
   state?: string;
   nonce?: string;
   codeVerifier?: string;
@@ -42,6 +44,30 @@ export function openSsoState(
   } catch {
     return null;
   }
+}
+
+// The origin a login was started from, if it is one we may send the user
+// back to: the app URL, or any localhost port in development (the Vite dev
+// server proxies /api with its own Host header).
+export function trustedReturnOrigin(
+  requestOrigin: string,
+  appUrl: string,
+  allowLocalhost: boolean,
+): string | undefined {
+  let origin: URL;
+  try {
+    origin = new URL(requestOrigin);
+  } catch {
+    return undefined;
+  }
+  if (origin.origin === new URL(appUrl).origin) return origin.origin;
+  if (
+    allowLocalhost &&
+    ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname)
+  ) {
+    return origin.origin;
+  }
+  return undefined;
 }
 
 // Only same-origin paths are allowed as post-login destinations.

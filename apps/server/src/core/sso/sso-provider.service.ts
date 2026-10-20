@@ -125,6 +125,10 @@ export class SsoProviderService {
     return provider;
   }
 
+  appUrl(workspace: Workspace) {
+    return this.domainService.getUrl(workspace.hostname ?? undefined);
+  }
+
   samlUrls(provider: { id: string }, workspace: Workspace) {
     const base = this.domainService.getUrl(workspace.hostname ?? undefined);
     return {
