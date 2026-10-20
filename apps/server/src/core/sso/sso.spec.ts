@@ -30,7 +30,9 @@ const identity = {
   name: 'Ann',
 };
 
-function loginService(opts: { existing?: any; account?: any } = {}) {
+function loginService(
+  opts: { existing?: any; account?: any; invited?: any } = {},
+) {
   const deps = {
     userRepo: {
       findById: jest
@@ -54,6 +56,9 @@ function loginService(opts: { existing?: any; account?: any } = {}) {
     },
     signupService: { signup: jest.fn().mockResolvedValue({ id: 'u_new' }) },
     authService: { completeLogin: jest.fn().mockResolvedValue('token') },
+    invitationService: {
+      acceptInvitationForSso: jest.fn().mockResolvedValue(opts.invited),
+    },
   };
   const service = new SsoLoginService(
     deps.userRepo as any,
@@ -63,6 +68,7 @@ function loginService(opts: { existing?: any; account?: any } = {}) {
     deps.signupService as any,
     deps.authService as any,
     { encrypt: (v: string) => `enc:${v}` } as any,
+    deps.invitationService as any,
   );
   return { service, deps };
 }
@@ -117,6 +123,21 @@ describe('SsoLoginService', () => {
       ForbiddenException,
     );
     expect(deps.signupService.signup).not.toHaveBeenCalled();
+  });
+
+  it('accepts a pending invitation even when sign-up is off', async () => {
+    const { service, deps } = loginService({ invited: { id: 'u_inv' } });
+
+    await service.login(provider, workspace, identity);
+
+    const [email, name, password, ws] =
+      deps.invitationService.acceptInvitationForSso.mock.calls[0];
+    expect([email, name, ws]).toEqual(['ann@example.com', 'Ann', workspace]);
+    expect(password.length).toBeGreaterThanOrEqual(32);
+    expect(deps.signupService.signup).not.toHaveBeenCalled();
+    expect(deps.authService.completeLogin.mock.calls[0][0]).toEqual({
+      id: 'u_inv',
+    });
   });
 
   it('creates new users when sign-up is allowed', async () => {

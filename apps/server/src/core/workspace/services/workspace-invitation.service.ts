@@ -243,6 +243,41 @@ export class WorkspaceInvitationService {
     }
 
     validateSsoEnforcement(workspace);
+
+    const newUser = await this.createUserFromInvitation(
+      invitation,
+      workspace,
+      { name: dto.name, password: dto.password },
+      'invitation',
+    );
+    if (!newUser) {
+      return;
+    }
+
+    if (workspace.enforceMfa) {
+      return {
+        requiresLogin: true,
+      };
+    }
+
+    const authToken = await this.sessionService.createSessionAndToken(newUser);
+    return { authToken };
+  }
+
+  // Creates the invited user, applies the invitation's role and groups,
+  // removes the invitation and notifies the inviter.
+  private async createUserFromInvitation(
+    invitation: {
+      id: string;
+      email: string;
+      role: string;
+      groupIds: string[] | null;
+      invitedById: string;
+    },
+    workspace: Workspace,
+    account: { name: string; password: string; hasGeneratedPassword?: boolean },
+    source: string,
+  ): Promise<User | undefined> {
     validateAllowedEmail(invitation.email, workspace);
 
     let newUser: User;
@@ -251,10 +286,11 @@ export class WorkspaceInvitationService {
       await executeTx(this.db, async (trx) => {
         newUser = await this.userRepo.insertUser(
           {
-            name: dto.name,
+            name: account.name,
             email: invitation.email,
             emailVerifiedAt: new Date(),
-            password: dto.password,
+            password: account.password,
+            hasGeneratedPassword: account.hasGeneratedPassword,
             role: invitation.role,
             invitedById: invitation.invitedById,
             workspaceId: workspace.id,
@@ -311,7 +347,7 @@ export class WorkspaceInvitationService {
     }
 
     if (!newUser) {
-      return;
+      return undefined;
     }
 
     // notify the inviter
@@ -345,7 +381,7 @@ export class WorkspaceInvitationService {
         },
       },
       metadata: {
-        source: 'invitation',
+        source,
         invitationId: invitation.id,
       },
     });
@@ -356,14 +392,31 @@ export class WorkspaceInvitationService {
       });
     }
 
-    if (workspace.enforceMfa) {
-      return {
-        requiresLogin: true,
-      };
-    }
+    return newUser;
+  }
 
-    const authToken = await this.sessionService.createSessionAndToken(newUser);
-    return { authToken };
+  // SSO sign-in for someone with a pending invitation: the invitation is the
+  // admin's approval, so it is accepted without the emailed token.
+  async acceptInvitationForSso(
+    email: string,
+    name: string,
+    password: string,
+    workspace: Workspace,
+  ): Promise<User | undefined> {
+    const invitation = await this.db
+      .selectFrom('workspaceInvitations')
+      .selectAll()
+      .where(sql`lower(email)`, '=', email.toLowerCase())
+      .where('workspaceId', '=', workspace.id)
+      .executeTakeFirst();
+    if (!invitation) return undefined;
+
+    return this.createUserFromInvitation(
+      invitation,
+      workspace,
+      { name, password, hasGeneratedPassword: true },
+      'invitation:sso',
+    );
   }
 
   async resendInvitation(

@@ -10,6 +10,6 @@ import { IntegrationModule } from '../integration/integration.module';
   imports: [SpaceModule, TokenModule, IntegrationModule],
   controllers: [WorkspaceController],
   providers: [WorkspaceService, WorkspaceInvitationService],
-  exports: [WorkspaceService],
+  exports: [WorkspaceService, WorkspaceInvitationService],
 })
 export class WorkspaceModule {}

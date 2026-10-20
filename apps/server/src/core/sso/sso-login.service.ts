@@ -12,6 +12,7 @@ import { GroupRepo } from '@docmost/db/repos/group/group.repo';
 import { GroupUserRepo } from '@docmost/db/repos/group/group-user.repo';
 import { AuthProviderRepo } from '@docmost/db/repos/auth-provider/auth-provider.repo';
 import { SignupService } from '../auth/services/signup.service';
+import { WorkspaceInvitationService } from '../workspace/services/workspace-invitation.service';
 import { AuthService } from '../auth/services/auth.service';
 import { validateAllowedEmail } from '../auth/auth.util';
 import { isUserDisabled } from '../../common/helpers';
@@ -54,6 +55,7 @@ export class SsoLoginService {
     private readonly signupService: SignupService,
     private readonly authService: AuthService,
     private readonly encryptionService: EncryptionService,
+    private readonly invitationService: WorkspaceInvitationService,
   ) {}
 
   async login(
@@ -146,6 +148,20 @@ export class SsoLoginService {
     );
     if (existing) return existing;
 
+    const name =
+      identity.name?.trim().slice(0, 50) || identity.email.split('@')[0];
+    // SSO users never type this password; it only satisfies the schema
+    const password = randomBytes(32).toString('base64url');
+
+    // an invitation is the admin's approval, even when sign-up is off
+    const invited = await this.invitationService.acceptInvitationForSso(
+      identity.email,
+      name,
+      password,
+      workspace,
+    );
+    if (invited) return invited;
+
     if (!provider.allowSignup) {
       throw new ForbiddenException(
         'No account exists for this email. Ask an admin to invite you.',
@@ -153,15 +169,8 @@ export class SsoLoginService {
     }
     validateAllowedEmail(identity.email, workspace);
 
-    const name =
-      identity.name?.trim().slice(0, 50) || identity.email.split('@')[0];
-    // SSO users never type this password; it only satisfies the schema
     const created = await this.signupService.signup(
-      {
-        name,
-        email: identity.email,
-        password: randomBytes(32).toString('base64url'),
-      },
+      { name, email: identity.email, password },
       workspace.id,
     );
     await this.userRepo.updateUser(
