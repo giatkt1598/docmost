@@ -21,7 +21,7 @@ import {
   draftCommentIdAtom,
   showCommentPopupAtom,
 } from "@/features/comment/atoms/comment-atom";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { v7 as uuid7 } from "uuid";
 import {
   isCellSelection,
@@ -32,6 +32,8 @@ import { LinkSelector } from "@/features/editor/components/bubble-menu/link-sele
 import { useTranslation } from "react-i18next";
 import {
   showAiMenuAtom,
+  aiMenuAnchorAtom,
+  anchorOf,
   showLinkMenuAtom,
 } from "@/features/editor/atoms/editor-atoms";
 import {
@@ -55,6 +57,7 @@ export const EditorBubbleMenu: FC<EditorBubbleMenuProps> = (props) => {
   const { templateMode = false } = props;
   const { t } = useTranslation();
   const [showAiMenu, setShowAiMenu] = useAtom(showAiMenuAtom);
+  const setAiMenuAnchor = useSetAtom(aiMenuAnchorAtom);
   const [showCommentPopup, setShowCommentPopup] = useAtom(showCommentPopupAtom);
   const workspace = useAtomValue(workspaceAtom);
   const isGenerativeAiEnabled = workspace?.settings?.ai?.generative === true;
@@ -194,7 +197,8 @@ export const EditorBubbleMenu: FC<EditorBubbleMenuProps> = (props) => {
               className={clsx(classes.buttonRoot)}
               radius="0"
               leftSection={<IconSparkles size={16} />}
-              onClick={() => {
+              onClick={(e) => {
+                setAiMenuAnchor(anchorOf(e.currentTarget));
                 setShowAiMenu(true);
               }}
             >

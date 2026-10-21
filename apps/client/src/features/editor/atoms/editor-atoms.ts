@@ -14,6 +14,15 @@ export const yjsSyncedAtom = atom<boolean>(false);
 
 export const showAiMenuAtom = atom(false);
 
+// screen rectangle of the "Ask AI" button that opened the AI menu
+export type AiMenuAnchor = { top: number; bottom: number; left: number };
+export const aiMenuAnchorAtom = atom(null as AiMenuAnchor | null);
+
+export function anchorOf(element: Element): AiMenuAnchor {
+  const rect = element.getBoundingClientRect();
+  return { top: rect.top, bottom: rect.bottom, left: rect.left };
+}
+
 export const showLinkMenuAtom = atom(false);
 
 export type LightboxRequest = {

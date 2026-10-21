@@ -3,11 +3,16 @@ import { Button } from "@mantine/core";
 import { IconSparkles } from "@tabler/icons-react";
 import { useSetAtom } from "jotai";
 import { useTranslation } from "react-i18next";
-import { showAiMenuAtom } from "@/features/editor/atoms/editor-atoms";
+import {
+  aiMenuAnchorAtom,
+  anchorOf,
+  showAiMenuAtom,
+} from "@/features/editor/atoms/editor-atoms";
 
 export const AskAiGroup: FC = () => {
   const { t } = useTranslation();
   const setShowAiMenu = useSetAtom(showAiMenuAtom);
+  const setAiMenuAnchor = useSetAtom(aiMenuAnchorAtom);
 
   return (
     <Button
@@ -15,7 +20,10 @@ export const AskAiGroup: FC = () => {
       color="dark"
       size="xs"
       leftSection={<IconSparkles size={14} />}
-      onClick={() => setShowAiMenu(true)}
+      onClick={(e) => {
+        setAiMenuAnchor(anchorOf(e.currentTarget));
+        setShowAiMenu(true);
+      }}
     >
       {t("Ask AI")}
     </Button>
