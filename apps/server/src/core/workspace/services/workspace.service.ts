@@ -403,20 +403,8 @@ export class WorkspaceService {
       }
 
 
-      if (
-        typeof updateWorkspaceDto.aiChatReadOnly !== 'undefined' ||
-        typeof updateWorkspaceDto.aiChatWorkspaceKnowledgeOnly !== 'undefined'
-      ) {
-        if (
-          !this.licenseCheckService.hasFeature(
-            ws.licenseKey,
-            Feature.AI_CONTROLS,
-            ws.plan,
-          )
-        ) {
-          throw new ForbiddenException('This feature requires a valid license');
-        }
-      }
+      // aiChatReadOnly and aiChatWorkspaceKnowledgeOnly are enforced by the
+      // core AI chat and need no license
 
       if (typeof updateWorkspaceDto.enforceMcpOauth !== 'undefined') {
         if (

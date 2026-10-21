@@ -7,13 +7,23 @@ import { AiAnswerController } from './ai-answer.controller';
 import { AiSearchService } from './ai-search.service';
 import { AiQueueDrainProcessor } from './ai-queue-drain.processor';
 import { hasEnterpriseModule } from '../auth/auth-capabilities';
+import { AiChatController } from './ai-chat.controller';
+import { AiChatService } from './ai-chat.service';
+import { McpModule } from '../mcp/mcp.module';
 
 @Module({
-  controllers: [AiAssistController, AiProviderController, AiAnswerController],
+  imports: [McpModule],
+  controllers: [
+    AiAssistController,
+    AiProviderController,
+    AiAnswerController,
+    AiChatController,
+  ],
   providers: [
     AiProviderService,
     AiProviderAdminService,
     AiSearchService,
+    AiChatService,
     // the enterprise indexer consumes the AI queue when it is bundled
     ...(hasEnterpriseModule() ? [] : [AiQueueDrainProcessor]),
   ],

@@ -13,5 +13,6 @@ import { McpAuthGuard } from './mcp-auth.guard';
   imports: [PageModule, SearchModule, SpaceModule, CommentModule],
   controllers: [McpController, McpTokenController],
   providers: [McpService, McpTokenService, McpAuthGuard],
+  exports: [McpService],
 })
 export class McpModule {}
