@@ -2,10 +2,13 @@ import { useState } from "react";
 import { Button, Group, NumberInput, Select, Stack } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { useTranslation } from "react-i18next";
+import { useAtomValue } from "jotai";
+import { currentUserAtom } from "@/features/user/atoms/current-user-atom.ts";
 import { VerifierSelect } from "@/features/page-verification/components/verifier-select";
 import {
   IPageVerification,
   IVerificationSettings,
+  IVerificationUser,
   PeriodUnit,
   VerificationMode,
 } from "@/features/page-verification/types/page-verification.types";
@@ -40,8 +43,23 @@ export function VerificationSettingsForm({
       ? verification.expiresAt
       : null,
   );
+  const currentUser = useAtomValue(currentUserAtom)?.user;
+  // a new verification starts with the current user as verifier
+  const [initialVerifiers] = useState<IVerificationUser[]>(() =>
+    verification?.verifiers ??
+    (currentUser
+      ? [
+          {
+            id: currentUser.id,
+            name: currentUser.name,
+            email: currentUser.email,
+            avatarUrl: currentUser.avatarUrl,
+          },
+        ]
+      : []),
+  );
   const [verifierIds, setVerifierIds] = useState<string[]>(
-    verification?.verifiers?.map((v) => v.id) ?? [],
+    initialVerifiers.map((v) => v.id),
   );
 
   const isValid =
@@ -64,7 +82,7 @@ export function VerificationSettingsForm({
       <VerifierSelect
         value={verifierIds}
         onChange={setVerifierIds}
-        initialUsers={verification?.verifiers}
+        initialUsers={initialVerifiers}
       />
 
       <Select
