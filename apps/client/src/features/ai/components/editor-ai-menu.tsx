@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ActionIcon,
   Box,
@@ -62,6 +62,9 @@ const TONES = [
   { value: "straightforward", label: "Straightforward" },
 ];
 const CONTEXT_CHARS = 4000;
+const PANEL_WIDTH = 480;
+// room the panel needs below the selection before it opens above instead
+const MIN_SPACE_BELOW = 360;
 
 type Target = { from: number; to: number; text: string; hasSelection: boolean };
 
@@ -80,7 +83,12 @@ export function EditorAiMenu({ editor }: { editor: Editor }) {
   const { t } = useTranslation();
   const [opened, setOpened] = useAtom(showAiMenuAtom);
   const [target, setTarget] = useState<Target | null>(null);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [position, setPosition] = useState({
+    top: 0,
+    left: 0,
+    above: false,
+  });
+  const inputRef = useRef<HTMLInputElement>(null);
   const [prompt, setPrompt] = useState("");
   const [submenu, setSubmenu] = useState<"translate" | "tone" | null>(null);
   const [output, setOutput] = useState("");
@@ -96,8 +104,9 @@ export function EditorAiMenu({ editor }: { editor: Editor }) {
   };
   const panelRef = useClickOutside(() => opened && !running && close());
 
-  // capture the selection and place the panel under it when opening
-  useEffect(() => {
+  // capture the selection and place the panel next to it, before paint so
+  // it never shows up at the top of the page first
+  useLayoutEffect(() => {
     if (!opened) return;
     const { from, to, empty } = editor.state.selection;
     const text = empty
@@ -110,12 +119,20 @@ export function EditorAiMenu({ editor }: { editor: Editor }) {
     setTarget({ from, to, text, hasSelection: !empty });
 
     const container = editor.view.dom.closest(".editor-container");
-    const coords = editor.view.coordsAtPos(to);
     const box = container?.getBoundingClientRect();
     if (box) {
+      const start = editor.view.coordsAtPos(from);
+      const end = editor.view.coordsAtPos(to);
+      const spaceBelow = window.innerHeight - end.bottom;
+      const above = spaceBelow < MIN_SPACE_BELOW && start.top > spaceBelow;
       setPosition({
-        top: coords.bottom - box.top + 8,
-        left: Math.max(0, Math.min(coords.left - box.left, box.width - 480)),
+        // when above, the panel grows upwards from the top of the selection
+        top: above ? start.top - box.top - 8 : end.bottom - box.top + 8,
+        left: Math.max(
+          0,
+          Math.min(end.left - box.left, box.width - PANEL_WIDTH),
+        ),
+        above,
       });
     }
     setPrompt("");
@@ -125,6 +142,11 @@ export function EditorAiMenu({ editor }: { editor: Editor }) {
     setError(null);
     setLastRequest(null);
   }, [opened]);
+
+  // focus without letting the browser scroll the page to the input
+  useEffect(() => {
+    if (opened && target) inputRef.current?.focus({ preventScroll: true });
+  }, [opened, target]);
 
   useEffect(() => {
     if (!opened) return;
@@ -196,12 +218,13 @@ export function EditorAiMenu({ editor }: { editor: Editor }) {
       shadow="lg"
       radius="md"
       withBorder
-      w={480}
+      w={PANEL_WIDTH}
       p="xs"
       style={{
         position: "absolute",
         top: position.top,
         left: position.left,
+        ...(position.above && { transform: "translateY(-100%)" }),
         zIndex: 200,
       }}
     >
@@ -285,8 +308,7 @@ export function EditorAiMenu({ editor }: { editor: Editor }) {
         )}
 
         <TextInput
-          data-autofocus
-          autoFocus
+          ref={inputRef}
           leftSection={<IconSparkles size={16} />}
           placeholder={
             target.hasSelection
