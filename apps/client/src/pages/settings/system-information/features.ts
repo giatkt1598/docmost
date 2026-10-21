@@ -1,0 +1,24 @@
+// Enterprise-edition features and whether this build ships its own
+// implementation of them. Update when one is added.
+export const EDITION_FEATURES: { label: string; available: boolean }[] = [
+  { label: "MCP Support", available: true },
+  { label: "SSO (SAML, OIDC, LDAP)", available: true },
+  { label: "Multi-factor Authentication (2FA)", available: true },
+  { label: "Page-level Permissions", available: true },
+  { label: "Page Verification", available: true },
+  { label: "Security & Sharing Controls", available: true },
+  { label: "Resolve Comments", available: true },
+  { label: "Templates", available: true },
+  { label: "Personal Spaces", available: true },
+  { label: "AI Integration (Chat, Search & Assistant)", available: false },
+  { label: "SCIM Provisioning", available: false },
+  { label: "Approval Workflow", available: false },
+  { label: "Audit Logs", available: false },
+  { label: "API Keys", available: false },
+  { label: "Advanced Search Engine Support", available: false },
+  { label: "Full-text Search in Attachments (PDF, DOCX)", available: false },
+  { label: "Confluence Import", available: false },
+  { label: "PDF & DOCX Import", available: false },
+  { label: "Bases", available: false },
+  { label: "Kanban", available: false },
+];

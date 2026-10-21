@@ -11,6 +11,7 @@ import {
   IconCoin,
   IconLock,
   IconKey,
+  IconInfoCircle,
   IconWorld,
   IconSparkles,
   IconPlug,
@@ -32,7 +33,6 @@ import {
   prefetchApiKeys,
   prefetchBilling,
   prefetchGroups,
-  prefetchLicense,
   prefetchShares,
   prefetchSpaces,
   prefetchWorkspaceMembers,
@@ -153,9 +153,9 @@ const groupedData: DataGroup[] = [
     heading: "System",
     items: [
       {
-        label: "License & Edition",
-        icon: IconKey,
-        path: "/settings/license",
+        label: "System Information",
+        icon: IconInfoCircle,
+        path: "/settings/system",
       },
     ],
   },
@@ -230,11 +230,6 @@ export default function SettingsSidebar() {
               break;
             case "Billing":
               prefetchHandler = prefetchBilling;
-              break;
-            case "License & Edition":
-              if (entitlements?.tier !== "free") {
-                prefetchHandler = prefetchLicense;
-              }
               break;
             case "Public sharing":
               prefetchHandler = prefetchShares;
