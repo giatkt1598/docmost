@@ -1893,5 +1893,13 @@
   "ACS URL": "ACS URL",
   "Where your identity provider sends the SAML response.": "Where your identity provider sends the SAML response.",
   "Entity ID / metadata URL": "Entity ID / metadata URL",
-  "Only you can access your personal space.": "Only you can access your personal space."
+  "Only you can access your personal space.": "Only you can access your personal space.",
+  "Access is also limited by": "Access is also limited by",
+  "General access": "General access",
+  "Everyone in this space": "Everyone in this space",
+  "Only people with access": "Only people with access",
+  "Only the people and groups below can view this page and its sub-pages.": "Only the people and groups below can view this page and its sub-pages.",
+  "Space members can access this page according to their space role.": "Space members can access this page according to their space role.",
+  "People must also be members of this space to open the page.": "People must also be members of this space to open the page.",
+  "{{count}} members": "{{count}} members"
 }

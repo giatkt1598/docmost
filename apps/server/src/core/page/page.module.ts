@@ -9,14 +9,17 @@ import { CollaborationModule } from '../../collaboration/collaboration.module';
 import { WatcherModule } from '../watcher/watcher.module';
 import { TransclusionModule } from './transclusion/transclusion.module';
 import { LabelModule } from '../label/label.module';
+import { PagePermissionController } from './page-permission/page-permission.controller';
+import { PagePermissionService } from './page-permission/page-permission.service';
 
 @Module({
-  controllers: [PageController],
+  controllers: [PageController, PagePermissionController],
   providers: [
     PageService,
     PageHistoryService,
     TrashCleanupService,
     BacklinkService,
+    PagePermissionService,
   ],
   exports: [PageService, PageHistoryService],
   imports: [

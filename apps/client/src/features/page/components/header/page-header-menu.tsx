@@ -51,7 +51,7 @@ import MovePageModal from "@/features/page/components/move-page-modal.tsx";
 import PageAttachmentsModal from "@/features/attachments/components/page-attachments-modal.tsx";
 import PresentationModal from "@/features/editor/components/presentation/presentation-modal.tsx";
 import { useTimeAgo } from "@/hooks/use-time-ago.tsx";
-import { PageShareModal } from "@/ee/page-permission";
+import { PageShareModal } from "@/features/page-permission/components/page-share-modal";
 import { PageVerificationMenuItem } from "@/features/page-verification/components/page-verification-menu-item";
 import { PageVerificationModal } from "@/features/page-verification/components/page-verification-modal";
 import {

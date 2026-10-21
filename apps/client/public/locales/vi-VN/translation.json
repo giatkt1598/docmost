@@ -1893,5 +1893,13 @@
   "ACS URL": "URL ACS",
   "Where your identity provider sends the SAML response.": "Nơi nhà cung cấp danh tính gửi phản hồi SAML.",
   "Entity ID / metadata URL": "Entity ID / URL metadata",
-  "Only you can access your personal space.": "Chỉ bạn mới truy cập được không gian cá nhân của mình."
+  "Only you can access your personal space.": "Chỉ bạn mới truy cập được không gian cá nhân của mình.",
+  "Access is also limited by": "Quyền truy cập còn bị giới hạn bởi",
+  "General access": "Quyền truy cập chung",
+  "Everyone in this space": "Mọi người trong space này",
+  "Only people with access": "Chỉ những người được cấp quyền",
+  "Only the people and groups below can view this page and its sub-pages.": "Chỉ những người và nhóm dưới đây mới xem được trang này và các trang con.",
+  "Space members can access this page according to their space role.": "Thành viên space truy cập trang này theo vai trò của họ trong space.",
+  "People must also be members of this space to open the page.": "Người được thêm cũng phải là thành viên của space mới mở được trang.",
+  "{{count}} members": "{{count}} thành viên"
 }
