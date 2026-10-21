@@ -367,6 +367,11 @@ export class EnvironmentService {
     );
   }
 
+  // sent as a Bearer token, e.g. to an Ollama behind an authenticating proxy
+  getOllamaApiKey(): string | undefined {
+    return this.configService.get<string>('OLLAMA_API_KEY') || undefined;
+  }
+
   getEventStoreDriver(): string {
     return this.configService
       .get<string>('EVENT_STORE_DRIVER', 'postgres')

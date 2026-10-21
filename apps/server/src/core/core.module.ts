@@ -35,6 +35,7 @@ import { TemplateAccessModule } from './template/template-access.module';
 import { SsoModule } from './sso/sso.module';
 import { ApiKeyModule } from './api-key/api-key.module';
 import { ApiDocsModule } from './api-docs/api-docs.module';
+import { AiModule } from './ai/ai.module';
 import { ClsMiddleware } from 'nestjs-cls';
 
 @Module({
@@ -68,6 +69,7 @@ import { ClsMiddleware } from 'nestjs-cls';
     SsoModule,
     ApiKeyModule,
     ApiDocsModule,
+    AiModule,
   ],
 })
 export class CoreModule implements NestModule {
