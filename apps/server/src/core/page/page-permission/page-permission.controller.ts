@@ -75,7 +75,7 @@ export class PagePermissionController {
     @AuthWorkspace() workspace: Workspace,
   ) {
     const page = await this.findManageablePage(dto.pageId, user, workspace);
-    await this.pagePermissionService.unrestrict(page);
+    await this.pagePermissionService.unrestrict(page, user);
   }
 
   @HttpCode(HttpStatus.OK)
@@ -97,7 +97,7 @@ export class PagePermissionController {
     @AuthWorkspace() workspace: Workspace,
   ) {
     const page = await this.findManageablePage(dto.pageId, user, workspace);
-    await this.pagePermissionService.removePermissions(dto, page);
+    await this.pagePermissionService.removePermissions(dto, page, user);
   }
 
   @HttpCode(HttpStatus.OK)
@@ -108,7 +108,7 @@ export class PagePermissionController {
     @AuthWorkspace() workspace: Workspace,
   ) {
     const page = await this.findManageablePage(dto.pageId, user, workspace);
-    await this.pagePermissionService.updateRole(dto, page);
+    await this.pagePermissionService.updateRole(dto, page, user);
   }
 
   private async findPage(pageId: string, workspace: Workspace) {

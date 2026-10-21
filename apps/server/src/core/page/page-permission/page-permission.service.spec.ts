@@ -62,12 +62,16 @@ function setup(opts: { access?: any; writersAfter?: number } = {}) {
   };
   const service = new PagePermissionService(
     repo as any,
-    { findById: jest.fn() } as any,
+    {
+      findById: jest.fn(),
+      getPageAndDescendants: jest.fn().mockResolvedValue([{ id: 'p1' }]),
+    } as any,
     pageAccess as any,
     ws as any,
     collab as any,
     db as any,
     audit as any,
+    { del: jest.fn().mockResolvedValue(undefined) } as any,
   );
   return { service, repo, ws, collab, audit, insertedRows };
 }
@@ -125,6 +129,7 @@ describe('PagePermissionService', () => {
       removal.service.removePermissions(
         { pageId: 'p1', userIds: ['u1'] },
         page,
+        user,
       ),
     ).rejects.toThrow(BadRequestException);
     expect(removal.collab.recheckAccess).not.toHaveBeenCalled();
@@ -134,6 +139,7 @@ describe('PagePermissionService', () => {
       demotion.service.updateRole(
         { pageId: 'p1', role: 'reader' as any, userId: 'u1' },
         page,
+        user,
       ),
     ).rejects.toThrow('at least one writer');
   });
@@ -141,7 +147,7 @@ describe('PagePermissionService', () => {
   it('requires exactly one target when changing a role', async () => {
     const { service } = setup({ access: { id: 'pa1' } });
     await expect(
-      service.updateRole({ pageId: 'p1', role: 'writer' as any }, page),
+      service.updateRole({ pageId: 'p1', role: 'writer' as any }, page, user),
     ).rejects.toThrow('either a userId or a groupId');
   });
 

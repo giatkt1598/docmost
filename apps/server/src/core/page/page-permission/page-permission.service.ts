@@ -1,4 +1,6 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@docmost/db/types/kysely.types';
 import { Page, User } from '@docmost/db/types/entity.types';
@@ -22,6 +24,7 @@ import {
 import { WsService } from '../../../ws/ws.service';
 import { CollabAccessService } from '../../../collaboration/services/collab-access.service';
 import { PageAccessService } from '../page-access/page-access.service';
+import { CacheKey } from '../../../common/helpers/cache-keys';
 import {
   AddPagePermissionDto,
   RemovePagePermissionDto,
@@ -43,6 +46,7 @@ export class PagePermissionService {
     private readonly collabAccessService: CollabAccessService,
     @InjectKysely() private readonly db: KyselyDB,
     @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   async info(page: Page, user: User) {
@@ -121,15 +125,15 @@ export class PagePermissionService {
     });
 
     this.audit(AuditEvent.PAGE_RESTRICTED, page);
-    await this.afterChange(page);
+    await this.afterChange(page, user);
   }
 
-  async unrestrict(page: Page) {
+  async unrestrict(page: Page, user: User) {
     const access = await this.requireAccess(page);
     await this.pagePermissionRepo.deletePageAccess(access.pageId);
 
     this.audit(AuditEvent.PAGE_RESTRICTION_REMOVED, page);
-    await this.afterChange(page);
+    await this.afterChange(page, user);
   }
 
   async addPermissions(dto: AddPagePermissionDto, page: Page, user: User) {
@@ -164,10 +168,14 @@ export class PagePermissionService {
       userIds,
       groupIds,
     });
-    await this.afterChange(page);
+    await this.afterChange(page, user);
   }
 
-  async removePermissions(dto: RemovePagePermissionDto, page: Page) {
+  async removePermissions(
+    dto: RemovePagePermissionDto,
+    page: Page,
+    user: User,
+  ) {
     const access = await this.requireAccess(page);
     const userIds = dto.userIds ?? [];
     const groupIds = dto.groupIds ?? [];
@@ -195,10 +203,10 @@ export class PagePermissionService {
     });
 
     this.audit(AuditEvent.PAGE_PERMISSION_REMOVED, page, { userIds, groupIds });
-    await this.afterChange(page);
+    await this.afterChange(page, user);
   }
 
-  async updateRole(dto: UpdatePagePermissionRoleDto, page: Page) {
+  async updateRole(dto: UpdatePagePermissionRoleDto, page: Page, user: User) {
     if (!dto.userId === !dto.groupId) {
       throw new BadRequestException('Provide either a userId or a groupId');
     }
@@ -223,7 +231,7 @@ export class PagePermissionService {
       userId: dto.userId,
       groupId: dto.groupId,
     });
-    await this.afterChange(page);
+    await this.afterChange(page, user);
   }
 
   private async requireAccess(page: Page) {
@@ -258,7 +266,19 @@ export class PagePermissionService {
   }
 
   // Drop cached restriction state and disconnect anyone who lost access.
-  private async afterChange(page: Page) {
+  private async afterChange(page: Page, actor: User) {
+    // the actor's next page fetch must see the new state rather than the
+    // short-lived permission cache; other users catch up within its TTL
+    const pages = await this.pageRepo.getPageAndDescendants(page.id, {
+      includeContent: false,
+    });
+    await Promise.all(
+      pages.map((p) =>
+        this.cacheManager
+          .del(CacheKey.PAGE_CAN_EDIT(actor.id, p.id))
+          .catch(() => undefined),
+      ),
+    );
     await this.wsService.invalidateSpaceRestrictionCache(page.spaceId);
     await this.collabAccessService.recheckAccess({ pageIds: [page.id] });
     await this.wsService.removeBaseSubscribersWithoutAccess([page.id]);
