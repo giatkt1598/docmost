@@ -71,6 +71,9 @@ const SpaceTrash = lazyWithPrefetch(() => import("@/pages/space/space-trash.tsx"
 const UserApiKeys = lazyWithPrefetch(
   () => import("@/pages/settings/api-keys/user-api-keys"),
 );
+const ApiDocs = lazyWithPrefetch(
+  () => import("@/pages/settings/api-docs/api-docs"),
+);
 const WorkspaceApiKeys = lazyWithPrefetch(
   () => import("@/pages/settings/api-keys/workspace-api-keys"),
 );
@@ -206,6 +209,7 @@ export default function App() {
             <Route path={"workspace"} element={<WorkspaceSettings />} />
             <Route path={"members"} element={<WorkspaceMembers />} />
             <Route path={"api-keys"} element={<WorkspaceApiKeys />} />
+            <Route path={"api-docs"} element={<ApiDocs />} />
             <Route path={"groups"} element={<Groups />} />
             <Route path={"groups/:groupId"} element={<GroupInfo />} />
             <Route path={"spaces"} element={<Spaces />} />

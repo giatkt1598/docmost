@@ -12,6 +12,7 @@ import { ApiKeyTable } from "@/features/api-key/components/api-key-table";
 import { CreateApiKeyModal } from "@/features/api-key/components/create-api-key-modal";
 import { ApiKeyCreatedModal } from "@/features/api-key/components/api-key-created-modal";
 import { RenameApiKeyModal } from "@/features/api-key/components/rename-api-key-modal";
+import { ApiDocsButton } from "@/features/api-docs/components/api-docs-button";
 
 interface ApiKeysPanelProps {
   // every key of the workspace (admin page) instead of the user's own
@@ -38,14 +39,14 @@ export function ApiKeysPanel({
         <Text size="sm" c="dimmed">
           {description}
         </Text>
-        {canCreate && (
-          <Button
-            onClick={() => setCreateOpened(true)}
-            style={{ flexShrink: 0 }}
-          >
-            {t("Create API key")}
-          </Button>
-        )}
+        <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+          <ApiDocsButton />
+          {canCreate && (
+            <Button onClick={() => setCreateOpened(true)}>
+              {t("Create API key")}
+            </Button>
+          )}
+        </Group>
       </Group>
 
       <ApiKeyTable
