@@ -14,7 +14,7 @@ import { SpaceSidebar } from "@/features/space/components/sidebar/space-sidebar.
 import { lazyWithPrefetch } from "@/lib/lazy-prefetch.ts";
 
 const AiChatSidebar = lazyWithPrefetch(
-  () => import("@/ee/ai-chat/components/ai-chat-sidebar.tsx"),
+  () => import("@/features/ai-chat/components/ai-chat-sidebar.tsx"),
 );
 import { AppHeader } from "@/components/layouts/global/app-header.tsx";
 import Aside from "@/components/layouts/global/aside.tsx";

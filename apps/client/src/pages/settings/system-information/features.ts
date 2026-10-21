@@ -11,7 +11,7 @@ export const EDITION_FEATURES: { label: string; available: boolean }[] = [
   { label: "Templates", available: true },
   { label: "Personal Spaces", available: true },
   { label: "API Keys", available: true },
-  { label: "AI Integration (Chat, Search & Assistant)", available: false },
+  { label: "AI Integration (Chat, Search & Assistant)", available: true },
   { label: "SCIM Provisioning", available: false },
   { label: "Approval Workflow", available: false },
   { label: "Audit Logs", available: false },

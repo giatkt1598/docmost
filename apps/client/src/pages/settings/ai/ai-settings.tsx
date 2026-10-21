@@ -1,5 +1,7 @@
 import { Stack, Switch, Tabs, Title } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
+import { workspaceAtom } from "@/features/user/atoms/current-user-atom.ts";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import SettingsTitle from "@/components/settings/settings-title.tsx";
@@ -25,8 +27,18 @@ function AiFeatureToggle({
   providerReady: boolean;
   title: string;
   description: string;
-  setting: "generative" | "search";
-  field: "generativeAi" | "aiSearch";
+  setting:
+    | "generative"
+    | "search"
+    | "chat"
+    | "chatReadOnly"
+    | "chatWorkspaceKnowledgeOnly";
+  field:
+    | "generativeAi"
+    | "aiSearch"
+    | "aiChat"
+    | "aiChatReadOnly"
+    | "aiChatWorkspaceKnowledgeOnly";
   ariaLabel: string;
 }) {
   const { t } = useTranslation();
@@ -53,6 +65,7 @@ export default function AiSettings() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { isMember } = useUserRole();
+  const workspace = useAtomValue(workspaceAtom);
   const { data: provider } = useQuery({
     queryKey: AI_PROVIDER_KEY,
     queryFn: getAiProvider,
@@ -104,6 +117,40 @@ export default function AiSettings() {
               field="aiSearch"
               ariaLabel={t("Toggle AI search")}
             />
+            <AiFeatureToggle
+              providerReady={!!provider?.configured}
+              title={t("AI chat")}
+              description={t(
+                "A chat assistant that searches and reads the pages each member can access. The chat model must support tool calling.",
+              )}
+              setting="chat"
+              field="aiChat"
+              ariaLabel={t("Toggle AI chat")}
+            />
+            {workspace?.settings?.ai?.chat === true && (
+              <Stack gap="lg" pl="lg">
+                <AiFeatureToggle
+                  providerReady={!!provider?.configured}
+                  title={t("Read-only chat")}
+                  description={t(
+                    "The assistant can only read pages; it cannot create or change them.",
+                  )}
+                  setting="chatReadOnly"
+                  field="aiChatReadOnly"
+                  ariaLabel={t("Toggle read-only chat")}
+                />
+                <AiFeatureToggle
+                  providerReady={!!provider?.configured}
+                  title={t("Answer only from the wiki")}
+                  description={t(
+                    "The assistant answers only from content found in the wiki, not from general knowledge.",
+                  )}
+                  setting="chatWorkspaceKnowledgeOnly"
+                  field="aiChatWorkspaceKnowledgeOnly"
+                  ariaLabel={t("Toggle answers only from the wiki")}
+                />
+              </Stack>
+            )}
           </Stack>
         </Tabs.Panel>
       </Tabs>
