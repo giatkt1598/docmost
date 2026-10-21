@@ -4,27 +4,20 @@ import { Group, Button, VisuallyHidden, Text } from "@mantine/core";
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useDebouncedValue } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
-import { notifications } from "@mantine/notifications";
-import { searchSpotlightStore } from "../constants.ts";
+import { searchSpotlight, searchSpotlightStore } from "../constants.ts";
 import { SearchSpotlightFilters } from "./search-spotlight-filters.tsx";
 import { useUnifiedSearch } from "../hooks/use-unified-search.ts";
-import { useAiSearch } from "../../../ee/ai/hooks/use-ai-search.ts";
+import { useAiAnswer } from "@/features/ai/hooks/use-ai-answer";
 import { SearchResultItem } from "./search-result-item.tsx";
-import { AiSearchResult } from "../../../ee/ai/components/ai-search-result.tsx";
+import { AiAnswerResult } from "@/features/ai/components/ai-answer-result";
 import { useHasFeature } from "@/ee/hooks/use-feature";
 import { Feature } from "@/ee/features";
-import { useAtomValue } from "jotai";
-import { workspaceAtom } from "@/features/user/atoms/current-user-atom.ts";
-import { hintVectorCache } from "@/ee/ai/services/ai-search-service.ts";
-import { getAiVectorDriver } from "@/lib/config.ts";
 
 interface SearchSpotlightProps {
   spaceId?: string;
 }
 export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
-  const workspace = useAtomValue(workspaceAtom);
   const { t } = useTranslation();
-  const hasAiFeature = useHasFeature(Feature.AI);
   const hasAttachmentIndexing = useHasFeature(Feature.ATTACHMENT_INDEXING);
   const [query, setQuery] = useState("");
   const [debouncedSearchQuery] = useDebouncedValue(query, 300);
@@ -73,38 +66,19 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
     searchParams,
     !isAiMode // Disable regular search when in AI mode
   );
-  const {
-    //@ts-ignore
-    data: aiSearchResult,
-    //@ts-ignore
-    isPending: isAiLoading,
-    //@ts-ignore
-    mutate: triggerAiSearchMutation,
-    //@ts-ignore
-    reset: resetAiMutation,
-    //@ts-ignore
-    error: aiSearchError,
-    streamingAnswer,
-    streamingSources,
-    clearStreaming,
-  } = useAiSearch();
+  const aiAnswer = useAiAnswer();
+  const { reset: resetAiAnswer } = aiAnswer;
+  const isAiLoading = aiAnswer.loading;
+  const hasAiAnswer =
+    aiAnswer.loading ||
+    !!aiAnswer.answer ||
+    aiAnswer.found !== null ||
+    !!aiAnswer.error;
 
-  // Clear streaming state and mutation data when query changes (user is typing a new query)
+  // a new question clears the previous answer
   useEffect(() => {
-    clearStreaming();
-    resetAiMutation();
-  }, [query, clearStreaming, resetAiMutation]);
-
-  // Show error notification when AI search fails
-  useEffect(() => {
-    if (aiSearchError) {
-      notifications.show({
-        message: aiSearchError.message || t("AI search failed. Please try again."),
-        color: "red",
-        position: "top-center"
-      });
-    }
-  }, [aiSearchError, t]);
+    resetAiAnswer();
+  }, [query, resetAiAnswer]);
 
   const isFilterBrowse =
     (filters.labelIds?.length ?? 0) > 0 || !!filters.creatorId;
@@ -124,14 +98,6 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
     />
   ));
 
-  const handleSpotlightOpen = () => {
-    if (
-      workspace?.settings?.ai?.search === true &&
-      getAiVectorDriver() === "turbopuffer"
-    ) {
-      hintVectorCache();
-    }
-  };
 
   const handleFiltersChange = useCallback((newFilters: any) => {
     setFilters(newFilters);
@@ -143,7 +109,7 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
 
   const handleAiSearchTrigger = () => {
     if (query.trim() && isAiMode) {
-      triggerAiSearchMutation(searchParams);
+      aiAnswer.ask(query.trim(), filters.spaceId ?? undefined);
     }
   };
 
@@ -152,7 +118,6 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
       <Spotlight.Root
         size="xl"
         maxHeight={600}
-        onSpotlightOpen={handleSpotlightOpen}
         store={searchSpotlightStore}
         query={query}
         onQueryChange={setQuery}
@@ -174,7 +139,7 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
               }
             }}
           />
-          {isAiMode && hasAiFeature && (
+          {isAiMode && (
             <Button
               size="xs"
               leftSection={<IconSparkles size={16} />}
@@ -182,7 +147,7 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
               disabled={!query.trim()}
               loading={isAiLoading}
             >
-              Ask
+              {t("Ask")}
             </Button>
           )}
         </Group>
@@ -202,7 +167,7 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
 
         <VisuallyHidden role="status" aria-live="polite">
           {isAiMode
-            ? query.length > 0 && !isAiLoading && !aiSearchResult
+            ? query.length > 0 && !isAiLoading && aiAnswer.found === false
               ? t("No answer available")
               : ""
             : (query.length > 0 || isFilterBrowse) && !isFetching
@@ -218,16 +183,16 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
               {query.length === 0 && (
                 <Spotlight.Empty>{t("Ask a question...")}</Spotlight.Empty>
               )}
-              {query.length > 0 && (isAiLoading || aiSearchResult || streamingAnswer) && (
-                <AiSearchResult
-                  result={aiSearchResult}
-                  isLoading={isAiLoading}
-                  streamingAnswer={streamingAnswer}
-                  streamingSources={streamingSources}
+              {query.length > 0 && hasAiAnswer && (
+                <AiAnswerResult
+                  state={aiAnswer}
+                  onNavigate={() => searchSpotlight.close()}
                 />
               )}
-              {query.length > 0 && !isAiLoading && !aiSearchResult && (
-                <Spotlight.Empty>{t("No answer available")}</Spotlight.Empty>
+              {query.length > 0 && !hasAiAnswer && (
+                <Spotlight.Empty>
+                  {t("Press Enter to ask AI about your pages")}
+                </Spotlight.Empty>
               )}
             </>
           ) : (

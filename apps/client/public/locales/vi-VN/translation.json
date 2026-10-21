@@ -2037,5 +2037,13 @@
   "Optional. Used for AI chat; needs tool support. Defaults to the model above.": "Không bắt buộc. Dùng cho AI Chat, cần hỗ trợ tool. Mặc định dùng model ở trên.",
   "Connected in {{seconds}}s. Reply: {{sample}}": "Kết nối thành công trong {{seconds}} giây. Trả lời: {{sample}}",
   "Configure an AI provider first.": "Hãy cấu hình nhà cung cấp AI trước.",
-  "Provider": "Nhà cung cấp"
+  "Provider": "Nhà cung cấp",
+  "No pages you can access match this question.": "Không có trang nào bạn xem được khớp với câu hỏi này.",
+  "AI answer": "Câu trả lời của AI",
+  "Reading {{count}} pages...": "Đang đọc {{count}} trang...",
+  "Searching pages...": "Đang tìm trang...",
+  "Ask": "Hỏi",
+  "Press Enter to ask AI about your pages": "Nhấn Enter để hỏi AI về các trang của bạn",
+  "AI search (AI answers)": "Tìm kiếm AI (AI Answers)",
+  "Lets members ask questions in search and get an answer from the pages they can access, with links to the sources.": "Cho phép thành viên đặt câu hỏi trong ô tìm kiếm và nhận câu trả lời tổng hợp từ các trang họ xem được, kèm link tới trang nguồn."
 }

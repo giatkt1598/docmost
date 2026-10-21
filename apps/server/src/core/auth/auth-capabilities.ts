@@ -13,7 +13,7 @@ export const CORE_SSO_PROVIDER_TYPES: string[] = [
 // Whether core ships a two-factor implementation.
 export const CORE_MFA_SUPPORTED = true;
 
-function hasEnterpriseModule(): boolean {
+export function hasEnterpriseModule(): boolean {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return !!require('../../ee/ee.module')?.EeModule;

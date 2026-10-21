@@ -2037,5 +2037,13 @@
   "Optional. Used for AI chat; needs tool support. Defaults to the model above.": "Optional. Used for AI chat; needs tool support. Defaults to the model above.",
   "Connected in {{seconds}}s. Reply: {{sample}}": "Connected in {{seconds}}s. Reply: {{sample}}",
   "Configure an AI provider first.": "Configure an AI provider first.",
-  "Provider": "Provider"
+  "Provider": "Provider",
+  "No pages you can access match this question.": "No pages you can access match this question.",
+  "AI answer": "AI answer",
+  "Reading {{count}} pages...": "Reading {{count}} pages...",
+  "Searching pages...": "Searching pages...",
+  "Ask": "Ask",
+  "Press Enter to ask AI about your pages": "Press Enter to ask AI about your pages",
+  "AI search (AI answers)": "AI search (AI answers)",
+  "Lets members ask questions in search and get an answer from the pages they can access, with links to the sources.": "Lets members ask questions in search and get an answer from the pages they can access, with links to the sources."
 }

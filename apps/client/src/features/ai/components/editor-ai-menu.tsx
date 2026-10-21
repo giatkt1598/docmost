@@ -38,6 +38,7 @@ import { DOMSerializer } from "@tiptap/pm/model";
 import { useAtom, useAtomValue } from "jotai";
 import { useTranslation } from "react-i18next";
 import { htmlToMarkdown, markdownToHtml } from "@docmost/editor-ext";
+import { renderAiMarkdown } from "@/features/ai/render-ai-markdown";
 import {
   aiMenuAnchorAtom,
   showAiMenuAtom,
@@ -198,9 +199,7 @@ export function EditorAiMenu({ editor }: { editor: Editor }) {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.resolve(markdownToHtml(output)).then(
-      (html) => !cancelled && setOutputHtml(html),
-    );
+    renderAiMarkdown(output).then((html) => !cancelled && setOutputHtml(html));
     return () => {
       cancelled = true;
     };

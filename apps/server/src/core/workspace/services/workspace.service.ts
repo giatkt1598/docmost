@@ -54,6 +54,7 @@ import { IntegrationConnectionRepo } from '../../integration/repos/integration-c
 import { WsService } from '../../../ws/ws.service';
 import { CollabAccessService } from '../../../collaboration/services/collab-access.service';
 import {
+  hasEnterpriseModule,
   isMfaSupported,
   isSsoProviderTypeSupported,
 } from '../../auth/auth-capabilities';
@@ -448,8 +449,11 @@ export class WorkspaceService {
       }
     }
 
+    // core AI search answers from the full-text index; only the enterprise
+    // vector search needs pgvector
     if (
       updateWorkspaceDto.aiSearch &&
+      hasEnterpriseModule() &&
       this.environmentService.getAiVectorDriver() !== 'turbopuffer'
     ) {
       const tableExists = await isPageEmbeddingsTableExists(this.db);

@@ -13,25 +13,36 @@ import {
 } from "@/features/ai/components/ai-provider-form";
 import { getAiProvider } from "@/features/ai/services/ai-provider-service";
 
-function GenerativeAiToggle({ providerReady }: { providerReady: boolean }) {
+// One AI feature switch; locked until a provider is configured.
+function AiFeatureToggle({
+  providerReady,
+  title,
+  description,
+  setting,
+  field,
+  ariaLabel,
+}: {
+  providerReady: boolean;
+  title: string;
+  description: string;
+  setting: "generative" | "search";
+  field: "generativeAi" | "aiSearch";
+  ariaLabel: string;
+}) {
   const { t } = useTranslation();
   const { workspace, save, saving } = useUpdateWorkspaceSetting();
   return (
     <SettingRow
-      title={t("Generative AI (Ask AI)")}
+      title={title}
       description={
-        providerReady
-          ? t(
-              "Lets members improve, translate, summarize or continue text in the editor with AI.",
-            )
-          : t("Configure an AI provider first.")
+        providerReady ? description : t("Configure an AI provider first.")
       }
     >
       <Switch
-        checked={workspace?.settings?.ai?.generative === true}
+        checked={workspace?.settings?.ai?.[setting] === true}
         disabled={saving || !providerReady}
-        onChange={(e) => save({ generativeAi: e.currentTarget.checked })}
-        aria-label={t("Toggle generative AI")}
+        onChange={(e) => save({ [field]: e.currentTarget.checked })}
+        aria-label={ariaLabel}
       />
     </SettingRow>
   );
@@ -73,7 +84,26 @@ export default function AiSettings() {
           <Stack gap="lg">
             <AiProviderForm />
             <Title order={5}>{t("Features")}</Title>
-            <GenerativeAiToggle providerReady={!!provider?.configured} />
+            <AiFeatureToggle
+              providerReady={!!provider?.configured}
+              title={t("Generative AI (Ask AI)")}
+              description={t(
+                "Lets members improve, translate, summarize or continue text in the editor with AI.",
+              )}
+              setting="generative"
+              field="generativeAi"
+              ariaLabel={t("Toggle generative AI")}
+            />
+            <AiFeatureToggle
+              providerReady={!!provider?.configured}
+              title={t("AI search (AI answers)")}
+              description={t(
+                "Lets members ask questions in search and get an answer from the pages they can access, with links to the sources.",
+              )}
+              setting="search"
+              field="aiSearch"
+              ariaLabel={t("Toggle AI search")}
+            />
           </Stack>
         </Tabs.Panel>
       </Tabs>
