@@ -68,9 +68,11 @@ const MfaSetupRequiredPage = lazyWithPrefetch(
   () => import("@/pages/auth/two-factor-setup-required.tsx"),
 );
 const SpaceTrash = lazyWithPrefetch(() => import("@/pages/space/space-trash.tsx"));
-const UserApiKeys = lazyWithPrefetch(() => import("@/ee/api-key/pages/user-api-keys"));
+const UserApiKeys = lazyWithPrefetch(
+  () => import("@/pages/settings/api-keys/user-api-keys"),
+);
 const WorkspaceApiKeys = lazyWithPrefetch(
-  () => import("@/ee/api-key/pages/workspace-api-keys"),
+  () => import("@/pages/settings/api-keys/workspace-api-keys"),
 );
 const AiSettings = lazyWithPrefetch(() => import("@/ee/ai/pages/ai-settings.tsx"));
 const BasePage = lazyWithPrefetch(() => import("@/ee/base/pages/base-page.tsx"));
@@ -197,7 +199,7 @@ export default function App() {
             <Route path={"account/api-keys"} element={<UserApiKeys />} />
             <Route
               path={"account/api-keys/authorized-apps"}
-              element={<UserApiKeys />}
+              element={<Navigate to="/settings/account/api-keys" replace />}
             />
             <Route path={"account/connections"} element={<Connections />} />
             <Route path={"account/mcp"} element={<McpTokens />} />

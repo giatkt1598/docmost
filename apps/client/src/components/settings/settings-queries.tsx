@@ -11,7 +11,8 @@ import { getLicenseInfo } from "@/ee/licence/services/license-service.ts";
 import { getSsoProviders } from "@/features/sso/services/sso-service";
 import { SSO_PROVIDERS_KEY } from "@/features/sso/queries/sso-query";
 import { getShares } from "@/features/share/services/share-service.ts";
-import { getApiKeys } from "@/ee/api-key";
+import { getApiKeys } from "@/features/api-key/services/api-key-service";
+import { API_KEYS_KEY } from "@/features/api-key/queries/api-key-query";
 import { getAuditLogs } from "@/ee/audit/services/audit-service";
 import { getPageVerifications } from "@/features/page-verification/services/page-verification-service";
 import { VERIFICATION_LIST_KEY } from "@/features/page-verification/queries/page-verification-query";
@@ -74,15 +75,15 @@ export const prefetchShares = () => {
 
 export const prefetchApiKeys = () => {
   queryClient.prefetchQuery({
-    queryKey: ["api-key-list", {}],
-    queryFn: () => getApiKeys({}),
+    queryKey: [API_KEYS_KEY, { cursor: undefined, adminView: undefined }],
+    queryFn: () => getApiKeys({ cursor: undefined, adminView: undefined }),
   });
 };
 
 export const prefetchApiKeyManagement = () => {
   queryClient.prefetchQuery({
-    queryKey: ["api-key-list", { adminView: true }],
-    queryFn: () => getApiKeys({ adminView: true }),
+    queryKey: [API_KEYS_KEY, { cursor: undefined, adminView: true }],
+    queryFn: () => getApiKeys({ cursor: undefined, adminView: true }),
   });
 };
 

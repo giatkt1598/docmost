@@ -15,6 +15,7 @@ import { SessionActivityService } from '../../session/session-activity.service';
 import { FastifyRequest } from 'fastify';
 import { extractBearerTokenFromHeader, isUserDisabled } from '../../../common/helpers';
 import { ModuleRef } from '@nestjs/core';
+import { ApiKeyService } from '../../api-key/api-key.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -118,7 +119,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       return ApiKeyService.validateApiKey(payload);
     }
 
-    throw new UnauthorizedException('Enterprise API Key module missing');
+    // core implementation when the enterprise module is not bundled
+    return this.moduleRef
+      .get(ApiKeyService, { strict: false })
+      .validateApiKey(payload);
   }
 
   private async validateOAuthToken(req: any, payload: JwtOAuthPayload) {
