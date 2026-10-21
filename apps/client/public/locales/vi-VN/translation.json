@@ -2036,5 +2036,6 @@
   "Chat model": "Model cho chat",
   "Optional. Used for AI chat; needs tool support. Defaults to the model above.": "Không bắt buộc. Dùng cho AI Chat, cần hỗ trợ tool. Mặc định dùng model ở trên.",
   "Connected in {{seconds}}s. Reply: {{sample}}": "Kết nối thành công trong {{seconds}} giây. Trả lời: {{sample}}",
-  "Configure an AI provider first.": "Hãy cấu hình nhà cung cấp AI trước."
+  "Configure an AI provider first.": "Hãy cấu hình nhà cung cấp AI trước.",
+  "Provider": "Nhà cung cấp"
 }

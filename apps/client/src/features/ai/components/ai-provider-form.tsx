@@ -8,7 +8,7 @@ import {
   Group,
   Paper,
   PasswordInput,
-  SegmentedControl,
+  Select,
   Stack,
   Text,
   TextInput,
@@ -226,10 +226,13 @@ export function AiProviderForm() {
           </Alert>
         )}
 
-        <SegmentedControl
+        <Select
+          label={t("Provider")}
           value={driver}
-          onChange={(value) => changeDriver(value as AiDriver)}
+          onChange={(value) => value && changeDriver(value as AiDriver)}
           data={DRIVERS}
+          allowDeselect={false}
+          comboboxProps={{ withinPortal: true }}
         />
 
         {driver !== "gemini" && (

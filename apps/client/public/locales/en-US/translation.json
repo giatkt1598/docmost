@@ -2036,5 +2036,6 @@
   "Chat model": "Chat model",
   "Optional. Used for AI chat; needs tool support. Defaults to the model above.": "Optional. Used for AI chat; needs tool support. Defaults to the model above.",
   "Connected in {{seconds}}s. Reply: {{sample}}": "Connected in {{seconds}}s. Reply: {{sample}}",
-  "Configure an AI provider first.": "Configure an AI provider first."
+  "Configure an AI provider first.": "Configure an AI provider first.",
+  "Provider": "Provider"
 }
