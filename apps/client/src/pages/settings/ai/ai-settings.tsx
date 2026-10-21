@@ -1,5 +1,4 @@
-import { Alert, Code, List, Stack, Switch, Tabs, Text } from "@mantine/core";
-import { IconAlertTriangle, IconCircleCheck } from "@tabler/icons-react";
+import { Stack, Switch, Tabs, Title } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -8,83 +7,29 @@ import { DocumentTitle } from "@/components/ui/document-title.tsx";
 import useUserRole from "@/hooks/use-user-role.tsx";
 import { SettingRow } from "@/features/security/components/setting-row";
 import { useUpdateWorkspaceSetting } from "@/features/security/hooks/use-update-workspace-setting";
-import { getAiStatus } from "@/features/ai/services/ai-service";
+import {
+  AI_PROVIDER_KEY,
+  AiProviderForm,
+} from "@/features/ai/components/ai-provider-form";
+import { getAiProvider } from "@/features/ai/services/ai-provider-service";
 
-function AiProviderStatus() {
-  const { t } = useTranslation();
-  const { data: status } = useQuery({
-    queryKey: ["ai-status"],
-    queryFn: getAiStatus,
-  });
-
-  if (!status) return null;
-
-  if (!status.configured) {
-    return (
-      <Alert
-        variant="light"
-        color="yellow"
-        icon={<IconAlertTriangle size={18} />}
-        title={t("No AI provider configured")}
-      >
-        <Text size="sm" mb="xs">
-          {t(
-            "Set these variables in the server .env file and restart the server, for example for Ollama:",
-          )}
-        </Text>
-        <Code block>
-          {[
-            "AI_DRIVER=ollama",
-            "OLLAMA_API_URL=http://localhost:11434",
-            "AI_COMPLETION_MODEL=gemma4:e4b",
-            "# AI_CHAT_MODEL=gemma4:e4b",
-          ].join("\n")}
-        </Code>
-        <Text size="xs" c="dimmed" mt="xs">
-          {t("Supported drivers: ollama, openai, openai-compatible, gemini.")}
-        </Text>
-      </Alert>
-    );
-  }
-
-  return (
-    <Alert
-      variant="light"
-      color="green"
-      icon={<IconCircleCheck size={18} />}
-      title={t("AI provider connected")}
-    >
-      <List size="sm" spacing={2}>
-        <List.Item>
-          {t("Driver")}: <Code>{status.driver}</Code>
-        </List.Item>
-        <List.Item>
-          {t("Model")}: <Code>{status.completionModel}</Code>
-          {status.chatModel && status.chatModel !== status.completionModel && (
-            <>
-              {" "}
-              · {t("Chat")}: <Code>{status.chatModel}</Code>
-            </>
-          )}
-        </List.Item>
-      </List>
-    </Alert>
-  );
-}
-
-function GenerativeAiToggle() {
+function GenerativeAiToggle({ providerReady }: { providerReady: boolean }) {
   const { t } = useTranslation();
   const { workspace, save, saving } = useUpdateWorkspaceSetting();
   return (
     <SettingRow
       title={t("Generative AI (Ask AI)")}
-      description={t(
-        "Lets members improve, translate, summarize or continue text in the editor with AI.",
-      )}
+      description={
+        providerReady
+          ? t(
+              "Lets members improve, translate, summarize or continue text in the editor with AI.",
+            )
+          : t("Configure an AI provider first.")
+      }
     >
       <Switch
         checked={workspace?.settings?.ai?.generative === true}
-        disabled={saving}
+        disabled={saving || !providerReady}
         onChange={(e) => save({ generativeAi: e.currentTarget.checked })}
         aria-label={t("Toggle generative AI")}
       />
@@ -92,11 +37,16 @@ function GenerativeAiToggle() {
   );
 }
 
-// /settings/ai: provider status and the AI features of the workspace.
+// /settings/ai: the AI provider of the workspace and its AI features.
 export default function AiSettings() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { isMember } = useUserRole();
+  const { data: provider } = useQuery({
+    queryKey: AI_PROVIDER_KEY,
+    queryFn: getAiProvider,
+    enabled: !isMember,
+  });
 
   if (isMember) return <Navigate to="/settings/account/profile" replace />;
 
@@ -121,8 +71,9 @@ export default function AiSettings() {
 
         <Tabs.Panel value="ai" pt="md">
           <Stack gap="lg">
-            <AiProviderStatus />
-            <GenerativeAiToggle />
+            <AiProviderForm />
+            <Title order={5}>{t("Features")}</Title>
+            <GenerativeAiToggle providerReady={!!provider?.configured} />
           </Stack>
         </Tabs.Panel>
       </Tabs>

@@ -1,10 +1,8 @@
 import api from "@/lib/api-client";
 
+// what every member may know: whether AI works and which features are on
 export interface IAiStatus {
   configured: boolean;
-  driver: string | null;
-  completionModel: string | null;
-  chatModel: string | null;
   settings: { generative?: boolean; search?: boolean; chat?: boolean };
 }
 

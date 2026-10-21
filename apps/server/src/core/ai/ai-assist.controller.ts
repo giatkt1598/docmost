@@ -38,8 +38,12 @@ export class AiAssistController {
 
   @HttpCode(HttpStatus.OK)
   @Post('status')
-  status(@AuthWorkspace() workspace: Workspace) {
-    return { ...this.aiProvider.describe(), settings: aiSettings(workspace) };
+  async status(@AuthWorkspace() workspace: Workspace) {
+    // visible to every member: whether AI works, not how it is configured
+    return {
+      configured: await this.aiProvider.isConfigured(workspace.id),
+      settings: aiSettings(workspace),
+    };
   }
 
   @SkipThrottle({ ...ALL_NAMED_THROTTLERS_SKIPPED, [AI_CHAT_THROTTLER]: false })
@@ -53,7 +57,7 @@ export class AiAssistController {
     if (!aiSettings(workspace).generative) {
       throw new ForbiddenException('Generative AI is turned off');
     }
-    const model = this.aiProvider.model('completion');
+    const model = await this.aiProvider.model(workspace.id, 'completion');
     const { system, prompt } = buildAiAssistPrompt(dto);
 
     const abort = new AbortController();

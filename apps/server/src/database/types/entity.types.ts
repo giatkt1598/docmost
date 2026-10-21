@@ -12,6 +12,7 @@ import {
   IntegrationConnections as _IntegrationConnections,
   Labels,
   McpTokens,
+  AiProviderConfigs,
   Notifications,
   PageLabels,
   PageAccess as _PageAccess,
@@ -234,6 +235,9 @@ export type UpdatableIntegrationConnection = Updateable<
 >;
 
 // MCP Token
+export type AiProviderConfig = Selectable<AiProviderConfigs>;
+export type InsertableAiProviderConfig = Insertable<AiProviderConfigs>;
+
 export type McpToken = Selectable<McpTokens>;
 export type InsertableMcpToken = Insertable<McpTokens>;
 export type UpdatableMcpToken = Updateable<Omit<McpTokens, 'id'>>;

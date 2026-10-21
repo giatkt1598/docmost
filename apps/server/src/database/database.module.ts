@@ -30,6 +30,7 @@ import { FavoriteRepo } from '@docmost/db/repos/favorite/favorite.repo';
 import { TemplateRepo } from '@docmost/db/repos/template/template.repo';
 import { McpTokenRepo } from '@docmost/db/repos/mcp-token/mcp-token.repo';
 import { ApiKeyRepo } from '@docmost/db/repos/api-key/api-key.repo';
+import { AiProviderConfigRepo } from '@docmost/db/repos/ai/ai-provider-config.repo';
 import { UserMfaRepo } from '@docmost/db/repos/user-mfa/user-mfa.repo';
 import { AuthProviderRepo } from '@docmost/db/repos/auth-provider/auth-provider.repo';
 import { PageVerificationRepo } from '@docmost/db/repos/page-verification/page-verification.repo';
@@ -101,6 +102,7 @@ import { normalizePostgresUrl } from '../common/helpers';
     TemplateRepo,
     McpTokenRepo,
     ApiKeyRepo,
+    AiProviderConfigRepo,
     UserMfaRepo,
     AuthProviderRepo,
     PageVerificationRepo,
@@ -132,6 +134,7 @@ import { normalizePostgresUrl } from '../common/helpers';
     TemplateRepo,
     McpTokenRepo,
     ApiKeyRepo,
+    AiProviderConfigRepo,
     UserMfaRepo,
     AuthProviderRepo,
     PageVerificationRepo,

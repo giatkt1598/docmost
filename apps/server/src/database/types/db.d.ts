@@ -572,6 +572,18 @@ export interface IntegrationConnections {
   updatedAt: Generated<Timestamp>;
 }
 
+export interface AiProviderConfigs {
+  workspaceId: string;
+  driver: string;
+  baseUrl: string | null;
+  apiKey: string | null;
+  completionModel: string;
+  chatModel: string | null;
+  updatedById: string | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+}
+
 export interface McpTokens {
   id: Generated<string>;
   name: string;
@@ -793,6 +805,7 @@ export interface DB {
   integrations: Integrations;
   labels: Labels;
   mcpTokens: McpTokens;
+  aiProviderConfigs: AiProviderConfigs;
   notifications: Notifications;
   pageAccess: PageAccess;
   pageTransclusionReferences: PageTransclusionReferences;
