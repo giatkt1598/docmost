@@ -30,7 +30,6 @@ import APP_ROUTE from "@/lib/app-route.ts";
 import useAuth from "@/features/auth/hooks/use-auth.ts";
 import { CustomAvatar } from "@/components/ui/custom-avatar.tsx";
 import { useTranslation } from "react-i18next";
-import { AvatarIconType } from "@/features/attachments/types/attachment.types.ts";
 
 export default function TopMenu() {
   const { t } = useTranslation();
@@ -59,14 +58,12 @@ export default function TopMenu() {
         <UnstyledButton>
           <Group gap={7} wrap={"nowrap"}>
             <CustomAvatar
-              avatarUrl={workspace?.logo}
-              name={workspace?.name}
-              variant="filled"
+              avatarUrl={user.avatarUrl}
+              name={user.name}
               size="sm"
-              type={AvatarIconType.WORKSPACE_ICON}
             />
             <Text fw={500} size="sm" lh={1} mr={3} lineClamp={1}>
-              {workspace?.name}
+              {user.name}
             </Text>
             <IconChevronDown size={16} />
           </Group>

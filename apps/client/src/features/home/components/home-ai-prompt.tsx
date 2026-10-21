@@ -1,3 +1,4 @@
+import { getAppName } from "@/lib/config.ts";
 import { useAtomValue } from "jotai";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -40,7 +41,7 @@ export default function HomeAiPrompt() {
   return (
     <div className={classes.wrapper}>
       <h1 className={classes.heading}>
-        {t("Welcome to {{name}}", { name: workspace?.name ?? "Docmost" })}
+        {t("Welcome to {{name}}", { name: workspace?.name ?? getAppName() })}
       </h1>
       <div className={classes.subtitle}>
         {t("Ask anything or search your workspace")}

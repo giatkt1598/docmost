@@ -6,6 +6,12 @@ import ms, { StringValue } from 'ms';
 export class EnvironmentService {
   constructor(private configService: ConfigService) {}
 
+  // Product name shown in the UI and the browser title.
+  getAppName(): string {
+    const name = this.configService.get<string>('APP_NAME', '')?.trim();
+    return name ? name.slice(0, 50) : 'Docmost';
+  }
+
   getNodeEnv(): string {
     return this.configService.get<string>('NODE_ENV', 'development');
   }

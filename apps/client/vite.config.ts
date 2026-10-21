@@ -18,7 +18,9 @@ export default defineConfig(({ mode }) => {
     POSTHOG_KEY,
     AI_VECTOR_DRIVER,
     BETA_PUBLIC_SPACES,
+    APP_NAME,
   } = loadEnv(mode, envPath, "");
+  const appName = APP_NAME?.trim() || "Docmost";
 
   return {
     define: {
@@ -35,10 +37,20 @@ export default defineConfig(({ mode }) => {
         POSTHOG_KEY,
         AI_VECTOR_DRIVER,
         BETA_PUBLIC_SPACES,
+        APP_NAME,
       },
       APP_VERSION: JSON.stringify(process.env.npm_package_version),
     },
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        // in production the server rewrites the title; do the same in dev
+        name: "app-name-title",
+        apply: "serve",
+        transformIndexHtml: (html) =>
+          html.replaceAll("Docmost", appName.replace(/[<>&"]/g, "")),
+      },
+    ],
     build: {
       rolldownOptions: {
         output: {

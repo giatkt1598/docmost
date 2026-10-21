@@ -33,6 +33,7 @@ export class StaticModule implements OnModuleInit {
 
       const configString = {
         ENV: this.environmentService.getNodeEnv(),
+        APP_NAME: this.environmentService.getAppName(),
         APP_URL: this.environmentService.getAppUrl(),
         CLOUD: this.environmentService.isCloud(),
         FILE_UPLOAD_SIZE_LIMIT:
@@ -56,14 +57,22 @@ export class StaticModule implements OnModuleInit {
             : undefined,
       };
 
-      const windowScriptContent = `<script>window.CONFIG=${JSON.stringify(configString)};</script>`;
+      // escaping "<" keeps values such as APP_NAME from closing the script tag
+      const windowScriptContent = `<script>window.CONFIG=${JSON.stringify(configString).replace(/</g, '\\u003c')};</script>`;
 
       if (!fs.existsSync(indexTemplateFilePath)) {
         fs.copyFileSync(indexFilePath, indexTemplateFilePath);
       }
 
       const html = fs.readFileSync(indexTemplateFilePath, 'utf8');
-      const transformedHtml = html.replace(windowVar, windowScriptContent);
+      const appName = escapeHtml(this.environmentService.getAppName());
+      const transformedHtml = html
+        .replace(windowVar, windowScriptContent)
+        .replace('<title>Docmost</title>', `<title>${appName}</title>`)
+        .replace(
+          'name="apple-mobile-web-app-title" content="Docmost"',
+          `name="apple-mobile-web-app-title" content="${appName}"`,
+        );
 
       fs.writeFileSync(indexFilePath, transformedHtml);
 
@@ -97,4 +106,12 @@ export class StaticModule implements OnModuleInit {
       });
     }
   }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
