@@ -45,18 +45,19 @@ export function VerificationSettingsForm({
   );
   const currentUser = useAtomValue(currentUserAtom)?.user;
   // a new verification starts with the current user as verifier
-  const [initialVerifiers] = useState<IVerificationUser[]>(() =>
-    verification?.verifiers ??
-    (currentUser
-      ? [
-          {
-            id: currentUser.id,
-            name: currentUser.name,
-            email: currentUser.email,
-            avatarUrl: currentUser.avatarUrl,
-          },
-        ]
-      : []),
+  const [initialVerifiers] = useState<IVerificationUser[]>(
+    () =>
+      verification?.verifiers ??
+      (currentUser
+        ? [
+            {
+              id: currentUser.id,
+              name: currentUser.name,
+              email: currentUser.email,
+              avatarUrl: currentUser.avatarUrl,
+            },
+          ]
+        : []),
   );
   const [verifierIds, setVerifierIds] = useState<string[]>(
     initialVerifiers.map((v) => v.id),
