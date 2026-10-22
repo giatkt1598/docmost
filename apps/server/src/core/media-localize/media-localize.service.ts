@@ -4,21 +4,19 @@ import { Queue } from 'bullmq';
 import { createHash } from 'node:crypto';
 import { RedisService } from '@nestjs-labs/nestjs-ioredis';
 import type { Redis } from 'ioredis';
-import { QueueJob, QueueName } from '../../integrations/queue/constants';
+import { QueueName } from '../../integrations/queue/constants';
 import { EnvironmentService } from '../../integrations/environment/environment.service';
 import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { UserRepo } from '@docmost/db/repos/user/user.repo';
 import { Attachment, Page } from '@docmost/db/types/entity.types';
 import { AttachmentService } from '../attachment/services/attachment.service';
 import { CollaborationGateway } from '../../collaboration/collaboration.gateway';
-import { MediaReplacement } from '../../collaboration/collaboration.handler';
-import { findExternalMedia, hasExternalMedia } from './external-media.util';
+import type { MediaReplacement } from '../../collaboration/collaboration.handler';
+import { findExternalMedia } from './external-media.util';
 import {
   RemoteFileError,
   RemoteFileFetcher,
 } from './remote-file-fetcher.service';
-
-export type LocalizeMediaJob = { pageId: string };
 
 const MAX_FILES_PER_RUN = 20;
 const FAILED_TTL_SECONDS = 24 * 60 * 60;
@@ -172,27 +170,4 @@ export class MediaLocalizeService {
       }
     }
   }
-}
-
-// Queues a copy job when page content still points at external media. Kept
-// free of the service's dependencies so collab and page code can call it.
-export async function enqueueMediaLocalize(
-  queue: Queue,
-  environmentService: EnvironmentService,
-  pageId: string,
-  content: any,
-  delayMs = 2000,
-) {
-  if (!environmentService.isMediaLocalizeEnabled()) return;
-  if (!hasExternalMedia(content, environmentService.getAppUrl())) return;
-  await queue.add(
-    QueueJob.LOCALIZE_PAGE_MEDIA,
-    { pageId } as LocalizeMediaJob,
-    // collapse bursts of saves; an overlapping run is harmless because nodes
-    // already pointing at a copy are skipped and unused copies are deleted
-    {
-      delay: delayMs,
-      deduplication: { id: `localize-media-${pageId}`, ttl: 5000 },
-    },
-  );
 }

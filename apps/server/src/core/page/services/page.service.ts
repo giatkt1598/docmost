@@ -57,7 +57,7 @@ import { WatcherService } from '../../watcher/watcher.service';
 import { sql } from 'kysely';
 import { TransclusionService } from '../transclusion/transclusion.service';
 import { EnvironmentService } from '../../../integrations/environment/environment.service';
-import { enqueueMediaLocalize } from '../../media-localize/media-localize.service';
+import { enqueueMediaLocalize } from '../../media-localize/media-localize.queue';
 import { LabelRepo } from '@docmost/db/repos/label/label.repo';
 import { WsService } from '../../../ws/ws.service';
 import { CollabAccessService } from '../../../collaboration/services/collab-access.service';

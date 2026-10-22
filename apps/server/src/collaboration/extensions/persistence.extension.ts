@@ -40,7 +40,7 @@ import {
 } from '../constants';
 import { TransclusionService } from '../../core/page/transclusion/transclusion.service';
 import { EnvironmentService } from '../../integrations/environment/environment.service';
-import { enqueueMediaLocalize } from '../../core/media-localize/media-localize.service';
+import { enqueueMediaLocalize } from '../../core/media-localize/media-localize.queue';
 
 @Injectable()
 export class PersistenceExtension implements Extension {

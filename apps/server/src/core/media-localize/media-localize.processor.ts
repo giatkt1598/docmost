@@ -2,10 +2,8 @@ import { Logger, OnModuleDestroy } from '@nestjs/common';
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { QueueJob, QueueName } from '../../integrations/queue/constants';
-import {
-  LocalizeMediaJob,
-  MediaLocalizeService,
-} from './media-localize.service';
+import { MediaLocalizeService } from './media-localize.service';
+import { LocalizeMediaJob } from './media-localize.queue';
 
 @Processor(QueueName.MEDIA_QUEUE, { concurrency: 2 })
 export class MediaLocalizeProcessor
