@@ -39,7 +39,7 @@ export default function HomeAiPrompt() {
       <div className={classes.inputContainer}>
         <ChatInput
           onSend={handleSend}
-          placeholder={t("Ask anything about your wiki...")}
+          placeholder={t("Ask anything about your pages...")}
         />
       </div>
     </div>

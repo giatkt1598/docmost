@@ -146,7 +146,7 @@ export function ChatMessage({
             <Loader size="xs" type="dots" />
             <Text size="sm" c="dimmed">
               {message.toolCalls?.length
-                ? t("Reading the wiki...")
+                ? t("Reading pages...")
                 : t("Thinking...")}
             </Text>
           </Group>

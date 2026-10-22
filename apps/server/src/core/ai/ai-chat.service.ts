@@ -76,7 +76,7 @@ export function buildChatTools(
   const tools: ToolSet = {
     search_pages: tool({
       description:
-        'Full-text search across the wiki pages the user can read. Use short keyword queries; try other keywords if nothing is found.',
+        'Full-text search across the pages the user can read. Use short keyword queries; try other keywords if nothing is found.',
       inputSchema: z.object({
         query: z.string().min(1).max(200),
         spaceId: z.string().optional().describe(SPACE_FIELD),
@@ -170,19 +170,19 @@ export function buildChatSystemPrompt(opts: {
   currentPage?: { id: string; title: string } | null;
 }): string {
   const lines = [
-    `You are the AI assistant of the "${opts.workspaceName}" wiki, talking to ${opts.userName}.`,
-    'Use the tools to search and read pages before answering questions about the wiki, its documents, processes or people.',
+    `You are the AI assistant of the "${opts.workspaceName}" workspace, talking to ${opts.userName}.`,
+    'Use the tools to search and read pages before answering questions about the pages, their documents, processes or people.',
     'When you use a page, link it in Markdown with the url from the tool result, e.g. [Title](/s/space/p/abc123).',
     'Answer in the language the user writes in. Be concise and format answers as Markdown.',
   ];
   if (opts.settings.workspaceKnowledgeOnly) {
     lines.push(
-      'Only answer from content found in the wiki. If the wiki has no answer, say so instead of using general knowledge.',
+      'Only answer from content found in the pages. If the pages have no answer, say so instead of using general knowledge.',
     );
   }
   lines.push(
     opts.settings.readOnly
-      ? 'You can only read the wiki; you cannot create or change pages.'
+      ? 'You can only read pages; you cannot create or change pages.'
       : 'Create or change pages only when the user explicitly asks you to.',
   );
   if (opts.currentPage) {

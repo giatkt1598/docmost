@@ -25,7 +25,7 @@ export const AI_ASSIST_TONES = [
 ] as const;
 
 const SYSTEM = [
-  'You are a writing assistant inside a team wiki editor.',
+  'You are a writing assistant inside the page editor of a team workspace.',
   'Answer with the resulting text only, formatted as Markdown.',
   'Do not add explanations, preambles, quotes around the result or code fences unless the text itself needs them.',
   'Keep links, lists, headings and other formatting unless asked to change them.',

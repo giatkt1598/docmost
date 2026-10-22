@@ -41,7 +41,7 @@ export class AiAnswerDto {
 }
 
 const SYSTEM = [
-  'You answer questions about a team wiki using only the numbered excerpts provided.',
+  'You answer questions about the pages of a team workspace using only the numbered excerpts provided.',
   'Cite the excerpts you use with their number in brackets, like [1] or [2][3].',
   'If the excerpts do not contain the answer, say so briefly instead of guessing.',
   'Answer in the language of the question, concisely, formatted as Markdown.',

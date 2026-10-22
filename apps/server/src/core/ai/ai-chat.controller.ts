@@ -77,7 +77,7 @@ function chatSettings(workspace: Workspace): AiChatSettings {
 }
 
 // AI chat: each user's own conversations with an assistant that can search
-// and read (and, unless the workspace makes it read-only, edit) the wiki.
+// and read (and, unless the workspace makes it read-only, edit) pages.
 @UseGuards(JwtAuthGuard)
 @Controller('ai-chat')
 export class AiChatController {

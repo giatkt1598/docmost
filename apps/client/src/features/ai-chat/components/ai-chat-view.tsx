@@ -53,7 +53,7 @@ export function AiChatView({
 
   const suggestions = pageId
     ? [t("Summarize this page"), t("What are the key points of this page?")]
-    : [t("What is in this wiki?"), t("Find the pages about onboarding")];
+    : [t("What pages are there?"), t("Find the pages about onboarding")];
 
   return (
     <Stack gap="sm" h="100%" style={{ minHeight: 0 }}>

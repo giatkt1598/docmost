@@ -50,7 +50,7 @@ export function ChatInput({
               submit();
             }
           }}
-          placeholder={placeholder ?? t("Ask anything about your wiki...")}
+          placeholder={placeholder ?? t("Ask anything about your pages...")}
           autoFocus={autoFocus}
           aria-label={t("Message")}
         />

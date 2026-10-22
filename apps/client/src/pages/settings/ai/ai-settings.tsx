@@ -141,13 +141,13 @@ export default function AiSettings() {
                 />
                 <AiFeatureToggle
                   providerReady={!!provider?.configured}
-                  title={t("Answer only from the wiki")}
+                  title={t("Answer only from pages")}
                   description={t(
-                    "The assistant answers only from content found in the wiki, not from general knowledge.",
+                    "The assistant answers only from content found in pages, not from general knowledge.",
                   )}
                   setting="chatWorkspaceKnowledgeOnly"
                   field="aiChatWorkspaceKnowledgeOnly"
-                  ariaLabel={t("Toggle answers only from the wiki")}
+                  ariaLabel={t("Toggle answers only from pages")}
                 />
               </Stack>
             )}

@@ -88,8 +88,8 @@ describe('buildChatSystemPrompt', () => {
       ...base,
       settings: { readOnly: true, workspaceKnowledgeOnly: true },
     });
-    expect(strict).toMatch(/only read the wiki/);
-    expect(strict).toMatch(/Only answer from content found in the wiki/);
+    expect(strict).toMatch(/only read pages/);
+    expect(strict).toMatch(/Only answer from content found in the pages/);
 
     const open = buildChatSystemPrompt({
       ...base,
