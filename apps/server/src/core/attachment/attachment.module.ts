@@ -6,10 +6,16 @@ import { UserModule } from '../user/user.module';
 import { WorkspaceModule } from '../workspace/workspace.module';
 import { AttachmentProcessor } from './processors/attachment.processor';
 import { TokenModule } from '../auth/token.module';
+import { OrphanAttachmentCleanupService } from './services/orphan-attachment-cleanup.service';
 
 @Module({
   imports: [StorageModule, UserModule, WorkspaceModule, TokenModule],
   controllers: [AttachmentController],
-  providers: [AttachmentService, AttachmentProcessor],
+  providers: [
+    AttachmentService,
+    AttachmentProcessor,
+    OrphanAttachmentCleanupService,
+  ],
+  exports: [AttachmentService],
 })
 export class AttachmentModule {}

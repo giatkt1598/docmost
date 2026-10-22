@@ -56,6 +56,8 @@ import { markdownToHtml } from '@docmost/editor-ext';
 import { WatcherService } from '../../watcher/watcher.service';
 import { sql } from 'kysely';
 import { TransclusionService } from '../transclusion/transclusion.service';
+import { EnvironmentService } from '../../../integrations/environment/environment.service';
+import { enqueueMediaLocalize } from '../../media-localize/media-localize.service';
 import { LabelRepo } from '@docmost/db/repos/label/label.repo';
 import { WsService } from '../../../ws/ws.service';
 import { CollabAccessService } from '../../../collaboration/services/collab-access.service';
@@ -80,6 +82,8 @@ export class PageService {
     private readonly labelRepo: LabelRepo,
     private readonly wsService: WsService,
     private readonly collabAccessService: CollabAccessService,
+    @InjectQueue(QueueName.MEDIA_QUEUE) private mediaQueue: Queue,
+    private readonly environmentService: EnvironmentService,
   ) {}
 
   async findById(
@@ -154,6 +158,20 @@ export class PageService {
       textContent,
       ydoc,
     }, trx);
+
+    if (content) {
+      // copy external images/videos into our storage; inside a caller's
+      // transaction wait a little longer so the page is committed first
+      await enqueueMediaLocalize(
+        this.mediaQueue,
+        this.environmentService,
+        page.id,
+        content,
+        trx ? 10_000 : 2000,
+      ).catch((err) =>
+        this.logger.warn(`Failed to queue media copy for page ${page.id}: ${err}`),
+      );
+    }
 
     if (trx) {
       // Add the watcher inside the caller's transaction so the async worker

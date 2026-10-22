@@ -9,6 +9,24 @@ import { setYjsMark, updateYjsMarkAttribute, YjsSelection } from './yjs.util';
 import * as Y from 'yjs';
 import { User } from '@docmost/db/types/entity.types';
 
+export type MediaReplacement = {
+  url: string;
+  src: string;
+  attachmentId: string;
+  size: number;
+  fileName: string;
+  mimeType: string;
+};
+
+// media node -> attribute holding its file URL
+const MEDIA_URL_ATTR: Record<string, string> = {
+  image: 'src',
+  video: 'src',
+  audio: 'src',
+  pdf: 'src',
+  attachment: 'url',
+};
+
 export type CollabEventHandlers = ReturnType<
   CollaborationHandler['getHandlers']
 >;
@@ -122,6 +140,54 @@ export class CollaborationHandler {
             }
           },
         );
+      },
+      // Points media nodes still using an external URL at our own copy.
+      // Returns how many nodes each URL replaced.
+      localizeMedia: async (
+        documentName: string,
+        payload: {
+          replacements: MediaReplacement[];
+          user?: User;
+        },
+      ) => {
+        const byUrl = new Map(payload.replacements.map((r) => [r.url, r]));
+        const counts: Record<string, number> = {};
+        await this.withYdocConnection(
+          hocuspocus,
+          documentName,
+          { user: payload.user },
+          (doc) => {
+            const walk = (parent: Y.XmlFragment | Y.XmlElement) => {
+              parent.toArray().forEach((child) => {
+                if (!(child instanceof Y.XmlElement)) return;
+                const attr = MEDIA_URL_ATTR[child.nodeName];
+                const current = attr ? child.getAttribute(attr) : undefined;
+                const target =
+                  typeof current === 'string' ? byUrl.get(current) : undefined;
+                if (target && !child.getAttribute('attachmentId')) {
+                  child.setAttribute(attr, target.src);
+                  child.setAttribute('attachmentId', target.attachmentId);
+                  child.setAttribute('size', target.size as any);
+                  if (child.nodeName === 'attachment') {
+                    if (!child.getAttribute('name')) {
+                      child.setAttribute('name', target.fileName);
+                    }
+                    if (!child.getAttribute('mime')) {
+                      child.setAttribute('mime', target.mimeType);
+                    }
+                  }
+                  if (child.nodeName === 'pdf' && !child.getAttribute('name')) {
+                    child.setAttribute('name', target.fileName);
+                  }
+                  counts[target.url] = (counts[target.url] ?? 0) + 1;
+                }
+                walk(child);
+              });
+            };
+            walk(doc.getXmlFragment('default'));
+          },
+        );
+        return counts;
       },
     };
   }

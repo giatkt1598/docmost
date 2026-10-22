@@ -53,6 +53,8 @@ function buildService() {
     { log: jest.fn() } as any,
     userSessionRepo as any,
     integrationConnectionRepo as any,
+    { disconnectUser: jest.fn() } as any,
+    { recheckAccess: jest.fn() } as any,
   );
 
   return { service, trx, integrationConnectionRepo };

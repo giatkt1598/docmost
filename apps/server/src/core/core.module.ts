@@ -36,6 +36,7 @@ import { SsoModule } from './sso/sso.module';
 import { ApiKeyModule } from './api-key/api-key.module';
 import { ApiDocsModule } from './api-docs/api-docs.module';
 import { AiModule } from './ai/ai.module';
+import { MediaLocalizeModule } from './media-localize/media-localize.module';
 import { ClsMiddleware } from 'nestjs-cls';
 
 @Module({
@@ -70,6 +71,7 @@ import { ClsMiddleware } from 'nestjs-cls';
     ApiKeyModule,
     ApiDocsModule,
     AiModule,
+    MediaLocalizeModule,
   ],
 })
 export class CoreModule implements NestModule {

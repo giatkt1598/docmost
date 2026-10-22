@@ -39,6 +39,8 @@ import {
   HISTORY_INTERVAL,
 } from '../constants';
 import { TransclusionService } from '../../core/page/transclusion/transclusion.service';
+import { EnvironmentService } from '../../integrations/environment/environment.service';
+import { enqueueMediaLocalize } from '../../core/media-localize/media-localize.service';
 
 @Injectable()
 export class PersistenceExtension implements Extension {
@@ -53,6 +55,8 @@ export class PersistenceExtension implements Extension {
     @InjectQueue(QueueName.NOTIFICATION_QUEUE) private notificationQueue: Queue,
     private readonly collabHistory: CollabHistoryService,
     private readonly transclusionService: TransclusionService,
+    @InjectQueue(QueueName.MEDIA_QUEUE) private mediaQueue: Queue,
+    private readonly environmentService: EnvironmentService,
   ) {}
 
   async onLoadDocument(data: onLoadDocumentPayload) {
@@ -231,6 +235,18 @@ export class PersistenceExtension implements Extension {
       });
 
       await this.enqueuePageHistory(page);
+
+      // pasted or API-written media that still points at another site
+      await enqueueMediaLocalize(
+        this.mediaQueue,
+        this.environmentService,
+        pageId,
+        tiptapJson,
+      ).catch((err) =>
+        this.logger.warn(
+          `Failed to queue media copy for page ${pageId}: ${err}`,
+        ),
+      );
     }
   }
 

@@ -249,6 +249,44 @@ export class AttachmentService {
     await this.attachmentRepo.deleteAttachmentById(attachment.id);
   }
 
+  // Stores a file the server downloaded itself (not a multipart upload).
+  async saveRemoteFile(opts: {
+    buffer: Buffer;
+    fileName: string;
+    fileExtension: string;
+    mimeType: string;
+    pageId: string;
+    spaceId: string;
+    userId: string;
+    workspaceId: string;
+  }): Promise<Attachment> {
+    const attachmentId = uuid7();
+    const fileName = opts.fileName.slice(0, 255);
+    const filePath = `${getAttachmentFolderPath(AttachmentType.File, opts.workspaceId)}/${attachmentId}/${fileName}`;
+
+    await this.uploadToDrive(filePath, opts.buffer);
+    try {
+      return await this.saveAttachment({
+        attachmentId,
+        preparedFile: {
+          fileName,
+          fileSize: opts.buffer.length,
+          fileExtension: opts.fileExtension,
+          mimeType: opts.mimeType,
+        },
+        filePath,
+        type: AttachmentType.File,
+        userId: opts.userId,
+        workspaceId: opts.workspaceId,
+        pageId: opts.pageId,
+        spaceId: opts.spaceId,
+      });
+    } catch (err) {
+      await this.deleteRedundantFile(filePath);
+      throw err;
+    }
+  }
+
   async uploadToDrive(filePath: string, fileContent: Buffer | Readable) {
     try {
       await this.storageService.upload(filePath, fileContent);

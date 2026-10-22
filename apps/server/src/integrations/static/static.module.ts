@@ -65,7 +65,9 @@ export class StaticModule implements OnModuleInit {
       }
 
       const html = fs.readFileSync(indexTemplateFilePath, 'utf8');
-      const appName = escapeHtml(this.environmentService.getAppName());
+      const appName = escapeHtml(
+        this.environmentService.getAppName() || 'Docmost',
+      );
       const transformedHtml = html
         .replace(windowVar, windowScriptContent)
         .replace('<title>Docmost</title>', `<title>${appName}</title>`)

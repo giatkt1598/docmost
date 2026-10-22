@@ -149,12 +149,20 @@ export class CollaborationGateway {
     payload: Parameters<CollabEventHandlers[TName]>[1],
     onlyIfOpen = false,
   ) {
-    return this.redisSync?.handleEvent(
-      eventName,
-      documentName,
-      payload,
-      onlyIfOpen,
-    );
+    if (this.redisSync) {
+      return this.redisSync.handleEvent(
+        eventName,
+        documentName,
+        payload,
+        onlyIfOpen,
+      );
+    }
+    // single instance without Redis sync: run the handler here
+    if (onlyIfOpen && !this.hocuspocus.documents.has(documentName)) return;
+    const handler = this.collabEventsService.getHandlers(this.hocuspocus)[
+      eventName
+    ] as (...args: any[]) => any;
+    return handler(documentName, payload);
   }
 
   openDirectConnection(documentName: string, context?: any) {

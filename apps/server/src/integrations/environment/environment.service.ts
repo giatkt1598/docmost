@@ -93,6 +93,15 @@ export class EnvironmentService {
     return this.configService.get<string>('FILE_UPLOAD_SIZE_LIMIT', '50mb');
   }
 
+  // copy external images/videos in page content into our own storage
+  isMediaLocalizeEnabled(): boolean {
+    return (
+      this.configService
+        .get<string>('MEDIA_LOCALIZE_ENABLED', 'true')
+        .toLowerCase() !== 'false'
+    );
+  }
+
   getFileImportSizeLimit(): string {
     return this.configService.get<string>('FILE_IMPORT_SIZE_LIMIT', '200mb');
   }

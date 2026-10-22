@@ -17,6 +17,7 @@ export enum QueueName {
   SLACK_NOTIFY = '{slack-notify}',
   BASE_QUEUE = '{base-queue}',
   SIEM_QUEUE = '{siem-queue}',
+  MEDIA_QUEUE = '{media-queue}',
 }
 
 export enum QueueJob {
@@ -28,6 +29,7 @@ export enum QueueJob {
   DELETE_AI_CHAT_ATTACHMENTS = 'delete-ai-chat-attachments',
 
   DELETE_USER_AVATARS = 'delete-user-avatars',
+  LOCALIZE_PAGE_MEDIA = 'localize-page-media',
 
   PAGE_BACKLINKS = 'page-backlinks',
   ADD_PAGE_WATCHERS = 'add-page-watchers',
