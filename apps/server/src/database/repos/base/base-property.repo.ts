@@ -156,6 +156,18 @@ export class BasePropertyRepo {
       .execute();
   }
 
+
+  async getSchemaVersion(
+    pageId: string,
+    trx?: KyselyTransaction,
+  ): Promise<number> {
+    const row = await dbOrTx(this.db, trx)
+      .selectFrom('pages')
+      .select('baseSchemaVersion')
+      .where('id', '=', pageId)
+      .executeTakeFirst();
+    return row?.baseSchemaVersion ?? 0;
+  }
   // Returns the new schema version of the base.
   async bumpSchemaVersion(
     pageId: string,
