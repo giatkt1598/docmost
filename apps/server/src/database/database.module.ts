@@ -30,6 +30,9 @@ import { FavoriteRepo } from '@docmost/db/repos/favorite/favorite.repo';
 import { TemplateRepo } from '@docmost/db/repos/template/template.repo';
 import { McpTokenRepo } from '@docmost/db/repos/mcp-token/mcp-token.repo';
 import { ApiKeyRepo } from '@docmost/db/repos/api-key/api-key.repo';
+import { BasePropertyRepo } from '@docmost/db/repos/base/base-property.repo';
+import { BaseRowRepo } from '@docmost/db/repos/base/base-row.repo';
+import { BaseViewRepo } from '@docmost/db/repos/base/base-view.repo';
 import { AiProviderConfigRepo } from '@docmost/db/repos/ai/ai-provider-config.repo';
 import { AiChatRepo } from '@docmost/db/repos/ai/ai-chat.repo';
 import { UserMfaRepo } from '@docmost/db/repos/user-mfa/user-mfa.repo';
@@ -103,6 +106,9 @@ import { normalizePostgresUrl } from '../common/helpers';
     TemplateRepo,
     McpTokenRepo,
     ApiKeyRepo,
+    BasePropertyRepo,
+    BaseRowRepo,
+    BaseViewRepo,
     AiProviderConfigRepo,
     AiChatRepo,
     UserMfaRepo,
@@ -136,6 +142,9 @@ import { normalizePostgresUrl } from '../common/helpers';
     TemplateRepo,
     McpTokenRepo,
     ApiKeyRepo,
+    BasePropertyRepo,
+    BaseRowRepo,
+    BaseViewRepo,
     AiProviderConfigRepo,
     AiChatRepo,
     UserMfaRepo,
