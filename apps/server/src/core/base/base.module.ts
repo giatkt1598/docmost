@@ -15,13 +15,20 @@ import { BasePublicController } from './base-public.controller';
 import { BasePublicService } from './base-public.service';
 import { ShareModule } from '../share/share.module';
 import { PublicSpaceModule } from '../public-space/public-space.module';
+import { NotificationModule } from '../notification/notification.module';
+import { BaseRowPageService } from './base-row-page.service';
+import { BaseCsvImportService } from './base-csv-import.service';
+import { BaseNotificationService } from './base-notification.service';
 
 @Module({
-  imports: [PageModule, ShareModule, PublicSpaceModule],
+  imports: [PageModule, ShareModule, PublicSpaceModule, NotificationModule],
   controllers: [BaseController, BasePublicController],
   providers: [
     BaseService,
     BasePublicService,
+    BaseRowPageService,
+    BaseCsvImportService,
+    BaseNotificationService,
     BasePropertyService,
     BaseRowService,
     BaseViewService,

@@ -12,7 +12,8 @@ export type NotificationType =
   | "page.approval_rejected"
   | "siem_destination.failing"
   | "siem_destination.disabled"
-  | "siem_destination.recovered";
+  | "siem_destination.recovered"
+  | "base.row_assigned";
 
 export type INotification = {
   id: string;

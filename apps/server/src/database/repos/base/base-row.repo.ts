@@ -335,6 +335,27 @@ export class BaseRowRepo {
     return rows.map((r) => r.id);
   }
 
+  // Links a row to its page; only when it has none yet (or `replace` is the
+  // current one), so two concurrent requests cannot both attach a page.
+  async setDocPage(
+    rowId: string,
+    pageId: string,
+    docPageId: string,
+    replace: string | null,
+    trx?: KyselyTransaction,
+  ): Promise<boolean> {
+    let q = dbOrTx(this.db, trx)
+      .updateTable('baseRows')
+      .set({ docPageId })
+      .where('id', '=', rowId)
+      .where('pageId', '=', pageId);
+    q = replace
+      ? q.where('docPageId', '=', replace)
+      : q.where('docPageId', 'is', null);
+    const res = await q.executeTakeFirst();
+    return Number(res.numUpdatedRows) > 0;
+  }
+
   // Brings back rows deleted after `since`. Returns the restored rows.
   async restoreMany(
     rowIds: string[],

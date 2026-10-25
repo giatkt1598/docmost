@@ -22,9 +22,12 @@ import {
 import { guard } from './base.errors';
 import { BaseFormulaService, toEngineProperty } from './base-formula.service';
 import { BaseReferenceService } from './base-reference.service';
+import { BaseNotificationService } from './base-notification.service';
 import { EngineProperty } from './engine/base.types';
 import { compileFilter } from './engine/filter-compiler';
 import { compileSorts } from './engine/sort-compiler';
+import { compileSearch } from './engine/search-compiler';
+import { sql } from 'kysely';
 import {
   defaultCells,
   parseFilter,
@@ -53,6 +56,7 @@ export class BaseRowService {
     private readonly formula: BaseFormulaService,
     private readonly references: BaseReferenceService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly notifications: BaseNotificationService,
   ) {}
 
   // Inside a row write the schema is read with a share lock, so a type
@@ -116,7 +120,12 @@ export class BaseRowService {
         dto.filter && Object.keys(dto.filter).length > 0
           ? parseFilter(dto.filter)
           : null;
-      const filter = filterTree ? compileFilter(filterTree, map) : null;
+      const compiled = filterTree ? compileFilter(filterTree, map) : null;
+      const search = compileSearch(dto.search, map.values());
+      const filter =
+        compiled && search
+          ? sql<boolean>`(${compiled} and ${search})`
+          : (compiled ?? search);
       const sorts = compileSorts(parseSorts(dto.sorts ?? []), map);
       const limit = dto.limit ?? DEFAULT_LIMIT;
 
@@ -180,8 +189,10 @@ export class BaseRowService {
       await this.assertRowCapacity(page.id, 1);
       const position = await this.newRowPosition(page, dto);
 
+      let schema: BaseProperty[] = [];
       const row = await executeTx(this.db, async (trx) => {
         const { properties, map, pending } = await this.schema(page.id, trx);
+        schema = properties;
         const given = validateCells(dto.cells ?? {}, map);
         this.assertNotConverting(given, pending);
         const defaults = defaultCells(
@@ -215,6 +226,7 @@ export class BaseRowService {
         ...this.base(page, user, dto.requestId),
         row,
       });
+      this.notifications.notifyAssigned(page, row, schema, null, user.id);
       return row;
     });
   }
@@ -229,8 +241,10 @@ export class BaseRowService {
       if (!hasCells && !dto.position) return existing;
 
       let patch: Record<string, unknown> = {};
+      let schema: BaseProperty[] = [];
       const { row, computed } = await executeTx(this.db, async (trx) => {
         const { properties, map, pending } = await this.schema(page.id, trx);
+        schema = properties;
         patch = validateCells(dto.cells ?? {}, map);
         this.assertNotConverting(patch, pending);
         const hasPatch = Object.keys(patch).length > 0;
@@ -257,6 +271,13 @@ export class BaseRowService {
           rowId: row.id,
           updatedCells: { ...patch, ...computed },
         });
+        this.notifications.notifyAssigned(
+          page,
+          row,
+          schema,
+          existing.cells as Record<string, unknown>,
+          user.id,
+        );
       }
       if (dto.position && dto.position !== existing.position) {
         emitBaseEvent(this.eventEmitter, EventName.BASE_ROW_REORDERED, {

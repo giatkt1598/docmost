@@ -2078,5 +2078,20 @@
   "The assistant answers only from content found in pages, not from general knowledge.": "The assistant answers only from content found in pages, not from general knowledge.",
   "Toggle answers only from pages": "Toggle answers only from pages",
   "This base is not available.": "This base is not available.",
-  "No rows": "No rows"
+  "No rows": "No rows",
+  "Search rows": "Search rows",
+  "No matching rows": "No matching rows",
+  "Import CSV": "Import CSV",
+  "Import": "Import",
+  "Choose a .csv file": "Choose a .csv file",
+  "Create text properties for unknown columns": "Create text properties for unknown columns",
+  "The first row must hold column names. Columns are matched to properties by name; rows are added to the end of the base.": "The first row must hold column names. Columns are matched to properties by name; rows are added to the end of the base.",
+  "{{count}} rows imported_one": "1 row imported",
+  "{{count}} rows imported_other": "{{count}} rows imported",
+  "Skipped columns: {{names}}": "Skipped columns: {{names}}",
+  "Failed to import the file": "Failed to import the file",
+  "Open row page": "Open row page",
+  "This row has no page yet": "This row has no page yet",
+  "Failed to open the row page": "Failed to open the row page",
+  "<bold>{{name}}</bold> assigned you to a record": "<bold>{{name}}</bold> assigned you to a record"
 }

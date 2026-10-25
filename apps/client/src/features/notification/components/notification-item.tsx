@@ -69,21 +69,35 @@ export function NotificationItem({
         return "SIEM destination <bold>{{name}}</bold> was disabled after 24 hours of failures";
       case "siem_destination.recovered":
         return "SIEM destination <bold>{{name}}</bold> recovered";
+      case "base.row_assigned":
+        return "<bold>{{name}}</bold> assigned you to a record";
       default:
         return "";
     }
   };
 
-  const commentParam = notification.commentId
+  // an assignment opens the base with the record's dialog
+  const assignedRowId =
+    notification.type === "base.row_assigned" &&
+    typeof notification.data?.rowId === "string"
+      ? notification.data.rowId
+      : null;
+  const rowTitle =
+    assignedRowId && typeof notification.data?.rowTitle === "string"
+      ? notification.data.rowTitle
+      : null;
+  const linkParams = notification.commentId
     ? `?commentId=${notification.commentId}`
-    : "";
+    : assignedRowId && notification.pageId
+      ? `?row=${encodeURIComponent(assignedRowId)}&rowBase=${notification.pageId}`
+      : "";
   const pageUrl =
     notification.page && notification.space
       ? buildPageUrl(
           notification.space.slug,
           notification.page.slugId,
           notification.page.title,
-        ) + commentParam
+        ) + linkParams
       : undefined;
 
   const isSiemDestination = notification.type.startsWith("siem_destination.");
@@ -154,6 +168,12 @@ export function NotificationItem({
               components={{ bold: <Text span fw={600} /> }}
             />
           </Text>
+
+          {rowTitle && (
+            <Text size="xs" lineClamp={1} mt={2}>
+              {rowTitle}
+            </Text>
+          )}
 
           {lastError && (
             <Text size="xs" c="dimmed" lineClamp={1} mt={2}>

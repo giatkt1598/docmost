@@ -151,6 +151,7 @@ export interface BaseRows {
   createdAt: Generated<Timestamp>;
   creatorId: string | null;
   deletedAt: Timestamp | null;
+  docPageId: string | null;
   id: Generated<string>;
   lastUpdatedById: string | null;
   pageId: string;

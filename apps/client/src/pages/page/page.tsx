@@ -21,6 +21,8 @@ import { useHasFeature } from "@/ee/hooks/use-feature";
 import { Feature } from "@/ee/features";
 import { getPageTitle } from "@/features/page/page.utils";
 import { DocumentTitle } from "@/components/ui/document-title.tsx";
+import { BaseTools } from "@/features/base-tools/components/base-tools";
+import { RowPageButton } from "@/features/base-tools/components/row-page-button";
 const MemoizedFullEditor = React.memo(FullEditor);
 const MemoizedTitleEditor = React.memo(TitleEditor);
 const MemoizedPageHeader = React.memo(PageHeader);
@@ -149,21 +151,31 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
               titleSlot={
                 <div
                   className="base-page-title"
-                  style={{ paddingTop: 2, paddingBottom: 6 }}
+                  style={{
+                    paddingTop: 2,
+                    paddingBottom: 6,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
                 >
-                  <MemoizedTitleEditor
-                    pageId={page.id}
-                    slugId={page.slugId}
-                    title={page.title}
-                    spaceSlug={page.space?.slug ?? ""}
-                    editable={hasBases && canEdit}
-                    isBase
-                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <MemoizedTitleEditor
+                      pageId={page.id}
+                      slugId={page.slugId}
+                      title={page.title}
+                      spaceSlug={page.space?.slug ?? ""}
+                      editable={hasBases && canEdit}
+                      isBase
+                    />
+                  </div>
+                  <BaseTools pageId={page.id} editable={hasBases && canEdit} />
                 </div>
               }
             />
           </div>
         </div>
+        <RowPageButton />
       </div>
     );
   }
@@ -192,6 +204,7 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
           canComment={canComment}
         />
         <MemoizedHistoryModal pageId={page.id} />
+        <RowPageButton />
       </div>
     )
   );

@@ -238,6 +238,17 @@ export class ListRowsDto extends BasePageDto {
   @IsOptional()
   @IsArray()
   sorts?: any[];
+
+  // quick search over the row values, combined with the filter
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  search?: string;
+}
+
+export class RowPageDto extends BasePageDto {
+  @IsUUID()
+  rowId: string;
 }
 
 // ---- views ---------------------------------------------------------------
@@ -319,4 +330,9 @@ export class PublicListRowsDto extends PublicBaseDto {
   @IsOptional()
   @IsArray()
   sorts?: any[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  search?: string;
 }

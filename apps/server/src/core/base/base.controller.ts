@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -19,6 +21,8 @@ import { BaseRowService } from './base-row.service';
 import { BaseViewService } from './base-view.service';
 import { BaseExportService } from './base-export.service';
 import { BaseReferenceService } from './base-reference.service';
+import { BaseRowPageService } from './base-row-page.service';
+import { BaseCsvImportService } from './base-csv-import.service';
 import {
   BasePageDto,
   ConvertBaseDto,
@@ -38,11 +42,14 @@ import {
   ReorderRowDto,
   RestoreRowsDto,
   RowInfoDto,
+  RowPageDto,
   UpdateBaseDto,
   UpdatePropertyDto,
   UpdateRowDto,
   UpdateViewDto,
 } from './dto/base.dto';
+
+const CSV_IMPORT_MAX_BYTES = 20 * 1024 * 1024;
 
 @UseGuards(JwtAuthGuard)
 @Controller('bases')
@@ -54,6 +61,8 @@ export class BaseController {
     private readonly viewService: BaseViewService,
     private readonly exportService: BaseExportService,
     private readonly referenceService: BaseReferenceService,
+    private readonly rowPageService: BaseRowPageService,
+    private readonly csvImportService: BaseCsvImportService,
   ) {}
 
   // ---- bases -------------------------------------------------------------
@@ -148,6 +157,44 @@ export class BaseController {
       'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
     });
     res.send(stream);
+  }
+
+  // multipart: pageId and createMissing fields, then the .csv file
+  @HttpCode(HttpStatus.OK)
+  @Post('import-csv')
+  @OAuthScope('write')
+  async importCsv(
+    @Req() req: any,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    let file: any = null;
+    try {
+      file = await req.file({
+        limits: { fileSize: CSV_IMPORT_MAX_BYTES, fields: 3, files: 1 },
+      });
+    } catch (err: any) {
+      if (err?.statusCode === 413) {
+        throw new BadRequestException('The CSV file is larger than 20 MB');
+      }
+      throw new BadRequestException('Failed to read the uploaded file');
+    }
+    if (!file) throw new BadRequestException('A CSV file is required');
+    if (!/\.csv$/i.test(file.filename ?? '')) {
+      throw new BadRequestException('Only .csv files can be imported');
+    }
+    const pageId = file.fields?.pageId?.value;
+    if (typeof pageId !== 'string' || !pageId) {
+      throw new BadRequestException('pageId is required');
+    }
+    const createMissing = file.fields?.createMissing?.value === 'true';
+
+    const page = await this.baseService.getEditablePage(pageId, user, workspace);
+    const buffer: Buffer = await file.toBuffer();
+    if (file.file?.truncated) {
+      throw new BadRequestException('The CSV file is larger than 20 MB');
+    }
+    return this.csvImportService.importCsv(page, buffer, { createMissing }, user);
   }
 
   @HttpCode(HttpStatus.OK)
@@ -288,6 +335,18 @@ export class BaseController {
   ) {
     const page = await this.baseService.getEditablePage(dto.pageId, user, workspace);
     await this.rowService.deleteMany(page, dto, user);
+  }
+
+  // The row's own page, created on first use (needs edit access then).
+  @HttpCode(HttpStatus.OK)
+  @Post('rows/page')
+  @OAuthScope('write')
+  rowPage(
+    @Body() dto: RowPageDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.rowPageService.open(dto, user, workspace);
   }
 
   @HttpCode(HttpStatus.OK)
