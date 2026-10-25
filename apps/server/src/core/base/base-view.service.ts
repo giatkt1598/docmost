@@ -6,6 +6,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { generateJitteredKeyBetween } from 'fractional-indexing-jittered';
 import { Page, User } from '@docmost/db/types/entity.types';
+import { jsonb } from '@docmost/db/repos/base/jsonb';
 import { BaseViewRepo } from '@docmost/db/repos/base/base-view.repo';
 import { EventName } from '../../common/events/event.contants';
 import { emitBaseEvent } from './base.events';
@@ -45,7 +46,7 @@ export class BaseViewService {
         name: dto.name.trim(),
         type,
         position: generateJitteredKeyBetween(last, null),
-        config: JSON.stringify(config),
+        config: jsonb(config),
       });
       emitBaseEvent(this.eventEmitter, EventName.BASE_VIEW_CREATED, {
         ...this.base(page, user),

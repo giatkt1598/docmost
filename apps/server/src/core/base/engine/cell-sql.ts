@@ -78,5 +78,5 @@ export function isEmptyExpr(prop: EngineProperty): RawBuilder<boolean> {
 }
 
 export function escapeLike(value: string): string {
-  return value.replace(/[\%_]/g, (c) => `\${c}`);
+  return value.replace(/[\\%_]/g, (c) => `\\${c}`);
 }

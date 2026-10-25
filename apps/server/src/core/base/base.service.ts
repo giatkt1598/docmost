@@ -6,6 +6,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB, KyselyTransaction } from '@docmost/db/types/kysely.types';
+import { jsonb } from '@docmost/db/repos/base/jsonb';
 import { executeTx } from '@docmost/db/utils';
 import {
   BaseProperty,
@@ -284,7 +285,7 @@ export class BaseService {
         workspaceId,
         name: p.name,
         type: p.type,
-        typeOptions: JSON.stringify(p.typeOptions),
+        typeOptions: jsonb(p.typeOptions),
         position: p.position,
         isPrimary: p.isPrimary,
       })),
@@ -298,7 +299,7 @@ export class BaseService {
         name: v.name,
         type: v.type,
         position: v.position,
-        config: JSON.stringify(v.config),
+        config: jsonb(v.config),
       })),
       trx,
     );
@@ -309,7 +310,7 @@ export class BaseService {
         creatorId: userId,
         lastUpdatedById: userId,
         position: r.position,
-        cells: JSON.stringify(r.cells),
+        cells: jsonb(r.cells),
       })),
       trx,
     );

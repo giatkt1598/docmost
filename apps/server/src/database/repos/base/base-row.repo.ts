@@ -195,7 +195,7 @@ export class BaseRowRepo {
     };
     if (update.position) set.position = update.position;
     if (update.cellsPatch && Object.keys(update.cellsPatch).length > 0) {
-      set.cells = sql`jsonb_set_many(cells, ${JSON.stringify(update.cellsPatch)}::jsonb)`;
+      set.cells = sql`jsonb_set_many(cells, ${JSON.stringify(update.cellsPatch)}::text::jsonb)`;
     }
     return dbOrTx(this.db, trx)
       .updateTable('baseRows')
@@ -218,7 +218,7 @@ export class BaseRowRepo {
     await sql`
       update base_rows r
       set cells = jsonb_set_many(r.cells, x.patch)
-      from jsonb_to_recordset(${JSON.stringify(patches)}::jsonb)
+      from jsonb_to_recordset(${JSON.stringify(patches)}::text::jsonb)
         as x(id uuid, patch jsonb)
       where r.id = x.id and r.page_id = ${pageId}::uuid
         and r.deleted_at is null

@@ -111,7 +111,7 @@ export class BaseExportService {
           );
         }
       }
-      const name = (page.title || 'base').replace(/[\/:*?"<>|\r\n]+/g, '_');
+      const name = (page.title || 'base').replace(/[\\/:*?"<>|\r\n]+/g, '_');
       return { filename: `${name}.csv`, stream: Readable.from(chunks()) };
     });
   }

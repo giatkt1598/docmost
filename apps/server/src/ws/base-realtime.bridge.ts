@@ -11,14 +11,14 @@ export class BaseRealtimeBridge {
   constructor(private readonly moduleRef: ModuleRef) {}
 
   protected loadServiceClass(): any {
+    // The enterprise service wins when it is bundled; otherwise use the core
+    // implementation.
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       return require('../ee/base/realtime/base-ws.service').BaseWsService;
     } catch {
-      this.logger.debug(
-        'Base realtime requested but enterprise module not bundled in this build',
-      );
-      return null;
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      return require('../core/base/realtime/base-ws.service').BaseWsService;
     }
   }
 

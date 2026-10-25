@@ -59,6 +59,9 @@ import { TransclusionService } from '../transclusion/transclusion.service';
 import { EnvironmentService } from '../../../integrations/environment/environment.service';
 import { enqueueMediaLocalize } from '../../media-localize/media-localize.queue';
 import { LabelRepo } from '@docmost/db/repos/label/label.repo';
+import { BasePropertyRepo } from '@docmost/db/repos/base/base-property.repo';
+import { BaseRowRepo } from '@docmost/db/repos/base/base-row.repo';
+import { BaseViewRepo } from '@docmost/db/repos/base/base-view.repo';
 import { WsService } from '../../../ws/ws.service';
 import { CollabAccessService } from '../../../collaboration/services/collab-access.service';
 
@@ -80,6 +83,9 @@ export class PageService {
     private readonly watcherService: WatcherService,
     private readonly transclusionService: TransclusionService,
     private readonly labelRepo: LabelRepo,
+    private readonly basePropertyRepo: BasePropertyRepo,
+    private readonly baseRowRepo: BaseRowRepo,
+    private readonly baseViewRepo: BaseViewRepo,
     private readonly wsService: WsService,
     private readonly collabAccessService: CollabAccessService,
     @InjectQueue(QueueName.MEDIA_QUEUE) private mediaQueue: Queue,
@@ -717,7 +723,7 @@ export class PageService {
         // Add "Copy of " prefix to the root page title only for duplicates in same space
         let title = page.title;
         if (isDuplicateInSameSpace && page.id === rootPage.id) {
-          const originalTitle = getPageTitle(page.title);
+          const originalTitle = getPageTitle(page.title, page.isBase);
           title = `Copy of ${originalTitle}`;
         }
 
@@ -726,6 +732,7 @@ export class PageService {
           slugId: pageFromMap.newSlugId,
           title: title,
           icon: page.icon,
+          isBase: page.isBase,
           content: prosemirrorJson,
           textContent: jsonToText(prosemirrorJson),
           ydoc: createYdocFromJson(prosemirrorJson),
@@ -752,6 +759,15 @@ export class PageService {
         new Map([...pageMap].map(([oldId, entry]) => [oldId, entry.newPageId])),
         trx,
       );
+
+      // a duplicated base keeps its properties, views and rows
+      for (const page of pages) {
+        if (!page.isBase) continue;
+        const newPageId = pageMap.get(page.id).newPageId;
+        await this.basePropertyRepo.copyToPage(page.id, newPageId, trx);
+        await this.baseViewRepo.copyToPage(page.id, newPageId, authUser.id, trx);
+        await this.baseRowRepo.copyRows(page.id, newPageId, authUser.id, trx);
+      }
     });
 
     // Extract transclusions from every duplicated page and persist them in

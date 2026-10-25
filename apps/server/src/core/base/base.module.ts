@@ -9,6 +9,8 @@ import { BaseExportService } from './base-export.service';
 import { BaseReferenceService } from './base-reference.service';
 import { BaseFormulaService } from './base-formula.service';
 import { BaseConversionService } from './base-conversion.service';
+import { BaseQueueProcessor } from './processors/base-queue.processor';
+import { BaseWsService } from './realtime/base-ws.service';
 
 @Module({
   imports: [PageModule],
@@ -22,6 +24,8 @@ import { BaseConversionService } from './base-conversion.service';
     BaseReferenceService,
     BaseFormulaService,
     BaseConversionService,
+    BaseQueueProcessor,
+    BaseWsService,
   ],
   exports: [BaseService, BaseFormulaService, BaseConversionService],
 })

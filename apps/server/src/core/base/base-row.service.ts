@@ -7,6 +7,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectKysely } from 'nestjs-kysely';
 import { generateJitteredKeyBetween } from 'fractional-indexing-jittered';
 import { KyselyDB } from '@docmost/db/types/kysely.types';
+import { jsonb } from '@docmost/db/repos/base/jsonb';
 import { executeTx } from '@docmost/db/utils';
 import { BaseProperty, Page, User } from '@docmost/db/types/entity.types';
 import { BasePropertyRepo } from '@docmost/db/repos/base/base-property.repo';
@@ -152,7 +153,7 @@ export class BaseRowService {
             creatorId: user.id,
             lastUpdatedById: user.id,
             position,
-            cells: JSON.stringify(cells),
+            cells: jsonb(cells),
           },
           trx,
         );

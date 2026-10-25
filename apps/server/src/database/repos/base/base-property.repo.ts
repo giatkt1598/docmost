@@ -9,6 +9,12 @@ import {
 } from '@docmost/db/types/entity.types';
 import { sql } from 'kysely';
 
+// Json columns can also be written with a jsonb() expression.
+export type PropertyUpdate = Omit<
+  UpdatableBaseProperty,
+  'typeOptions' | 'pendingTypeOptions'
+> & { typeOptions?: unknown; pendingTypeOptions?: unknown };
+
 @Injectable()
 export class BasePropertyRepo {
   constructor(@InjectKysely() private readonly db: KyselyDB) {}
@@ -82,12 +88,12 @@ export class BasePropertyRepo {
   async update(
     pageId: string,
     propertyId: string,
-    updatable: UpdatableBaseProperty,
+    updatable: PropertyUpdate,
     trx?: KyselyTransaction,
   ): Promise<BaseProperty | undefined> {
     return dbOrTx(this.db, trx)
       .updateTable('baseProperties')
-      .set({ ...updatable, updatedAt: new Date() })
+      .set({ ...updatable, updatedAt: new Date() } as any)
       .where('pageId', '=', pageId)
       .where('id', '=', propertyId)
       .where('deletedAt', 'is', null)
@@ -180,5 +186,22 @@ export class BasePropertyRepo {
       .returning('baseSchemaVersion')
       .executeTakeFirst();
     return row?.baseSchemaVersion ?? 0;
+  }
+
+  // Duplicates the live properties of one base into another.
+  async copyToPage(
+    fromPageId: string,
+    toPageId: string,
+    trx?: KyselyTransaction,
+  ): Promise<void> {
+    await sql`
+      insert into base_properties
+        (id, page_id, name, type, position, type_options, is_primary,
+         workspace_id)
+      select id, ${toPageId}::uuid, name, type, position, type_options,
+        is_primary, workspace_id
+      from base_properties
+      where page_id = ${fromPageId}::uuid and deleted_at is null
+    `.execute(dbOrTx(this.db, trx));
   }
 }

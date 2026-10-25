@@ -91,7 +91,7 @@ export class BaseViewRepo {
       .where('pageId', '=', pageId);
     if (configPatch && Object.keys(configPatch).length > 0) {
       q = q.set({
-        config: sql`jsonb_set_many(config, ${JSON.stringify(configPatch)}::jsonb)`,
+        config: sql`jsonb_set_many(config, ${JSON.stringify(configPatch)}::text::jsonb)`,
       });
     }
     return q.returningAll().executeTakeFirst();
@@ -116,5 +116,22 @@ export class BaseViewRepo {
       .where('pageId', '=', pageId)
       .executeTakeFirst();
     return Number(r?.count ?? 0);
+  }
+
+  // Duplicates the views of one base into another.
+  async copyToPage(
+    fromPageId: string,
+    toPageId: string,
+    userId: string | null,
+    trx?: KyselyTransaction,
+  ): Promise<void> {
+    await sql`
+      insert into base_views
+        (page_id, name, type, position, config, workspace_id, creator_id)
+      select ${toPageId}::uuid, name, type, position, config, workspace_id,
+        ${userId}::uuid
+      from base_views
+      where page_id = ${fromPageId}::uuid
+    `.execute(dbOrTx(this.db, trx));
   }
 }

@@ -10,6 +10,7 @@ import { Queue } from 'bullmq';
 import { InjectKysely } from 'nestjs-kysely';
 import { generateJitteredKeyBetween } from 'fractional-indexing-jittered';
 import { KyselyDB } from '@docmost/db/types/kysely.types';
+import { jsonb } from '@docmost/db/repos/base/jsonb';
 import { executeTx } from '@docmost/db/utils';
 import { BaseProperty, Page, User } from '@docmost/db/types/entity.types';
 import { BasePropertyRepo } from '@docmost/db/repos/base/base-property.repo';
@@ -116,7 +117,7 @@ export class BasePropertyService {
         workspaceId: page.workspaceId,
         name,
         type: dto.type,
-        typeOptions: JSON.stringify(typeOptions),
+        typeOptions: jsonb(typeOptions),
         position: generateJitteredKeyBetween(last, null),
         isPrimary: false,
       });
@@ -232,7 +233,7 @@ export class BasePropertyService {
     let sourceChanged = false;
     if (dto.typeOptions !== undefined) {
       const opts = this.typeOptionsFor(prop.type, dto.typeOptions, props, prop.id);
-      patch.typeOptions = JSON.stringify(opts);
+      patch.typeOptions = jsonb(opts);
       sourceChanged =
         prop.type === 'formula' &&
         opts.source !== (prop.typeOptions as any)?.source;
@@ -291,7 +292,7 @@ export class BasePropertyService {
         const updated = await this.propertyRepo.update(
           page.id,
           prop.id,
-          { name, type: newType, typeOptions: JSON.stringify(toOptions) },
+          { name, type: newType, typeOptions: jsonb(toOptions) },
           trx,
         );
         const v = await this.propertyRepo.bumpSchemaVersion(page.id, trx);
@@ -314,7 +315,7 @@ export class BasePropertyService {
     const property = await this.propertyRepo.update(page.id, prop.id, {
       name,
       pendingType: newType,
-      pendingTypeOptions: JSON.stringify(toOptions),
+      pendingTypeOptions: jsonb(toOptions),
       pendingToken,
     });
     const payload: IBaseTypeConversionJob = {
