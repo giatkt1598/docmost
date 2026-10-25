@@ -64,6 +64,35 @@ describe('normalizeTypeOptions', () => {
     ).toThrow();
     expect(() => normalizeTypeOptions('bogus', {})).toThrow();
   });
+
+  it('accepts date display options up to 64 characters', () => {
+    const format = 'dddd, D MMMM YYYY [at] HH:mm'.padEnd(64, ' ');
+    expect(
+      normalizeTypeOptions('date', { dateFormat: format, includeTime: true }),
+    ).toMatchObject({ dateFormat: format, includeTime: true });
+    expect(() =>
+      normalizeTypeOptions('date', { dateFormat: 'x'.repeat(65) }),
+    ).toThrow();
+  });
+
+  it.each(['createdAt', 'lastEditedAt'])(
+    'accepts date display options for %s',
+    (type) => {
+      const opts = {
+        dateFormat: 'DD/MM/YYYY HH:mm',
+        includeTime: true,
+        timeFormat: '12h',
+      };
+      expect(normalizeTypeOptions(type, opts)).toMatchObject(opts);
+      expect(() =>
+        normalizeTypeOptions(type, { dateFormat: 'x'.repeat(65) }),
+      ).toThrow();
+      expect(() =>
+        normalizeTypeOptions(type, { timeFormat: '13h' }),
+      ).toThrow();
+      expect(() => normalizeTypeOptions(type, { includeTime: 'yes' })).toThrow();
+    },
+  );
 });
 
 describe('defaultCells', () => {

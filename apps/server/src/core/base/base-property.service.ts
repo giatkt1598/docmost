@@ -9,11 +9,14 @@ import { randomUUID } from 'crypto';
 import { Queue } from 'bullmq';
 import { InjectKysely } from 'nestjs-kysely';
 import { generateJitteredKeyBetween } from 'fractional-indexing-jittered';
-import { KyselyDB } from '@docmost/db/types/kysely.types';
+import { KyselyDB, KyselyTransaction } from '@docmost/db/types/kysely.types';
 import { jsonb } from '@docmost/db/repos/base/jsonb';
 import { executeTx } from '@docmost/db/utils';
 import { BaseProperty, Page, User } from '@docmost/db/types/entity.types';
-import { BasePropertyRepo } from '@docmost/db/repos/base/base-property.repo';
+import {
+  BasePropertyRepo,
+  PropertyUpdate,
+} from '@docmost/db/repos/base/base-property.repo';
 import { BaseRowRepo } from '@docmost/db/repos/base/base-row.repo';
 import { EventName } from '../../common/events/event.contants';
 import { generateBasePropertyId } from '../../common/helpers/nanoid.utils';
@@ -31,7 +34,11 @@ import {
   BASE_PROPERTY_TYPES,
   SYSTEM_PROPERTY_TYPES,
 } from './engine/base.types';
-import { compileFormula, FormulaEvaluator } from './engine/formula.engine';
+import {
+  compileFormula,
+  FormulaEvaluator,
+  renamePropertyReferences,
+} from './engine/formula.engine';
 import { normalizeTypeOptions } from './engine/schema.zod';
 import { isConvertibleTarget } from './engine/type-conversion';
 import {
@@ -99,6 +106,62 @@ export class BasePropertyService {
       actorId,
     };
     return this.baseQueue.add(QueueJob.BASE_FORMULA_RECOMPUTE, payload);
+  }
+
+  // Formulas that refer to `prop` get prop("Old") rewritten to
+  // prop("New"). References are stored by id, so only the source changes.
+  private formulaRenames(
+    props: BaseProperty[],
+    prop: BaseProperty,
+    newName: string,
+  ): Array<{ id: string; patch: PropertyUpdate }> {
+    if (newName === prop.name) return [];
+    const rewrite = (opts: any) => {
+      if (!opts || typeof opts.source !== 'string') return null;
+      const deps: unknown[] = Array.isArray(opts.dependencies)
+        ? opts.dependencies
+        : [];
+      if (!deps.includes(prop.id)) return null;
+      const source = renamePropertyReferences(opts.source, prop.name, newName);
+      return source === opts.source ? null : { ...opts, source };
+    };
+    const out: Array<{ id: string; patch: PropertyUpdate }> = [];
+    for (const p of props) {
+      if (p.id === prop.id) continue;
+      const patch: PropertyUpdate = {};
+      if (p.type === 'formula') {
+        const next = rewrite(p.typeOptions);
+        if (next) patch.typeOptions = jsonb(next);
+      }
+      if (p.pendingType === 'formula') {
+        const next = rewrite(p.pendingTypeOptions);
+        if (next) patch.pendingTypeOptions = jsonb(next);
+      }
+      if (Object.keys(patch).length) out.push({ id: p.id, patch });
+    }
+    return out;
+  }
+
+  private async applyFormulaRenames(
+    pageId: string,
+    renames: Array<{ id: string; patch: PropertyUpdate }>,
+    trx?: KyselyTransaction,
+  ): Promise<BaseProperty[]> {
+    const updated: BaseProperty[] = [];
+    for (const r of renames) {
+      const p = await this.propertyRepo.update(pageId, r.id, r.patch, trx);
+      if (p) updated.push(p);
+    }
+    return updated;
+  }
+
+  private emitRenamed(base: Record<string, unknown>, renamed: BaseProperty[]) {
+    for (const property of renamed) {
+      emitBaseEvent(this.eventEmitter, EventName.BASE_PROPERTY_UPDATED, {
+        ...(base as any),
+        property,
+      });
+    }
   }
 
   async create(page: Page, dto: CreatePropertyDto, user: User) {
@@ -238,14 +301,36 @@ export class BasePropertyService {
         prop.type === 'formula' &&
         opts.source !== (prop.typeOptions as any)?.source;
     }
-    const property = await this.propertyRepo.update(page.id, prop.id, patch);
-    if (!property) throw new NotFoundException('Property not found');
+    const renames = this.formulaRenames(props, prop, name);
+    const { property, renamed } = await executeTx(this.db, async (trx) => {
+      const updated = await this.propertyRepo.update(
+        page.id,
+        prop.id,
+        patch,
+        trx,
+      );
+      if (!updated) throw new NotFoundException('Property not found');
+      return {
+        property: updated,
+        renamed: await this.applyFormulaRenames(page.id, renames, trx),
+      };
+    });
     emitBaseEvent(this.eventEmitter, EventName.BASE_PROPERTY_UPDATED, {
       ...(base as any),
       property,
     });
+    this.emitRenamed(base, renamed);
     if (sourceChanged) {
-      await this.enqueueRecompute(page, [prop.id], 'formula_edited', user.id);
+      // formulas reading this one change with it
+      const dependents = new FormulaEvaluator(
+        props.map(toEngineProperty),
+      ).graph.affectedFormulas([prop.id]);
+      await this.enqueueRecompute(
+        page,
+        [prop.id, ...dependents],
+        'formula_edited',
+        user.id,
+      );
     }
     return { property, jobId: null };
   }
@@ -275,9 +360,10 @@ export class BasePropertyService {
       props.map(toEngineProperty),
     ).graph.affectedFormulas([prop.id]);
     const rowCount = clearMode ? 0 : await this.rowRepo.count(page.id);
+    const renames = this.formulaRenames(props, prop, name);
 
     if (clearMode || rowCount <= INLINE_ROW_THRESHOLD) {
-      const { property, version } = await executeTx(this.db, async (trx) => {
+      const { property, version, renamed } = await executeTx(this.db, async (trx) => {
         // row writes in flight finish first; new ones wait for the new type
         await this.propertyRepo.findByPageId(page.id, trx, 'update');
         if (!clearMode) {
@@ -297,13 +383,19 @@ export class BasePropertyService {
           { name, type: newType, typeOptions: jsonb(toOptions) },
           trx,
         );
+        const renamedProps = await this.applyFormulaRenames(
+          page.id,
+          renames,
+          trx,
+        );
         const v = await this.propertyRepo.bumpSchemaVersion(page.id, trx);
-        return { property: updated, version: v };
+        return { property: updated, version: v, renamed: renamedProps };
       });
       emitBaseEvent(this.eventEmitter, EventName.BASE_PROPERTY_UPDATED, {
         ...(base as any),
         property,
       });
+      this.emitRenamed(base, renamed);
       emitBaseEvent(this.eventEmitter, EventName.BASE_SCHEMA_BUMPED, {
         ...(base as any),
         schemaVersion: version,
@@ -314,12 +406,20 @@ export class BasePropertyService {
 
     // Large base: stage the new type and let the worker rewrite the cells.
     const pendingToken = randomUUID();
-    const property = await this.propertyRepo.update(page.id, prop.id, {
-      name,
-      pendingType: newType,
-      pendingTypeOptions: jsonb(toOptions),
-      pendingToken,
-    });
+    const { property, renamed } = await executeTx(this.db, async (trx) => ({
+      property: await this.propertyRepo.update(
+        page.id,
+        prop.id,
+        {
+          name,
+          pendingType: newType,
+          pendingTypeOptions: jsonb(toOptions),
+          pendingToken,
+        },
+        trx,
+      ),
+      renamed: await this.applyFormulaRenames(page.id, renames, trx),
+    }));
     const payload: IBaseTypeConversionJob = {
       pageId: page.id,
       propertyId: prop.id,
@@ -337,6 +437,7 @@ export class BasePropertyService {
       ...(base as any),
       property,
     });
+    this.emitRenamed(base, renamed);
     return { property, jobId: String(job.id) };
   }
 }

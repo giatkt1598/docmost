@@ -127,14 +127,21 @@ const numberOptionsSchema = z
   })
   .passthrough();
 
+const dateDisplayOptions = {
+  dateFormat: z.string().max(64).optional(),
+  timeFormat: z.enum(['12h', '24h']).optional(),
+  includeTime: z.boolean().optional(),
+};
+
 const dateOptionsSchema = z
   .object({
-    dateFormat: z.string().max(32).optional(),
-    timeFormat: z.enum(['12h', '24h']).optional(),
-    includeTime: z.boolean().optional(),
+    ...dateDisplayOptions,
     defaultValue: z.string().nullable().optional(),
   })
   .passthrough();
+
+// createdAt / lastEditedAt: display options only, no stored value
+const systemDateOptionsSchema = z.object(dateDisplayOptions).passthrough();
 
 const personOptionsSchema = z
   .object({
@@ -168,6 +175,9 @@ export function typeOptionsSchemaFor(type: string): z.ZodTypeAny {
       return choiceOptionsSchema;
     case 'date':
       return dateOptionsSchema;
+    case 'createdAt':
+    case 'lastEditedAt':
+      return systemDateOptionsSchema;
     case 'person':
       return personOptionsSchema;
     case 'checkbox':
