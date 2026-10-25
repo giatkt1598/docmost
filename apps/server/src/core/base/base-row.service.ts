@@ -168,67 +168,95 @@ export class BaseRowService {
     return row;
   }
 
-  private async newRowPosition(page: Page, dto: CreateRowDto) {
+  // `last` is the position at the end of the base, read with the row count.
+  private async newRowPosition(
+    page: Page,
+    dto: CreateRowDto,
+    last: string | null,
+    trx: KyselyTransaction,
+  ) {
     if (dto.position) {
       this.assertPosition(dto.position);
       return dto.position;
     }
     if (dto.afterRowId) {
-      const after = await this.rowRepo.findById(dto.afterRowId, page.id);
+      const after = await this.rowRepo.findById(dto.afterRowId, page.id, trx);
       if (after) {
-        const next = await this.rowRepo.nextPosition(page.id, after.position);
+        const next = await this.rowRepo.nextPosition(page.id, after.position, trx);
         return generateJitteredKeyBetween(after.position, next);
       }
     }
-    const last = await this.rowRepo.lastPosition(page.id);
     return generateJitteredKeyBetween(last, null);
   }
 
   async create(page: Page, dto: CreateRowDto, user: User) {
     return guard(async () => {
-      await this.assertRowCapacity(page.id, 1);
-      const position = await this.newRowPosition(page, dto);
-
-      let schema: BaseProperty[] = [];
-      const row = await executeTx(this.db, async (trx) => {
-        const { properties, map, pending } = await this.schema(page.id, trx);
-        schema = properties;
-        const given = validateCells(dto.cells ?? {}, map);
-        this.assertNotConverting(given, pending);
-        const defaults = defaultCells(
-          [...map.values()].filter((p) => !pending.has(p.id)),
-        );
-        const cells: Record<string, unknown> = { ...defaults };
-        for (const [k, v] of Object.entries(given)) {
-          if (v === null) delete cells[k];
-          else cells[k] = v;
+      try {
+        return await this.insertRow(page, dto, user);
+      } catch (err: any) {
+        // the same client id again (a retried request): return that row
+        if (dto.id && err?.code === '23505') {
+          const existing = await this.rowRepo.findById(dto.id, page.id);
+          if (existing) return existing;
+          throw new ConflictException('A row with this id already exists');
         }
-        const inserted = await this.rowRepo.insert(
-          {
-            pageId: page.id,
-            workspaceId: page.workspaceId,
-            creatorId: user.id,
-            lastUpdatedById: user.id,
-            position,
-            cells: jsonb(cells),
-          },
-          trx,
-        );
-        const { row: withFormulas } = await this.formula.recomputeRow(
-          inserted,
-          properties,
-          'all',
-          trx,
-        );
-        return withFormulas;
-      });
-      emitBaseEvent(this.eventEmitter, EventName.BASE_ROW_CREATED, {
-        ...this.base(page, user, dto.requestId),
-        row,
-      });
-      this.notifications.notifyAssigned(page, row, schema, null, user.id);
-      return row;
+        throw err;
+      }
     });
+  }
+
+  // Every round trip counts when the database is far away, so the schema
+  // lock and the row count go out together.
+  private async insertRow(page: Page, dto: CreateRowDto, user: User) {
+    let schema: BaseProperty[] = [];
+    const row = await executeTx(this.db, async (trx) => {
+      const [{ properties, map, pending }, stats] = await Promise.all([
+        this.schema(page.id, trx),
+        this.rowRepo.countAndLastPosition(page.id, trx),
+      ]);
+      if (stats.count + 1 > MAX_ROWS_PER_BASE) {
+        throw new BadRequestException(
+          `A base can hold at most ${MAX_ROWS_PER_BASE} rows`,
+        );
+      }
+      const position = await this.newRowPosition(page, dto, stats.last, trx);
+      schema = properties;
+      const given = validateCells(dto.cells ?? {}, map);
+      this.assertNotConverting(given, pending);
+      const defaults = defaultCells(
+        [...map.values()].filter((p) => !pending.has(p.id)),
+      );
+      const cells: Record<string, unknown> = { ...defaults };
+      for (const [k, v] of Object.entries(given)) {
+        if (v === null) delete cells[k];
+        else cells[k] = v;
+      }
+      const inserted = await this.rowRepo.insert(
+        {
+          ...(dto.id ? { id: dto.id } : {}),
+          pageId: page.id,
+          workspaceId: page.workspaceId,
+          creatorId: user.id,
+          lastUpdatedById: user.id,
+          position,
+          cells: jsonb(cells),
+        },
+        trx,
+      );
+      const { row: withFormulas } = await this.formula.recomputeRow(
+        inserted,
+        properties,
+        'all',
+        trx,
+      );
+      return withFormulas;
+    });
+    emitBaseEvent(this.eventEmitter, EventName.BASE_ROW_CREATED, {
+      ...this.base(page, user, dto.requestId),
+      row,
+    });
+    this.notifications.notifyAssigned(page, row, schema, null, user.id);
+    return row;
   }
 
   async update(page: Page, dto: UpdateRowDto, user: User) {

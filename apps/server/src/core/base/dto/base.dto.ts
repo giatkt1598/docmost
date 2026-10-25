@@ -154,6 +154,12 @@ export class ReorderPropertyDto extends DeletePropertyDto {
 // ---- rows ----------------------------------------------------------------
 
 export class CreateRowDto extends BasePageDto {
+  // client-made id, so the client can show the row before the answer; a
+  // repeated request with the same id returns the row it already created
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
   @IsOptional()
   @IsObject()
   cells?: Record<string, unknown>;

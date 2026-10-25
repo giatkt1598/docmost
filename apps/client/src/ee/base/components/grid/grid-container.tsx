@@ -454,10 +454,8 @@ export function GridContainer({
   );
 
   const showGhostRows = rows.length === 0 && !isFiltered;
-  // Append a flexible trailing track so every row spans the full width.
-  // minmax(0, 1fr) collapses to 0 when columns overflow the viewport and
-  // fills remaining width otherwise. The header grid keeps the plain template.
-  const bodyGridTemplateColumns = `${gridTemplateColumns} minmax(0, 1fr)`;
+  // Rows end with the last column instead of stretching to the page width.
+  const bodyGridTemplateColumns = gridTemplateColumns;
 
   const handleAddRow = useCallback(() => {
     onAddRow?.();
@@ -528,7 +526,7 @@ export function GridContainer({
                 virtualizer.containerRef(node);
               }}
               role="rowgroup"
-              style={{ width: totalColumnsWidth, minWidth: "100%" }}
+              style={{ width: totalColumnsWidth }}
             >
               {virtualItems.map((virtualRow) => {
                 const row = rows[virtualRow.index];
