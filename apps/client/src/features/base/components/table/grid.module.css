@@ -1,0 +1,217 @@
+.scroller {
+  position: relative;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* the embed widens the viewport and pads the grid back into line */
+  padding-left: var(--embed-grid-pad-left, 0);
+  padding-right: var(--embed-grid-pad-right, 0);
+  outline: none;
+}
+
+/* Rows and header are exactly as wide as their columns. */
+.canvas {
+  position: relative;
+}
+
+.row {
+  display: flex;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: var(--grid-row-height);
+  border-bottom: 1px solid var(--grid-line);
+  background-color: var(--mantine-color-body);
+}
+
+.row:hover,
+.row:hover .pinned {
+  background-color: var(--grid-hover);
+}
+
+.row[data-selected],
+.row[data-selected] .pinned {
+  background-color: var(--grid-selected);
+}
+
+.row[data-dragging] {
+  opacity: 0.4;
+}
+
+.row[data-drop-edge="top"]::before,
+.row[data-drop-edge="bottom"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--mantine-primary-color-filled);
+  z-index: 4;
+}
+
+.row[data-drop-edge="top"]::before {
+  top: -1px;
+}
+
+.row[data-drop-edge="bottom"]::after {
+  bottom: -1px;
+}
+
+.header {
+  display: flex;
+  position: relative;
+  height: var(--grid-header-height);
+  border-top: 1px solid var(--grid-line);
+  border-bottom: 1px solid var(--grid-line);
+  background-color: var(--mantine-color-body);
+  z-index: 3;
+}
+
+.cell,
+.headerCell,
+.gutter,
+.addColumn {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  border-right: 1px solid var(--grid-line);
+  background-color: inherit;
+  min-width: 0;
+}
+
+.cell {
+  padding: 0 8px;
+  cursor: default;
+}
+
+.cell[data-active] {
+  box-shadow: inset 0 0 0 2px var(--mantine-primary-color-filled);
+  z-index: 1;
+}
+
+.cell[data-editing-inline] {
+  padding: 0;
+}
+
+.cell[data-readonly] {
+  cursor: default;
+}
+
+.pinned {
+  position: sticky;
+  z-index: 2;
+  background-color: var(--mantine-color-body);
+}
+
+.headerCell {
+  gap: 6px;
+  padding: 0 8px;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+  color: var(--mantine-color-dimmed);
+  user-select: none;
+}
+
+.headerCell[data-drop-edge="left"] {
+  box-shadow: inset 2px 0 0 var(--mantine-primary-color-filled);
+}
+
+.headerCell[data-drop-edge="right"] {
+  box-shadow: inset -2px 0 0 var(--mantine-primary-color-filled);
+}
+
+.headerCell[data-dragging] {
+  opacity: 0.5;
+}
+
+.headerButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.headerName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 3;
+}
+
+.resizer:hover,
+.resizer[data-resizing] {
+  background-color: var(--mantine-primary-color-filled);
+}
+
+.gutter {
+  justify-content: flex-end;
+  gap: 2px;
+  padding: 0 6px 0 2px;
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.gutterTools {
+  display: none;
+  align-items: center;
+  gap: 0;
+}
+
+.row:hover .gutterTools,
+.row[data-selected] .gutterTools,
+.gutter[data-menu-open] .gutterTools {
+  display: flex;
+}
+
+.row:hover .rowNumber,
+.row[data-selected] .rowNumber,
+.gutter[data-menu-open] .rowNumber {
+  display: none;
+}
+
+.dragHandle {
+  cursor: grab;
+  display: flex;
+  color: var(--mantine-color-dimmed);
+}
+
+.addColumn {
+  justify-content: center;
+  border-right: 0;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  border-bottom: 1px solid var(--grid-line);
+}
+
+.root {
+  --grid-row-height: 34px;
+  --grid-header-height: 34px;
+  --grid-line: light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+  --grid-hover: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
+  --grid-selected: light-dark(var(--mantine-color-blue-0), rgba(34, 139, 230, 0.15));
+}

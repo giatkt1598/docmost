@@ -24,8 +24,8 @@ describe("formatNumberValue", () => {
     ["none", "1234567.5"],
     ["comma_period", "1,234,567.5"],
     ["period_comma", "1.234.567,5"],
-    ["space_comma", "1 234 567,5"],
-    ["space_period", "1 234 567.5"],
+    ["space_comma", "1\u00a0234\u00a0567,5"],
+    ["space_period", "1\u00a0234\u00a0567.5"],
   ] as const)("separators %s", (separators, expected) => {
     expect(formatNumberValue(1234567.5, { separators })).toBe(expected);
   });

@@ -16,8 +16,8 @@ const SEPARATORS: Record<
   none: { group: "", decimal: "." },
   comma_period: { group: ",", decimal: "." },
   period_comma: { group: ".", decimal: "," },
-  space_comma: { group: " ", decimal: "," },
-  space_period: { group: " ", decimal: "." },
+  space_comma: { group: "\u00a0", decimal: "," },
+  space_period: { group: "\u00a0", decimal: "." },
 };
 
 const MAX_FRACTION_DIGITS = 10;

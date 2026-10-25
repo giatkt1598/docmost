@@ -314,9 +314,20 @@ export type CellRendererProps = {
   references: RowReferenceMap;
 };
 
+// How the active cell leaves edit mode after a commit.
+export type EditorExit = "Enter" | "Tab" | "ShiftTab";
+
 export type CellEditorProps = CellRendererProps & {
-  onChange: (value: unknown) => void;
-  onClose: (opts?: { cancel?: boolean }) => void;
+  // the base page (uploads are attached to it)
+  pageId: string;
+  // the key that started editing, when typing started it
+  initialInput?: string;
+  // saves the value and leaves edit mode
+  commit: (value: unknown, exit?: EditorExit) => void;
+  // saves the value and stays in edit mode (pickers)
+  save: (value: unknown) => void;
+  // leaves edit mode without saving
+  cancel: () => void;
 };
 
 export type OptionsEditorProps = {
@@ -328,6 +339,10 @@ export type OptionsEditorProps = {
 export type PropertyTypeComponents = {
   Cell?: ComponentType<CellRendererProps>;
   Editor?: ComponentType<CellEditorProps>;
+  // inline editors replace the cell content; popover editors open below it
+  editorMode?: "inline" | "popover";
+  // types edited with one action (checkbox): Enter / click writes this
+  activate?: (value: unknown) => unknown;
   OptionsEditor?: ComponentType<OptionsEditorProps>;
 };
 
