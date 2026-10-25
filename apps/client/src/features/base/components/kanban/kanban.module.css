@@ -4,8 +4,11 @@
   align-items: flex-start;
   overflow-x: auto;
   padding: 6px 0 12px;
-  padding-left: var(--embed-grid-pad-left, 0);
-  padding-right: var(--embed-grid-pad-right, 0);
+  /* embed gutters: see .scroller in grid.module.css */
+  margin-left: calc(-1 * var(--embed-extend-l, 0px));
+  margin-right: calc(-1 * var(--embed-extend-r, 0px));
+  padding-left: var(--embed-grid-pad-left, 0px);
+  padding-right: var(--embed-grid-pad-right, 0px);
   --board-column-height: 70vh;
 }
 

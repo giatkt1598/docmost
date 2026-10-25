@@ -80,7 +80,7 @@ const WorkspaceApiKeys = lazyWithPrefetch(
 const AiSettings = lazyWithPrefetch(
   () => import("@/pages/settings/ai/ai-settings.tsx"),
 );
-const BasePage = lazyWithPrefetch(() => import("@/ee/base/pages/base-page.tsx"));
+const BasePage = lazyWithPrefetch(() => import("@/pages/base/base-page.tsx"));
 const AuditLogs = lazyWithPrefetch(() => import("@/ee/audit/pages/audit-logs.tsx"));
 const VerifiedPages = lazyWithPrefetch(
   () => import("@/features/page-verification/pages/verified-pages.tsx"),

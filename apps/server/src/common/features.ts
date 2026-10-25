@@ -32,7 +32,4 @@ export const Feature = {
   SIEM: 'siem',
 } as const;
 
-// Features implemented in core: available without an enterprise license.
-export const CORE_FEATURES: readonly string[] = [Feature.BASES];
-
 export type FeatureKey = (typeof Feature)[keyof typeof Feature];

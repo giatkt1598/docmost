@@ -1,11 +1,14 @@
 .scroller {
   position: relative;
-  max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  /* the embed widens the viewport and pads the grid back into line */
-  padding-left: var(--embed-grid-pad-left, 0);
-  padding-right: var(--embed-grid-pad-right, 0);
+  /* In an embed the scroll viewport reaches into the page gutters (negative
+     margins) and the padding keeps the first column in line with the text.
+     The two always go together; outside an embed they are 0. */
+  margin-left: calc(-1 * var(--embed-extend-l, 0px));
+  margin-right: calc(-1 * var(--embed-extend-r, 0px));
+  padding-left: var(--embed-grid-pad-left, 0px);
+  padding-right: var(--embed-grid-pad-right, 0px);
   outline: none;
 }
 

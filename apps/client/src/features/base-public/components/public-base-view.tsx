@@ -15,60 +15,59 @@ import {
   Text,
 } from "@mantine/core";
 import {
-  IBase,
-  IBaseProperty,
-  IBaseRow,
-  IBaseView,
-  RowReferences,
-  SelectTypeOptions,
-} from "@/ee/base/types/base.types";
-import { choiceColor } from "@/ee/base/components/cells/choice-color";
-import { PublicBaseAccess } from "@/features/base-public/public-base-context";
+  Base,
+  BaseProperty,
+  BaseRow,
+  BaseView,
+  RowReferenceMap,
+} from "@/features/base/types/base.types";
+import { basesApi } from "@/features/base/services/bases-api";
+import { baseKeys } from "@/features/base/queries/base-query-keys";
+import { getPropertyTypeComponents } from "@/features/base/registry/property-types";
+import { registerCellComponents } from "@/features/base/components/cells/register-cells";
+import { ChoiceChip } from "@/features/base/components/common/choice-chip";
+import { buildColumns } from "@/features/base/utils/grid-columns";
+import { flattenRows, mergeReferences } from "@/features/base/utils/row-cache";
+import { readCell } from "@/features/base/utils/cell-values";
+import { sortByPosition } from "@/features/base/utils/position";
 import {
-  getPublicBase,
-  getPublicBaseRows,
-} from "@/features/base-public/services/public-base-service";
-import { PublicBaseCell } from "@/features/base-public/components/public-base-cell";
+  boardColumns,
+  cardProperties,
+  columnIdOfRow,
+  resolveGroupProperty,
+} from "@/features/base/utils/kanban";
+import { PublicBaseAccess } from "@/features/base-public/public-base-context";
 
-const NO_VALUE = "__no_value";
+registerCellComponents();
 
-// Properties of a view in display order, without hidden ones.
-function visibleProperties(base: IBase, view: IBaseView): IBaseProperty[] {
-  const order = view.config?.propertyOrder ?? [];
-  const rank = new Map(order.map((id, i) => [id, i]));
-  const hidden = new Set(view.config?.hiddenPropertyIds ?? []);
-  return [...base.properties]
-    .filter((p) => p.isPrimary || !hidden.has(p.id))
-    .sort((a, b) => {
-      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
-      const ra = rank.get(a.id) ?? Number.MAX_SAFE_INTEGER;
-      const rb = rank.get(b.id) ?? Number.MAX_SAFE_INTEGER;
-      if (ra !== rb) return ra - rb;
-      return a.position < b.position ? -1 : a.position > b.position ? 1 : 0;
-    });
-}
-
-function usePublicRows(
-  pageId: string,
-  access: PublicBaseAccess,
-  view: IBaseView | undefined,
-) {
-  const isKanban = view?.type === "kanban";
+// Rows of a view through the public endpoint only (no session needed).
+function usePublicRows(pageId: string, access: PublicBaseAccess, view: BaseView | undefined) {
+  const query = {
+    filter: view?.config?.filter,
+    sorts: view?.type === "kanban" ? undefined : view?.config?.sorts,
+  };
   return useInfiniteQuery({
-    queryKey: ["public-base-rows", pageId, view?.id, access],
+    queryKey: [...baseKeys.publicRows(pageId, access, query), view?.id],
     enabled: !!view,
     initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) =>
-      getPublicBaseRows({
-        pageId,
-        access,
-        cursor: pageParam,
-        filter: view?.config?.filter,
-        sorts: isKanban ? undefined : view?.config?.sorts,
-      }),
-    getNextPageParam: (last) =>
-      last.meta.hasNextPage ? (last.meta.nextCursor ?? undefined) : undefined,
+    queryFn: ({ pageParam }) => basesApi.publicView.rows(pageId, access, query, pageParam),
+    getNextPageParam: ({ meta }) =>
+      meta.hasNextPage && meta.nextCursor ? meta.nextCursor : undefined,
   });
+}
+
+function ReadOnlyCell({
+  property,
+  row,
+  references,
+}: {
+  property: BaseProperty;
+  row: BaseRow;
+  references: RowReferenceMap;
+}) {
+  const Cell = getPropertyTypeComponents(property.type).Cell;
+  if (!Cell) return null;
+  return <Cell property={property} row={row} value={readCell(property, row)} references={references} />;
 }
 
 type Props = { pageId: string; access: PublicBaseAccess };
@@ -76,30 +75,17 @@ type Props = { pageId: string; access: PublicBaseAccess };
 // Read-only base for people viewing a public share or published space.
 export function PublicBaseView({ pageId, access }: Props) {
   const { t } = useTranslation();
-  const {
-    data: base,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ["public-base", pageId, access],
-    queryFn: () => getPublicBase(pageId, access),
+  const { data: base, isLoading, isError } = useQuery({
+    queryKey: baseKeys.publicInfo(pageId, access),
+    queryFn: () => basesApi.publicView.info(pageId, access),
     retry: false,
   });
   const [viewId, setViewId] = useState<string | null>(null);
-  const view = base?.views.find((v) => v.id === viewId) ?? base?.views[0];
+  const views = useMemo(() => sortByPosition(base?.views ?? []), [base?.views]);
+  const view = views.find((v) => v.id === viewId) ?? views[0];
   const rows = usePublicRows(pageId, access, view);
-
-  const items = useMemo(
-    () => rows.data?.pages.flatMap((p) => p.items) ?? [],
-    [rows.data],
-  );
-  const references = useMemo<RowReferences>(() => {
-    const out: RowReferences = { users: {}, pages: {} };
-    for (const p of rows.data?.pages ?? []) {
-      Object.assign(out.users, p.references.users);
-    }
-    return out;
-  }, [rows.data]);
+  const items = useMemo(() => flattenRows(rows.data), [rows.data]);
+  const references = useMemo(() => mergeReferences(rows.data?.pages ?? []), [rows.data]);
 
   if (isLoading) return <Skeleton height={160} radius="sm" />;
   if (isError || !base || !view) {
@@ -110,24 +96,15 @@ export function PublicBaseView({ pageId, access }: Props) {
     );
   }
 
-  const properties = visibleProperties(base, view);
-  const loadMore = rows.hasNextPage && (
-    <Button
-      variant="subtle"
-      size="xs"
-      loading={rows.isFetchingNextPage}
-      onClick={() => rows.fetchNextPage()}
-    >
-      {t("Load more")}
-    </Button>
-  );
+  const properties = buildColumns(base.properties, view.config).map((c) => c.property);
+  const group = view.type === "kanban" ? resolveGroupProperty(base.properties, view.config) : null;
 
   return (
     <Stack gap="xs" my="md">
-      {base.views.length > 1 && (
+      {views.length > 1 && (
         <Tabs value={view.id} onChange={setViewId}>
           <Tabs.List>
-            {base.views.map((v) => (
+            {views.map((v) => (
               <Tabs.Tab key={v.id} value={v.id}>
                 {v.name}
               </Tabs.Tab>
@@ -137,21 +114,19 @@ export function PublicBaseView({ pageId, access }: Props) {
       )}
       {rows.isLoading ? (
         <Skeleton height={120} radius="sm" />
-      ) : view.type === "kanban" ? (
-        <PublicKanban
-          base={base}
-          view={view}
-          rows={items}
-          references={references}
-        />
+      ) : group ? (
+        <PublicBoard base={base} view={view} group={group} rows={items} references={references} />
       ) : (
-        <PublicTable
-          properties={properties}
-          rows={items}
-          references={references}
-        />
+        <PublicTable properties={properties} rows={items} references={references} />
       )}
-      {loadMore && <Group justify="center">{loadMore}</Group>}
+      {rows.hasNextPage && (
+        <Group justify="center">
+          <Button variant="subtle" size="xs" loading={rows.isFetchingNextPage}
+            onClick={() => rows.fetchNextPage()}>
+            {t("Load more")}
+          </Button>
+        </Group>
+      )}
     </Stack>
   );
 }
@@ -161,9 +136,9 @@ function PublicTable({
   rows,
   references,
 }: {
-  properties: IBaseProperty[];
-  rows: IBaseRow[];
-  references: RowReferences;
+  properties: BaseProperty[];
+  rows: BaseRow[];
+  references: RowReferenceMap;
 }) {
   const { t } = useTranslation();
   return (
@@ -172,10 +147,7 @@ function PublicTable({
         <Table.Thead>
           <Table.Tr>
             {properties.map((p) => (
-              <Table.Th
-                key={p.id}
-                style={{ whiteSpace: "nowrap", minWidth: 140 }}
-              >
+              <Table.Th key={p.id} style={{ whiteSpace: "nowrap", minWidth: 140 }}>
                 {p.name}
               </Table.Th>
             ))}
@@ -185,8 +157,8 @@ function PublicTable({
           {rows.map((row) => (
             <Table.Tr key={row.id}>
               {properties.map((p) => (
-                <Table.Td key={p.id} style={{ verticalAlign: "top" }}>
-                  <PublicBaseCell prop={p} row={row} references={references} />
+                <Table.Td key={p.id} style={{ verticalAlign: "top", maxWidth: 360 }}>
+                  <ReadOnlyCell property={p} row={row} references={references} />
                 </Table.Td>
               ))}
             </Table.Tr>
@@ -206,112 +178,67 @@ function PublicTable({
   );
 }
 
-function PublicKanban({
+function PublicBoard({
   base,
   view,
+  group,
   rows,
   references,
 }: {
-  base: IBase;
-  view: IBaseView;
-  rows: IBaseRow[];
-  references: RowReferences;
+  base: Base;
+  view: BaseView;
+  group: BaseProperty;
+  rows: BaseRow[];
+  references: RowReferenceMap;
 }) {
   const { t } = useTranslation();
-  const groupBy = base.properties.find(
-    (p) => p.id === view.config?.groupByPropertyId,
+  const ordered = buildColumns(base.properties, { ...view.config, hiddenPropertyIds: [] }).map(
+    (c) => c.property,
   );
-  if (!groupBy) {
-    return (
-      <PublicTable
-        properties={visibleProperties(base, view)}
-        rows={rows}
-        references={references}
-      />
-    );
-  }
-
-  const options = groupBy.typeOptions as SelectTypeOptions;
-  const choices = options?.choices ?? [];
-  const order = view.config?.choiceOrder ?? options?.choiceOrder ?? [];
-  const rank = new Map(order.map((id, i) => [id, i]));
-  const hidden = new Set(view.config?.hiddenChoiceIds ?? []);
-  const columns = [
-    ...[...choices]
-      .sort(
-        (a, b) =>
-          (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
-          (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER),
-      )
-      .map((c) => ({ key: c.id, name: c.name, color: c.color })),
-    { key: NO_VALUE, name: t("No value"), color: "gray" },
-  ].filter((c) => !hidden.has(c.key));
-
-  const primary = base.properties.find((p) => p.isPrimary);
-  const cardProps = (view.config?.visiblePropertyIds ?? [])
-    .map((id) => base.properties.find((p) => p.id === id))
-    .filter(
-      (p): p is IBaseProperty =>
-        !!p && p.id !== primary?.id && p.id !== groupBy.id,
-    );
-
-  const byColumn = new Map<string, IBaseRow[]>();
+  const primary = ordered.find((p) => p.isPrimary) ?? null;
+  const fields = cardProperties(ordered, view.config.visiblePropertyIds);
+  const columns = boardColumns(group, view.config).filter((c) => !c.hidden);
+  const byColumn = new Map<string, BaseRow[]>();
   for (const row of rows) {
-    const value = row.cells[groupBy.id];
-    const key =
-      typeof value === "string" && choices.some((c) => c.id === value)
-        ? value
-        : NO_VALUE;
-    const list = byColumn.get(key) ?? [];
-    list.push(row);
-    byColumn.set(key, list);
+    const key = columnIdOfRow(row, group);
+    byColumn.set(key, [...(byColumn.get(key) ?? []), row]);
   }
 
   return (
     <ScrollArea type="auto" offsetScrollbars>
       <Group align="flex-start" wrap="nowrap" gap="sm">
         {columns.map((col) => {
-          const cards = byColumn.get(col.key) ?? [];
+          const cards = byColumn.get(col.id) ?? [];
           return (
-            <Paper
-              key={col.key}
-              withBorder
-              p="xs"
-              w={260}
-              miw={260}
-              radius="sm"
-            >
+            <Paper key={col.id} withBorder p="xs" w={260} miw={260} radius="sm">
               <Group gap={6} mb="xs">
-                <Text
-                  size="xs"
-                  fw={600}
-                  px={6}
-                  style={{ borderRadius: 4, ...choiceColor(col.color) }}
-                >
-                  {col.name}
-                </Text>
+                {col.choice ? (
+                  <ChoiceChip choice={col.choice} />
+                ) : (
+                  <Text size="xs" fw={600} c="dimmed">
+                    {t("No value")}
+                  </Text>
+                )}
                 <Text size="xs" c="dimmed">
                   {cards.length}
                 </Text>
               </Group>
               <Stack gap={6}>
-                {cards.map((row) => (
-                  <Card key={row.id} withBorder padding="xs" radius="sm">
-                    <Text size="sm" fw={500}>
-                      {(primary && String(row.cells[primary.id] ?? "")) ||
-                        t("Untitled")}
-                    </Text>
-                    {cardProps.map((p) => (
-                      <Box key={p.id} mt={4}>
-                        <PublicBaseCell
-                          prop={p}
-                          row={row}
-                          references={references}
-                        />
-                      </Box>
-                    ))}
-                  </Card>
-                ))}
+                {cards.map((row) => {
+                  const title = primary ? readCell(primary, row) : null;
+                  return (
+                    <Card key={row.id} withBorder padding="xs" radius="sm">
+                      <Text size="sm" fw={500}>
+                        {(typeof title === "string" && title) || t("Untitled")}
+                      </Text>
+                      {fields.map((p) => (
+                        <Box key={p.id} mt={4}>
+                          <ReadOnlyCell property={p} row={row} references={references} />
+                        </Box>
+                      ))}
+                    </Card>
+                  );
+                })}
               </Stack>
             </Paper>
           );

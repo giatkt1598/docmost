@@ -27,6 +27,7 @@ type Props = {
   pageId: string;
   // the surrounding page allows editing (the base permissions apply too)
   editable: boolean;
+  // shown above the view tabs (the page title)
   title?: ReactNode;
   // rendered inside a document instead of on its own page
   embedded?: boolean;
@@ -101,12 +102,12 @@ export function BaseWorkspace({ pageId, editable, title, embedded = false, fill 
   return (
     <Stack
       gap={0}
-      style={fill ? { height: "100%", minHeight: 0 } : undefined}
+      style={fill ? { flex: 1, height: "100%", minHeight: 0 } : undefined}
       onKeyDown={embedded ? (e) => e.stopPropagation() : undefined}
     >
+      {title}
       <Group justify="space-between" wrap="nowrap" gap="sm" py={6}>
         <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}>
-          {title}
           <ViewTabs
             pageId={pageId}
             views={views}

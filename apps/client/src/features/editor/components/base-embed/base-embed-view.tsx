@@ -2,12 +2,10 @@ import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { ActionIcon, Box, Menu, Text } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BaseView } from "@/ee/base/components/base-view";
-import { BaseTableSkeleton } from "@/ee/base/components/base-table-skeleton";
-import { useBaseQuery } from "@/ee/base/queries/base-query";
 import { pinOffsetWatcher } from "@docmost/editor-ext";
-import { useHasFeature } from "@/ee/hooks/use-feature";
-import { Feature } from "@/ee/features";
+import { BaseWorkspace } from "@/features/base/components/shell/base-workspace";
+import { useBaseInfoQuery } from "@/features/base/queries/base-query";
+import { BaseGridSkeleton } from "@/features/base/components/common/base-grid-skeleton";
 import { IconDots, IconLink, IconTable, IconX } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { usePageQuery } from "@/features/page/queries/page-query";
@@ -74,15 +72,14 @@ function AppBaseEmbedView({ node, editor, deleteNode }: NodeViewProps) {
   const pageId = node.attrs.pageId as string | null;
   const pendingKey = node.attrs.pendingKey as string | null;
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const hasBases = useHasFeature(Feature.BASES);
   const [menuOpen, setMenuOpen] = useState(false);
   // Suppress the query while the slash command awaits the server-assigned
-  // pageId; useBaseQuery would otherwise fire with an empty key.
+  // pageId.
   const {
     data: base,
     isLoading,
     isError,
-  } = useBaseQuery(pendingKey ? "" : (pageId ?? ""));
+  } = useBaseInfoQuery(pendingKey ? undefined : (pageId ?? undefined));
   const { data: page } = usePageQuery({ pageId: pageId ?? undefined });
   const clipboard = useClipboard({ timeout: 500 });
 
@@ -137,7 +134,7 @@ function AppBaseEmbedView({ node, editor, deleteNode }: NodeViewProps) {
     // empty row — see BaseService.create's `defaults`) so the swap
     // to the real table doesn't visibly collapse a large fake table
     // down to a small empty one.
-    content = <BaseTableSkeleton rows={1} columns={3} />;
+    content = <BaseGridSkeleton rows={1} columns={3} />;
   } else if (!pageId) {
     content = (
       <Box p="md">
@@ -158,12 +155,10 @@ function AppBaseEmbedView({ node, editor, deleteNode }: NodeViewProps) {
     );
   } else {
     content = (
-      <BaseView
+      <BaseWorkspace
         pageId={pageId}
         embedded
-        editable={
-          hasBases && editor.isEditable && (base?.permissions?.canEdit ?? false)
-        }
+        editable={editor.isEditable && (base?.permissions?.canEdit ?? false)}
       />
     );
   }

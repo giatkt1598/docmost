@@ -10,14 +10,12 @@ import {
 import { useTranslation } from "react-i18next";
 import { useAtomValue } from "jotai";
 import { ErrorBoundary } from "react-error-boundary";
-import { useConvertPageToBaseMutation } from "@/ee/base/queries/base-query";
+import { useConvertToBaseMutation } from "@/features/base/queries/base-query";
 import {
   pageEditorAtom,
   titleEditorAtom,
   yjsSyncedAtom,
 } from "@/features/editor/atoms/editor-atoms";
-import { useHasFeature } from "@/ee/hooks/use-feature";
-import { Feature } from "@/ee/features";
 import { ITemplate } from "@/features/template/types/template.types";
 import { getTemplateById } from "@/features/template/services/template-service";
 import { applyTemplateToPage } from "@/features/template/template.utils";
@@ -42,8 +40,7 @@ export function EmptyPageGetStarted({
   const editor = useAtomValue(pageEditorAtom);
   const titleEditor = useAtomValue(titleEditorAtom);
   const isSynced = useAtomValue(yjsSyncedAtom);
-  const hasBases = useHasFeature(Feature.BASES);
-  const convertMutation = useConvertPageToBaseMutation();
+  const convertMutation = useConvertToBaseMutation();
   const [
     templatePickerOpened,
     { open: openTemplatePicker, close: closeTemplatePicker },
@@ -92,25 +89,20 @@ export function EmptyPageGetStarted({
   };
 
   const chips = [
-    ...(hasBases
-      ? [
-          {
-            key: "base",
-            label: t("Base"),
-            icon: IconTable,
-            onClick: () => convertMutation.mutate({ pageId }),
-            disabled: convertMutation.isPending,
-          },
-          {
-            key: "kanban",
-            label: t("Kanban"),
-            icon: IconLayoutKanban,
-            onClick: () =>
-              convertMutation.mutate({ pageId, template: "kanban" }),
-            disabled: convertMutation.isPending,
-          },
-        ]
-      : []),
+    {
+      key: "base",
+      label: t("Base"),
+      icon: IconTable,
+      onClick: () => convertMutation.mutate({ pageId }),
+      disabled: convertMutation.isPending,
+    },
+    {
+      key: "kanban",
+      label: t("Kanban"),
+      icon: IconLayoutKanban,
+      onClick: () => convertMutation.mutate({ pageId, template: "kanban" }),
+      disabled: convertMutation.isPending,
+    },
     {
       key: "template",
       label: t("Template"),

@@ -5,8 +5,6 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { EditorMenuProps } from "@/features/editor/components/table/types/types.ts";
 import { basePasteMenuKey } from "@/features/editor/extensions/base-paste-menu";
-import { useHasFeature } from "@/ee/hooks/use-feature";
-import { Feature } from "@/ee/features";
 import { convertMentionToBaseEmbed } from "./convert-mention-to-base-embed";
 import classes from "../integration-link/integration-paste-menu.module.css";
 
@@ -19,7 +17,6 @@ function getPastedBasePos(editor: EditorMenuProps["editor"]): number | null {
 
 export function BasePasteMenu({ editor }: EditorMenuProps) {
   const { t } = useTranslation();
-  const hasBases = useHasFeature(Feature.BASES);
   const [highlighted, setHighlighted] = useState(false);
   const optionId = useId();
   const promptRef = useRef<HTMLDivElement>(null);
@@ -29,11 +26,11 @@ export function BasePasteMenu({ editor }: EditorMenuProps) {
     selector: ({ editor: currentEditor }) =>
       currentEditor ? getPastedBasePos(currentEditor) : null,
   });
-  const isOpen = hasBases && pastedPos !== null;
+  const isOpen = pastedPos !== null;
 
   const shouldShow = useCallback(
-    () => hasBases && getPastedBasePos(editor) !== null,
-    [editor, hasBases],
+    () => getPastedBasePos(editor) !== null,
+    [editor],
   );
 
   const getReferencedVirtualElement = useCallback(() => {

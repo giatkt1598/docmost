@@ -6,7 +6,6 @@ import { BasePasteMenu } from "./base-paste-menu";
 
 const mocks = vi.hoisted(() => ({
   pasteState: null as { pos: number } | null,
-  hasBases: true,
   convert: vi.fn(),
 }));
 
@@ -26,10 +25,6 @@ vi.mock("@tiptap/react/menus", () => ({
 
 vi.mock("@/features/editor/extensions/base-paste-menu", () => ({
   basePasteMenuKey: { getState: () => mocks.pasteState },
-}));
-
-vi.mock("@/ee/hooks/use-feature", () => ({
-  useHasFeature: () => mocks.hasBases,
 }));
 
 vi.mock("./convert-mention-to-base-embed", () => ({
@@ -82,7 +77,6 @@ describe("BasePasteMenu", () => {
   beforeEach(() => {
     setMediaMatch();
     mocks.pasteState = { pos: 3 };
-    mocks.hasBases = true;
     mocks.convert.mockReset();
   });
 
@@ -116,8 +110,8 @@ describe("BasePasteMenu", () => {
     expect(mocks.convert).not.toHaveBeenCalled();
   });
 
-  it("stays hidden without the Bases feature", () => {
-    mocks.hasBases = false;
+  it("stays hidden when nothing was pasted", () => {
+    mocks.pasteState = null;
     renderMenu();
 
     expect(screen.queryByRole("option")).toBeNull();
