@@ -3,6 +3,7 @@
 .env.prod
 data
 # compiled output
+apps/server/dist-it/
 dist
 /node_modules
 
