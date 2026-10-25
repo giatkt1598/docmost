@@ -4,6 +4,8 @@ export type ExportPageMetadata = {
   icon: string | null;
   position: string;
   parentPath: string | null;
+  // the page is a base; its data sits next to it in `<name>.base.json`
+  isBase?: boolean;
   createdAt: string;
   updatedAt: string;
 };

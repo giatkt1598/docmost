@@ -2076,5 +2076,7 @@
   "Toggle read-only chat": "Toggle read-only chat",
   "Answer only from pages": "Answer only from pages",
   "The assistant answers only from content found in pages, not from general knowledge.": "The assistant answers only from content found in pages, not from general knowledge.",
-  "Toggle answers only from pages": "Toggle answers only from pages"
+  "Toggle answers only from pages": "Toggle answers only from pages",
+  "This base is not available.": "This base is not available.",
+  "No rows": "No rows"
 }

@@ -12,8 +12,12 @@ import { KyselyDB } from '@docmost/db/types/kysely.types';
 import * as JSZip from 'jszip';
 import { StorageService } from '../storage/storage.service';
 import {
+  BaseEmbedLink,
   buildTree,
   computeLocalPath,
+  computeRelativePath,
+  htmlToMarkdownKeepingBaseEmbeds,
+  linkBaseEmbeds,
   getExportExtension,
   getPageTitle,
   getSafePageTitle,
@@ -39,6 +43,10 @@ import {
   getProsemirrorContent,
 } from '../../common/helpers/prosemirror/utils';
 import { htmlToMarkdown } from '@docmost/editor-ext';
+import {
+  BASE_DATA_EXTENSION,
+  BaseTransferService,
+} from '../../core/base/base-transfer.service';
 
 type AllowedAttachment = { id: string; fileName: string; filePath: string };
 
@@ -53,9 +61,15 @@ export class ExportService {
     private readonly storageService: StorageService,
     private readonly environmentService: EnvironmentService,
     private readonly domainService: DomainService,
+    private readonly baseTransferService: BaseTransferService,
   ) {}
 
-  async exportPage(format: string, page: Page, singlePage?: boolean) {
+  async exportPage(
+    format: string,
+    page: Page,
+    singlePage?: boolean,
+    baseEmbedLink?: (pageId: string) => BaseEmbedLink | null,
+  ) {
     const titleNode = {
       type: 'heading',
       attrs: { level: 1 },
@@ -80,7 +94,10 @@ export class ExportService {
       prosemirrorJson.content.unshift(titleNode);
     }
 
-    const pageHtml = jsonToHtml(prosemirrorJson);
+    const pageHtml = linkBaseEmbeds(
+      jsonToHtml(prosemirrorJson),
+      baseEmbedLink ?? (() => null),
+    );
 
     if (format === ExportFormat.HTML) {
       return `<!DOCTYPE html>
@@ -97,7 +114,7 @@ export class ExportService {
         /<colgroup[^>]*>[\s\S]*?<\/colgroup>/gim,
         '',
       );
-      return htmlToMarkdown(newPageHtml);
+      return htmlToMarkdownKeepingBaseEmbeds(newPageHtml, htmlToMarkdown);
     }
 
     return;
@@ -153,7 +170,9 @@ export class ExportService {
     // set to null to make export of pages with parentId work
     pages[parentPageIndex].parentPageId = null;
 
-    const isSinglePage = pages.length === 1 && !includeAttachments;
+    // a base needs its data files next to the page, so it always zips
+    const isSinglePage =
+      pages.length === 1 && !includeAttachments && !pages[0].isBase;
 
     if (isSinglePage) {
       const pageContent = await this.exportPage(format, pages[0], true);
@@ -212,6 +231,7 @@ export class ExportService {
         'pages.parentPageId',
         'pages.spaceId',
         'pages.workspaceId',
+        'pages.isBase',
         'pages.createdAt',
         'pages.updatedAt',
       ])
@@ -275,6 +295,11 @@ export class ExportService {
 
     computeLocalPath(tree, format, null, '', slugIdToPath);
 
+    const exportedPages = new Map<string, Page>();
+    for (const siblings of Object.values(tree)) {
+      for (const p of siblings) exportedPages.set(p.id, p);
+    }
+
     // Batch resolve attachments once for the whole export so we only run the
     // owning-page view check a single time, regardless of page count.
     const allowedAttachments = includeAttachments
@@ -316,15 +341,32 @@ export class ExportService {
         }
 
         const pageTitle = getSafePageTitle(page.title);
-        const pageExportContent = await this.exportPage(format, {
-          ...page,
-          content: updatedJsonContent,
-        });
+        const baseEmbedLink = (pageId: string): BaseEmbedLink | null => {
+          const target = exportedPages.get(pageId);
+          const localPath = target && slugIdToPath[target.slugId];
+          if (!localPath) return null;
+          return {
+            href: computeRelativePath(currentPagePath, localPath),
+            title: getPageTitle(target.title),
+          };
+        };
+        const pageExportContent = await this.exportPage(
+          format,
+          { ...page, content: updatedJsonContent },
+          false,
+          baseEmbedLink,
+        );
 
         folder.file(
           `${pageTitle}${getExportExtension(format)}`,
           pageExportContent,
         );
+
+        if (page.isBase) {
+          const { json, csv } = await this.baseTransferService.exportBase(page);
+          folder.file(`${pageTitle}${BASE_DATA_EXTENSION}`, json);
+          folder.file(`${pageTitle}.csv`, csv);
+        }
 
         pageIdToFilePath[page.id] = currentPagePath;
 
@@ -335,6 +377,7 @@ export class ExportService {
           icon: page.icon ?? null,
           position: page.position,
           parentPath,
+          ...(page.isBase ? { isBase: true } : {}),
           createdAt: page.createdAt?.toISOString() ?? new Date().toISOString(),
           updatedAt: page.updatedAt?.toISOString() ?? new Date().toISOString(),
         };

@@ -15,6 +15,8 @@ import { useClipboard } from "@/hooks/use-clipboard";
 import { getAppUrl } from "@/lib/config.ts";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
 import classes from "./base-embed.module.css";
+import { usePublicBaseAccess } from "@/features/base-public/public-base-context";
+import { PublicBaseView } from "@/features/base-public/components/public-base-view";
 
 const SIDE_GUTTER = 8;
 
@@ -54,7 +56,20 @@ function applyExtension(wrapper: HTMLDivElement) {
   );
 }
 
-export function BaseEmbedView({ node, editor, deleteNode }: NodeViewProps) {
+export function BaseEmbedView(props: NodeViewProps) {
+  const publicAccess = usePublicBaseAccess();
+  const pageId = props.node.attrs.pageId as string | null;
+  if (publicAccess) {
+    return (
+      <NodeViewWrapper>
+        {pageId && <PublicBaseView pageId={pageId} access={publicAccess} />}
+      </NodeViewWrapper>
+    );
+  }
+  return <AppBaseEmbedView {...props} />;
+}
+
+function AppBaseEmbedView({ node, editor, deleteNode }: NodeViewProps) {
   const { t } = useTranslation();
   const pageId = node.attrs.pageId as string | null;
   const pendingKey = node.attrs.pendingKey as string | null;
@@ -63,9 +78,11 @@ export function BaseEmbedView({ node, editor, deleteNode }: NodeViewProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   // Suppress the query while the slash command awaits the server-assigned
   // pageId; useBaseQuery would otherwise fire with an empty key.
-  const { data: base, isLoading, isError } = useBaseQuery(
-    pendingKey ? "" : pageId ?? "",
-  );
+  const {
+    data: base,
+    isLoading,
+    isError,
+  } = useBaseQuery(pendingKey ? "" : (pageId ?? ""));
   const { data: page } = usePageQuery({ pageId: pageId ?? undefined });
   const clipboard = useClipboard({ timeout: 500 });
 
@@ -144,7 +161,9 @@ export function BaseEmbedView({ node, editor, deleteNode }: NodeViewProps) {
       <BaseView
         pageId={pageId}
         embedded
-        editable={hasBases && editor.isEditable && (base?.permissions?.canEdit ?? false)}
+        editable={
+          hasBases && editor.isEditable && (base?.permissions?.canEdit ?? false)
+        }
       />
     );
   }

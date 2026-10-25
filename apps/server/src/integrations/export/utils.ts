@@ -183,6 +183,69 @@ export function computeLocalPath(
   }
 }
 
-function computeRelativePath(from: string, to: string) {
-  return path.relative(path.dirname(from), to);
+// Zip paths always use forward slashes, whatever the server's OS.
+export function computeRelativePath(from: string, to: string) {
+  return path.posix.relative(path.posix.dirname(from), to);
+}
+
+// A base embed as rendered to HTML, optionally already holding its link.
+const BASE_EMBED_RE =
+  /<div([^>]*\bdata-type="base-embed"[^>]*)>(?:<a [^>]*>[^<]*<\/a>)?<\/div>/g;
+
+const escapeHtml = (s: string) =>
+  s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+export type BaseEmbedLink = { href: string; title: string };
+
+// Base embeds render as empty divs. Put a link to the base inside, so the
+// export is readable elsewhere; the data-page-id lets an import restore it.
+export function linkBaseEmbeds(
+  html: string,
+  resolve: (pageId: string) => BaseEmbedLink | null,
+): string {
+  return html.replace(BASE_EMBED_RE, (match, attrs: string) => {
+    const pageId = /data-page-id="([^"]+)"/.exec(attrs)?.[1];
+    if (!pageId) return match;
+    const target = resolve(pageId);
+    const link = target
+      ? `<a href="${escapeHtml(target.href)}">${escapeHtml(target.title)}</a>`
+      : '';
+    return `<div data-type="base-embed" data-page-id="${escapeHtml(pageId)}">${link}</div>`;
+  });
+}
+
+// Markdown has no base embed, so the embed HTML is carried through the
+// conversion untouched and kept as a raw HTML block.
+export function htmlToMarkdownKeepingBaseEmbeds(
+  html: string,
+  convert: (html: string) => string,
+): string {
+  const kept: string[] = [];
+  const protectedHtml = html.replace(BASE_EMBED_RE, (match) => {
+    kept.push(match);
+    return `<p>DOCMOSTBASEEMBED${kept.length - 1}END</p>`;
+  });
+  return convert(protectedHtml).replace(
+    /DOCMOSTBASEEMBED(\d+)END/g,
+    (_, i: string) => kept[Number(i)] ?? '',
+  );
+}
+
+// Points base embeds of an imported page at the imported bases.
+export function remapBaseEmbeds(
+  html: string,
+  pageIdMap: Map<string, string>,
+): string {
+  if (pageIdMap.size === 0) return html;
+  return html.replace(BASE_EMBED_RE, (match) =>
+    match.replace(
+      /data-page-id="([^"]+)"/,
+      (attr, id: string) =>
+        pageIdMap.has(id) ? `data-page-id="${pageIdMap.get(id)}"` : attr,
+    ),
+  );
 }

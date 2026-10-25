@@ -11,12 +11,17 @@ import { BaseFormulaService } from './base-formula.service';
 import { BaseConversionService } from './base-conversion.service';
 import { BaseQueueProcessor } from './processors/base-queue.processor';
 import { BaseWsService } from './realtime/base-ws.service';
+import { BasePublicController } from './base-public.controller';
+import { BasePublicService } from './base-public.service';
+import { ShareModule } from '../share/share.module';
+import { PublicSpaceModule } from '../public-space/public-space.module';
 
 @Module({
-  imports: [PageModule],
-  controllers: [BaseController],
+  imports: [PageModule, ShareModule, PublicSpaceModule],
+  controllers: [BaseController, BasePublicController],
   providers: [
     BaseService,
+    BasePublicService,
     BasePropertyService,
     BaseRowService,
     BaseViewService,

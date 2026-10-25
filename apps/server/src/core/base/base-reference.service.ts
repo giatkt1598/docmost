@@ -64,6 +64,32 @@ export class BaseReferenceService {
     };
   }
 
+  // For public viewers: names of the people in person cells, nothing else.
+  async forPublicRows(
+    rows: BaseRow[],
+    properties: BaseProperty[],
+    workspaceId: string,
+  ): Promise<RowReferences> {
+    const personProps = properties.filter(
+      (p) => p.type === 'person' || p.type === 'lastEditedBy',
+    );
+    const userIds = new Set<string>();
+    for (const row of rows) {
+      const cells = row.cells as Record<string, unknown>;
+      for (const p of personProps) {
+        if (p.type === 'lastEditedBy') {
+          const id = row.lastUpdatedById ?? row.creatorId;
+          if (id) userIds.add(id);
+        } else {
+          asIds(cells[p.id]).forEach((i) => userIds.add(i));
+        }
+      }
+    }
+    const users = await this.users([...userIds], workspaceId);
+    for (const u of Object.values(users)) u.avatarUrl = null;
+    return { users, pages: {} };
+  }
+
   private async users(ids: string[], workspaceId: string) {
     const valid = ids.filter((i) => isValidUUID(i));
     if (valid.length === 0) return {};

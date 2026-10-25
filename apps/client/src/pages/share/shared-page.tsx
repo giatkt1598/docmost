@@ -13,6 +13,7 @@ import { DocumentTitle } from "@/components/ui/document-title.tsx";
 import DocsBreadcrumbs from "@/features/public-space/components/docs/docs-breadcrumbs.tsx";
 import DocsPageNav from "@/features/public-space/components/docs/docs-page-nav.tsx";
 import DocsFooterBranding from "@/features/public-space/components/docs/docs-footer-branding.tsx";
+import { PublicBaseView } from "@/features/base-public/components/public-base-view";
 
 export default function SharedPage() {
   const { t } = useTranslation();
@@ -82,6 +83,13 @@ export default function SharedPage() {
         shareId={data.share.id}
         trailingSpace={false}
       />
+
+      {data.page.isBase && (
+        <PublicBaseView
+          pageId={data.page.id}
+          access={{ shareId: data.share.id }}
+        />
+      )}
 
       <DocsPageNav />
 

@@ -7,6 +7,8 @@ import { FileTaskProcessor } from './processors/file-task.processor';
 import { ImportAttachmentService } from './services/import-attachment.service';
 import { FileTaskController } from './file-task.controller';
 import { PageModule } from '../../core/page/page.module';
+import { BaseTransferService } from '../../core/base/base-transfer.service';
+import { BaseReferenceService } from '../../core/base/base-reference.service';
 
 @Module({
   providers: [
@@ -14,6 +16,8 @@ import { PageModule } from '../../core/page/page.module';
     FileImportTaskService,
     FileTaskProcessor,
     ImportAttachmentService,
+    BaseTransferService,
+    BaseReferenceService,
   ],
   exports: [ImportService, ImportAttachmentService],
   controllers: [ImportController, FileTaskController],

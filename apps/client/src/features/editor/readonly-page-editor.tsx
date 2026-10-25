@@ -19,6 +19,7 @@ import {
 } from "@/features/editor/atoms/editor-atoms.ts";
 import { useEditorScroll } from "./hooks/use-editor-scroll";
 import { TransclusionLookupProvider } from "@/features/editor/components/transclusion/transclusion-lookup-context";
+import { PublicBaseContext } from "@/features/base-public/public-base-context";
 import LightboxView, {
   getLightboxClickRequest,
 } from "@/features/editor/components/common/lightbox-view";
@@ -100,6 +101,12 @@ export default function ReadonlyPageEditor({
     ];
   }, [printMode]);
 
+  // Base embeds in public views load through the share or public space.
+  const publicBaseAccess = useMemo(
+    () => (isPublicView ? { shareId, spaceSlug, hostPageId: pageId } : null),
+    [isPublicView, shareId, spaceSlug, pageId],
+  );
+
   const titleExtensions = [
     Document.extend({
       content: "heading",
@@ -113,63 +120,65 @@ export default function ReadonlyPageEditor({
   ];
 
   return (
-    <TransclusionLookupProvider shareId={shareId} spaceSlug={spaceSlug}>
-      <div className="page-title">
+    <PublicBaseContext.Provider value={publicBaseAccess}>
+      <TransclusionLookupProvider shareId={shareId} spaceSlug={spaceSlug}>
+        <div className="page-title">
+          <EditorProvider
+            editable={false}
+            immediatelyRender={true}
+            textDirection="auto"
+            extensions={titleExtensions}
+            content={title}
+          ></EditorProvider>
+        </div>
+
+        {byline}
+
         <EditorProvider
           editable={false}
           immediatelyRender={true}
           textDirection="auto"
-          extensions={titleExtensions}
-          content={title}
-        ></EditorProvider>
-      </div>
+          extensions={extensions}
+          content={content}
+          editorProps={
+            isPublicView
+              ? {
+                  handleClickOn: (_view, _pos, node) => {
+                    const request = getLightboxClickRequest(node);
+                    if (!request) return false;
 
-      {byline}
-
-      <EditorProvider
-        editable={false}
-        immediatelyRender={true}
-        textDirection="auto"
-        extensions={extensions}
-        content={content}
-        editorProps={
-          isPublicView
-            ? {
-                handleClickOn: (_view, _pos, node) => {
-                  const request = getLightboxClickRequest(node);
-                  if (!request) return false;
-
-                  setLightboxRequest(request);
-                  return true;
-                },
-              }
-            : {}
-        }
-        onCreate={({ editor }) => {
-          if (editor) {
-            if (pageId) {
-              // @ts-ignore
-              editor.storage.pageId = pageId;
-            }
-            // @ts-ignore
-            setReadOnlyEditor(editor);
-            setContentEditor(editor);
-
-            handleScrollTo(editor);
-            editorCreated.current = true;
+                    setLightboxRequest(request);
+                    return true;
+                  },
+                }
+              : {}
           }
-        }}
-      ></EditorProvider>
-      {isPublicView && contentEditor && (
-        <LightboxView
-          editor={contentEditor}
-          open={!!lightboxRequest}
-          src={lightboxRequest?.src ?? ""}
-          type={lightboxRequest?.type ?? "image"}
-          onClose={() => setLightboxRequest(null)}
-        />
-      )}
-      {trailingSpace && <div style={{ paddingBottom: "20vh" }}></div>}
-    </TransclusionLookupProvider>
+          onCreate={({ editor }) => {
+            if (editor) {
+              if (pageId) {
+                // @ts-ignore
+                editor.storage.pageId = pageId;
+              }
+              // @ts-ignore
+              setReadOnlyEditor(editor);
+              setContentEditor(editor);
+
+              handleScrollTo(editor);
+              editorCreated.current = true;
+            }
+          }}
+        ></EditorProvider>
+        {isPublicView && contentEditor && (
+          <LightboxView
+            editor={contentEditor}
+            open={!!lightboxRequest}
+            src={lightboxRequest?.src ?? ""}
+            type={lightboxRequest?.type ?? "image"}
+            onClose={() => setLightboxRequest(null)}
+          />
+        )}
+        {trailingSpace && <div style={{ paddingBottom: "20vh" }}></div>}
+      </TransclusionLookupProvider>
+    </PublicBaseContext.Provider>
   );
 }

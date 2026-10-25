@@ -42,6 +42,12 @@ import {
   AUDIT_SERVICE,
   IAuditService,
 } from '../../../integrations/audit/audit.service';
+import {
+  BASE_DATA_EXTENSION,
+  BaseData,
+  BaseTransferService,
+} from '../../../core/base/base-transfer.service';
+import { remapBaseEmbeds } from '../../export/utils';
 
 @Injectable()
 export class FileImportTaskService {
@@ -50,6 +56,7 @@ export class FileImportTaskService {
   constructor(
     private readonly storageService: StorageService,
     private readonly importService: ImportService,
+    private readonly baseTransferService: BaseTransferService,
     private readonly pageService: PageService,
     private readonly backlinkRepo: BacklinkRepo,
     @InjectKysely() private readonly db: KyselyDB,
@@ -459,6 +466,29 @@ export class FileImportTaskService {
 
     if (pagesMap.size < 1) return;
 
+    // Bases exported by Docmost carry their data next to the page file, and
+    // embeds point at the exported page ids.
+    const baseDataByPath = new Map<string, BaseData>();
+    const importedPageIds = new Map<string, string>();
+    for (const [filePath, page] of pagesMap.entries()) {
+      const meta = docmostMetadata?.pages[encodeFilePath(filePath)];
+      if (meta?.pageId) importedPageIds.set(meta.pageId, page.id);
+      if (!meta?.isBase) continue;
+      const dataPath = path.join(
+        extractDir,
+        filePath.slice(0, -page.fileExtension.length) + BASE_DATA_EXTENSION,
+      );
+      try {
+        const data = this.baseTransferService.parse(
+          await fs.readFile(dataPath, 'utf-8'),
+        );
+        if (data) baseDataByPath.set(filePath, data);
+        else this.logger.warn(`Skipping unreadable base data ${dataPath}`);
+      } catch (err: any) {
+        if (err?.code !== 'ENOENT') throw err;
+      }
+    }
+
     // Process pages level by level sequentially to respect foreign key constraints
     const allBacklinks: any[] = [];
     const validPageIds = new Set<string>();
@@ -494,6 +524,7 @@ export class FileImportTaskService {
                 throw err;
               }
             }
+            content = remapBaseEmbeds(content, importedPageIds);
 
             const htmlContent =
               await this.importAttachmentService.processAttachments({
@@ -537,8 +568,23 @@ export class FileImportTaskService {
               lastUpdatedById: fileTask.creatorId,
               parentPageId: page.parentPageId,
             };
+            const baseData = baseDataByPath.get(filePath);
+            if (baseData) insertablePage.isBase = true;
 
             await trx.insertInto('pages').values(insertablePage).execute();
+
+            if (baseData) {
+              await this.baseTransferService.importBase(
+                baseData,
+                {
+                  pageId: page.id,
+                  workspaceId: fileTask.workspaceId,
+                  creatorId: fileTask.creatorId,
+                },
+                importedPageIds,
+                trx,
+              );
+            }
 
             // Track valid page IDs, titles, and collect backlinks
             validPageIds.add(insertablePage.id);

@@ -108,7 +108,8 @@ export class BaseRowService {
     };
   }
 
-  async list(page: Page, dto: ListRowsDto, user: User) {
+  // Without a user (public share viewers) only people's names are resolved.
+  async list(page: Page, dto: ListRowsDto, user: User | null) {
     return guard(async () => {
       const { properties, map } = await this.schema(page.id);
       const filterTree =
@@ -126,12 +127,18 @@ export class BaseRowService {
         filter,
         sorts,
       });
-      const references = await this.references.forRows(
-        result.items,
-        properties,
-        user,
-        page.workspaceId,
-      );
+      const references = user
+        ? await this.references.forRows(
+            result.items,
+            properties,
+            user,
+            page.workspaceId,
+          )
+        : await this.references.forPublicRows(
+            result.items,
+            properties,
+            page.workspaceId,
+          );
       return {
         items: result.items,
         meta: {

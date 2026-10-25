@@ -283,3 +283,40 @@ export class DeleteViewDto extends BasePageDto {
   @IsUUID()
   viewId: string;
 }
+
+// ---- public (shares and public spaces) -----------------------------------
+
+export class PublicBaseDto extends BasePageDto {
+  @IsOptional()
+  @IsString()
+  shareId?: string;
+
+  @IsOptional()
+  @IsString()
+  spaceSlug?: string;
+
+  // The shared page that embeds the base, when the base is not shared itself.
+  @IsOptional()
+  @IsString()
+  hostPageId?: string;
+}
+
+export class PublicListRowsDto extends PublicBaseDto {
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+
+  @IsOptional()
+  @IsObject()
+  filter?: any;
+
+  @IsOptional()
+  @IsArray()
+  sorts?: any[];
+}
