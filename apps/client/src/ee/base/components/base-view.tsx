@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import { notifications } from "@mantine/notifications";
 import { reorder } from "@atlaskit/pragmatic-drag-and-drop/reorder";
 import { generateJitteredKeyBetween } from "fractional-indexing-jittered";
-import { v7 as uuid7 } from "uuid";
 import { useBaseQuery } from "@/ee/base/queries/base-query";
 import { useBaseSocket } from "@/ee/base/hooks/use-base-socket";
 import {
@@ -232,8 +231,7 @@ export function BaseView({ pageId, embedded, editable = true, titleSlot }: BaseV
     (afterRowId?: string, focusPropertyId?: string) => {
       if (!editable) return;
       createRowMutation.mutate(
-        // a client-made id lets the row appear before the server answers
-        { pageId, id: uuid7(), ...(afterRowId ? { afterRowId } : {}) },
+        { pageId, ...(afterRowId ? { afterRowId } : {}) },
         {
           onSuccess: (newRow) => {
             let propertyId = focusPropertyId;

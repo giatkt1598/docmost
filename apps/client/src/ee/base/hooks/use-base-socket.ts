@@ -12,10 +12,7 @@ import {
 import { selectedRowIdsAtomFamily } from "@/ee/base/atoms/base-atoms";
 import { formulaRecomputeAtom } from "@/ee/base/atoms/formula-recompute-atom";
 import { IPagination } from "@/lib/types";
-import {
-  invalidateBaseRows,
-  upsertRowInCache,
-} from "@/ee/base/queries/base-row-query";
+import { invalidateBaseRows } from "@/ee/base/queries/base-row-query";
 
 type BaseRowCreated = {
   operation: "base:row:created";
@@ -164,8 +161,21 @@ function createBaseEventHandler(
         if (hasKanbanForCreate) {
           invalidateBaseRows(pageId);
         } else {
-          // the row may already be cached (own create, or a refetch)
-          upsertRowInCache(pageId, e.row, { client: queryClient });
+          queryClient.setQueriesData<InfiniteData<IPagination<IBaseRow>>>(
+            { queryKey: ["base-rows", pageId] },
+            (old) => {
+              if (!old) return old;
+              const lastPageIndex = old.pages.length - 1;
+              return {
+                ...old,
+                pages: old.pages.map((page, index) =>
+                  index === lastPageIndex
+                    ? { ...page, items: [...page.items, e.row] }
+                    : page,
+                ),
+              };
+            },
+          );
         }
         break;
       }

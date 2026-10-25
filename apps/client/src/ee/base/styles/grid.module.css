@@ -13,6 +13,8 @@
   top: var(--sticky-band-top, 0);
   z-index: 10;
   background-color: var(--mantine-color-body);
+  border-bottom: 1px solid
+    light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
 }
 
 .headerGrid {
@@ -77,13 +79,6 @@
 
 .headerRow {
   display: contents;
-}
-
-/* Each header cell draws the bottom line, so it ends with the last column
- * like the rows below instead of running across the whole page. */
-.headerRow > * {
-  border-bottom: 1px solid
-    light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
 }
 
 .headerCell {
@@ -712,6 +707,7 @@
 .ghostRow {
   cursor: pointer;
   width: max-content;
+  min-width: 100%;
 }
 
 .popoverAnchor {

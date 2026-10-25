@@ -4,7 +4,6 @@ import {
   useMutation,
   useQuery,
   InfiniteData,
-  QueryClient,
 } from "@tanstack/react-query";
 import {
   createRow,
@@ -125,131 +124,27 @@ export function flattenRows(
   return data.pages.flatMap((page) => page.items);
 }
 
-const READONLY_CELL_TYPES = new Set([
-  "formula",
-  "createdAt",
-  "lastEditedAt",
-  "lastEditedBy",
-]);
-
-// The cells the server fills in for a new row, so an optimistic row looks
-// like the one that comes back.
-function defaultCellsFor(base: IBase | undefined): Record<string, unknown> {
-  const cells: Record<string, unknown> = {};
-  for (const p of base?.properties ?? []) {
-    if (READONLY_CELL_TYPES.has(p.type) || p.pendingType) continue;
-    const dv = (p.typeOptions as { defaultValue?: unknown })?.defaultValue;
-    if (dv === undefined || dv === null) continue;
-    if (p.type === "checkbox" && dv !== true) continue;
-    cells[p.id] = dv;
-  }
-  return cells;
-}
-
-/**
- * Puts a row into every cached row list of the base exactly once. A copy
- * with the same id (an optimistic row, or one a refetch already brought in)
- * is replaced in place; otherwise the row goes after `afterRowId`, or at the
- * end. Keeps a slow create from showing the same row twice.
- */
-export function upsertRowInCache(
-  pageId: string,
-  row: IBaseRow,
-  opts: {
-    afterRowId?: string;
-    queryKey?: readonly unknown[];
-    client?: QueryClient;
-  } = {},
-) {
-  const { afterRowId, queryKey = ["base-rows", pageId] } = opts;
-  (opts.client ?? queryClient).setQueriesData<InfiniteData<IBaseRowsPage>>(
-    { queryKey },
-    (old) => {
-      if (!old) return old;
-      if (findRowInInfinite(old, row.id)) {
-        return {
-          ...old,
-          pages: old.pages.map((page) => ({
-            ...page,
-            items: page.items.map((r) => (r.id === row.id ? row : r)),
-          })),
-        };
-      }
-      if (afterRowId && findRowInInfinite(old, afterRowId)) {
-        return {
-          ...old,
-          pages: old.pages.map((page) => {
-            const index = page.items.findIndex((r) => r.id === afterRowId);
-            if (index === -1) return page;
-            const items = [...page.items];
-            items.splice(index + 1, 0, row);
-            return { ...page, items };
-          }),
-        };
-      }
-      const lastPageIndex = old.pages.length - 1;
-      return {
-        ...old,
-        pages: old.pages.map((page, index) =>
-          index === lastPageIndex
-            ? { ...page, items: [...page.items, row] }
-            : page,
-        ),
-      };
-    },
-  );
-}
-
-function removeRowFromCache(pageId: string, rowId: string) {
-  queryClient.setQueriesData<InfiniteData<IBaseRowsPage>>(
-    { queryKey: ["base-rows", pageId] },
-    (old) =>
-      old && {
-        ...old,
-        pages: old.pages.map((page) => ({
-          ...page,
-          items: page.items.filter((r) => r.id !== rowId),
-        })),
-      },
-  );
-}
-
 export function useCreateRowMutation() {
   const { t } = useTranslation();
-  return useMutation<
-    IBaseRow,
-    Error,
-    CreateRowInput,
-    { optimisticId?: string }
-  >({
+  return useMutation<IBaseRow, Error, CreateRowInput>({
     mutationFn: (data) => createRow({ ...data, requestId: newRequestId() }),
-    // With a client-made id the row shows up at once instead of after the
-    // round trip; the server's copy replaces it on success.
-    onMutate: (variables) => {
-      if (!variables.id) return {};
-      const base = queryClient.getQueryData<IBase>(["bases", variables.pageId]);
-      const now = new Date().toISOString();
-      upsertRowInCache(
-        variables.pageId,
-        {
-          id: variables.id,
-          pageId: variables.pageId,
-          cells: { ...defaultCellsFor(base), ...(variables.cells ?? {}) },
-          position: variables.position ?? "",
-          creatorId: "",
-          lastUpdatedById: null,
-          workspaceId: base?.workspaceId ?? "",
-          createdAt: now,
-          updatedAt: now,
+    onSuccess: (newRow) => {
+      queryClient.setQueriesData<InfiniteData<IBaseRowsPage>>(
+        { queryKey: ["base-rows", newRow.pageId] },
+        (old) => {
+          if (!old) return old;
+          const lastPageIndex = old.pages.length - 1;
+          return {
+            ...old,
+            pages: old.pages.map((page, index) => {
+              if (index === lastPageIndex) {
+                return { ...page, items: [...page.items, newRow] };
+              }
+              return page;
+            }),
+          };
         },
-        { afterRowId: variables.afterRowId },
       );
-      return { optimisticId: variables.id };
-    },
-    onSuccess: (newRow, variables) => {
-      upsertRowInCache(newRow.pageId, newRow, {
-        afterRowId: variables.afterRowId,
-      });
       const base = queryClient.getQueryData<IBase>(["bases", newRow.pageId]);
       if ((base?.views ?? []).some((v) => v.type === "kanban")) {
         queryClient.invalidateQueries({
@@ -258,10 +153,7 @@ export function useCreateRowMutation() {
         });
       }
     },
-    onError: (error, variables, context) => {
-      if (context?.optimisticId) {
-        removeRowFromCache(variables.pageId, context.optimisticId);
-      }
+    onError: (error) => {
       notifications.show({
         message: getApiErrorMessage(error, t("Failed to create row")),
         color: "red",
@@ -651,7 +543,18 @@ export function useKanbanCreateCardMutation() {
     onSuccess: (newRow, variables) => {
       const { pageId, destColumnFilter } = variables;
       const destKey = baseRowsQueryKey(pageId, destColumnFilter, undefined);
-      upsertRowInCache(pageId, newRow, { queryKey: destKey });
+      queryClient.setQueryData<InfiniteData<IBaseRowsPage>>(destKey, (old) => {
+        if (!old) return old;
+        const lastPageIndex = old.pages.length - 1;
+        return {
+          ...old,
+          pages: old.pages.map((page, index) =>
+            index === lastPageIndex
+              ? { ...page, items: [...page.items, newRow] }
+              : page,
+          ),
+        };
+      });
       queryClient.setQueryData<IBaseRow>(
         ["base-row", newRow.pageId, newRow.id],
         newRow,

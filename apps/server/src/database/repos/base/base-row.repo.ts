@@ -445,19 +445,6 @@ export class BaseRowRepo {
     return Number(res.numAffectedRows ?? 0);
   }
 
-  // Row count and the last position in one round trip.
-  async countAndLastPosition(
-    pageId: string,
-    trx?: KyselyTransaction,
-  ): Promise<{ count: number; last: string | null }> {
-    const r = await sql<{ count: string; last: string | null }>`
-      select count(*) as count, max(position collate "C") as last
-      from base_rows
-      where page_id = ${pageId}::uuid and deleted_at is null
-    `.execute(dbOrTx(this.db, trx));
-    return { count: Number(r.rows[0]?.count ?? 0), last: r.rows[0]?.last ?? null };
-  }
-
   async count(pageId: string, trx?: KyselyTransaction): Promise<number> {
     const r = await dbOrTx(this.db, trx)
       .selectFrom('baseRows')

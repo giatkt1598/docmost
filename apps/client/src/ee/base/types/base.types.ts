@@ -310,8 +310,6 @@ export type ReorderPropertyInput = {
 
 export type CreateRowInput = {
   pageId: string;
-  // client-made row id (uuid), so the row can be shown before the server answers
-  id?: string;
   cells?: Record<string, unknown>;
   afterRowId?: string;
   position?: string;
