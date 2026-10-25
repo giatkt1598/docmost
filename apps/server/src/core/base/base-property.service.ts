@@ -278,6 +278,8 @@ export class BasePropertyService {
 
     if (clearMode || rowCount <= INLINE_ROW_THRESHOLD) {
       const { property, version } = await executeTx(this.db, async (trx) => {
+        // row writes in flight finish first; new ones wait for the new type
+        await this.propertyRepo.findByPageId(page.id, trx, 'update');
         if (!clearMode) {
           await this.conversion.convertAll({
             pageId: page.id,

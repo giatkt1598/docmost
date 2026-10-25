@@ -13,6 +13,9 @@ import {
 
 export const CONVERSION_BATCH_SIZE = 500;
 
+// Cell key that holds a converted value until the conversion commits.
+export const stagedKeyFor = (propertyId: string) => `${propertyId}__staged`;
+
 // Rewrites one property of a base from an old type to a new one.
 @Injectable()
 export class BaseConversionService {
@@ -67,6 +70,8 @@ export class BaseConversionService {
     clearMode: boolean;
     rows: BaseRow[];
     trx?: KyselyTransaction;
+    // write the result here instead of over the old value
+    stagedKey?: string;
   }): Promise<number> {
     const { propertyId, rows } = opts;
     const touched = rows.filter(
@@ -86,9 +91,9 @@ export class BaseConversionService {
       const next = opts.clearMode
         ? null
         : convertCell(value, opts.from, opts.to, lookups);
-      return { id: r.id, patch: { [propertyId]: next } };
+      return { id: r.id, patch: { [opts.stagedKey ?? propertyId]: next } };
     });
-    await this.rowRepo.applyPatches(opts.pageId, patches, opts.trx);
+    await this.rowRepo.applyPatches(opts.pageId, patches, opts.trx, true);
     return touched.length;
   }
 
@@ -102,6 +107,7 @@ export class BaseConversionService {
     clearMode: boolean;
     trx?: KyselyTransaction;
     isStale?: () => Promise<boolean>;
+    stagedKey?: string;
   }): Promise<number> {
     let after: string | null = null;
     let total = 0;
@@ -112,6 +118,7 @@ export class BaseConversionService {
         after,
         CONVERSION_BATCH_SIZE,
         opts.trx,
+        { includeDeleted: true },
       );
       if (rows.length === 0) return total;
       after = rows[rows.length - 1].id;

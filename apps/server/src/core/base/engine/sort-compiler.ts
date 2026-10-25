@@ -7,7 +7,27 @@ export class SortCompileError extends Error {}
 export type CompiledSort = {
   expr: RawBuilder<any>;
   direction: 'asc' | 'desc';
+  // SQL type of `expr`, used to cast cursor values back for keyset paging
+  sqlType: string;
 };
+
+export function sortSqlType(prop: EngineProperty): string {
+  switch (prop.type) {
+    case 'select':
+    case 'status':
+      return (prop.typeOptions?.choiceOrder ?? []).length ? 'int' : 'text';
+  }
+  switch (cellKindOf(prop)) {
+    case 'numeric':
+      return 'numeric';
+    case 'bool':
+      return 'boolean';
+    case 'timestamptz':
+      return 'timestamptz';
+    default:
+      return 'text';
+  }
+}
 
 // Expression used to order rows by a property. Choices sort by their position
 // in the choice list; people by name; text case-insensitively.
@@ -54,7 +74,11 @@ export function compileSorts(
     if (prop.type === 'page') {
       throw new SortCompileError('Page properties cannot be sorted');
     }
-    out.push({ expr: sortExpr(prop), direction: s.direction });
+    out.push({
+      expr: sortExpr(prop),
+      direction: s.direction,
+      sqlType: sortSqlType(prop),
+    });
   }
   return out;
 }

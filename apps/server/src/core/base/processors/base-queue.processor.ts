@@ -1,7 +1,12 @@
-import { Logger } from '@nestjs/common';
-import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
+import { Logger, OnModuleInit } from '@nestjs/common';
+import {
+  InjectQueue,
+  OnWorkerEvent,
+  Processor,
+  WorkerHost,
+} from '@nestjs/bullmq';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Job } from 'bullmq';
+import { Job, Queue } from 'bullmq';
 import { randomUUID } from 'crypto';
 import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@docmost/db/types/kysely.types';
@@ -15,15 +20,19 @@ import {
   IBaseTypeConversionJob,
 } from '../../../integrations/queue/constants/queue.interface';
 import { EventName } from '../../../common/events/event.contants';
-import { emitBaseEvent } from '../base.events';
-import { BaseConversionService } from '../base-conversion.service';
+import { emitBaseEvent, ROW_RETENTION_DAYS } from '../base.events';
+import {
+  BaseConversionService,
+  stagedKeyFor,
+} from '../base-conversion.service';
 import { BaseFormulaService, toEngineProperty } from '../base-formula.service';
 import { FormulaEvaluator } from '../engine/formula.engine';
 
 const GC_BATCH = 1000;
+const PURGE_BATCH = 5000;
 
 @Processor(QueueName.BASE_QUEUE)
-export class BaseQueueProcessor extends WorkerHost {
+export class BaseQueueProcessor extends WorkerHost implements OnModuleInit {
   private readonly logger = new Logger(BaseQueueProcessor.name);
 
   constructor(
@@ -33,8 +42,18 @@ export class BaseQueueProcessor extends WorkerHost {
     private readonly conversion: BaseConversionService,
     private readonly formula: BaseFormulaService,
     private readonly eventEmitter: EventEmitter2,
+    @InjectQueue(QueueName.BASE_QUEUE) private readonly baseQueue: Queue,
   ) {
     super();
+  }
+
+  async onModuleInit() {
+    // daily; upserting keeps a single schedule across instances
+    await this.baseQueue.upsertJobScheduler(
+      QueueJob.BASE_ROW_PURGE,
+      { pattern: '0 3 * * *' },
+      { name: QueueJob.BASE_ROW_PURGE },
+    );
   }
 
   async process(job: Job): Promise<void> {
@@ -43,12 +62,27 @@ export class BaseQueueProcessor extends WorkerHost {
         return this.typeConversion(job.data as IBaseTypeConversionJob);
       case QueueJob.BASE_CELL_GC:
         return this.cellGc(job.data as IBaseCellGcJob);
+      case QueueJob.BASE_ROW_PURGE:
+        return this.purgeDeleted();
       case QueueJob.BASE_FORMULA_RECOMPUTE:
         return this.formulaRecompute(
           job.data as IBaseFormulaRecomputeJob,
           String(job.id),
         );
     }
+  }
+
+  // Hard deletes rows and properties past the restore window.
+  private async purgeDeleted() {
+    const before = new Date(Date.now() - ROW_RETENTION_DAYS * 86_400_000);
+    let total = 0;
+    while (true) {
+      const n = await this.rowRepo.purgeDeleted(before, PURGE_BATCH);
+      total += n;
+      if (n < PURGE_BATCH) break;
+    }
+    await this.propertyRepo.purgeDeleted(before);
+    if (total) this.logger.log(`Purged ${total} deleted base rows`);
   }
 
   private async cellGc(data: IBaseCellGcJob) {
@@ -80,18 +114,27 @@ export class BaseQueueProcessor extends WorkerHost {
     if (!current || current.pendingToken !== pendingToken) return;
 
     const base = { pageId, workspaceId, actorId: data.actorId ?? null };
+    const stagedKey = stagedKeyFor(propertyId);
     try {
-      // one transaction, so a failure leaves every cell on the old type
+      // Converted values go to a staged key in short batches, so rows are not
+      // locked for the whole job. Writes to the property are refused while
+      // the conversion is pending, so the old values cannot change under us.
+      await this.rowRepo.dropStagedKey(pageId, stagedKey);
+      await this.conversion.convertAll({
+        pageId,
+        workspaceId,
+        propertyId,
+        from: { type: data.fromType, typeOptions: data.fromTypeOptions },
+        to: { type: data.toType, typeOptions: data.toTypeOptions },
+        clearMode: data.clearMode,
+        stagedKey,
+        isStale: async () =>
+          (await this.propertyRepo.findById(pageId, propertyId))
+            ?.pendingToken !== pendingToken,
+      });
       const committed = await executeTx(this.db, async (trx) => {
-        await this.conversion.convertAll({
-          pageId,
-          workspaceId,
-          propertyId,
-          from: { type: data.fromType, typeOptions: data.fromTypeOptions },
-          to: { type: data.toType, typeOptions: data.toTypeOptions },
-          clearMode: data.clearMode,
-          trx,
-        });
+        // waits for row writes in flight and holds new ones until commit
+        await this.propertyRepo.findByPageId(pageId, trx, 'update');
         const property = await this.propertyRepo.commitPendingConversion(
           pageId,
           propertyId,
@@ -99,6 +142,7 @@ export class BaseQueueProcessor extends WorkerHost {
           trx,
         );
         if (!property) throw new Error('stale');
+        await this.rowRepo.commitStagedKey(pageId, propertyId, stagedKey, trx);
         const schemaVersion = await this.propertyRepo.bumpSchemaVersion(
           pageId,
           trx,
@@ -129,6 +173,7 @@ export class BaseQueueProcessor extends WorkerHost {
         });
       }
     } catch (err) {
+      await this.rowRepo.dropStagedKey(pageId, stagedKey);
       if ((err as Error).message === 'stale') return;
       await this.propertyRepo.clearPendingConversion(
         pageId,

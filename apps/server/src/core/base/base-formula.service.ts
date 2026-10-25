@@ -62,6 +62,11 @@ export class BaseFormulaService {
         .map((p) => p.id);
       formulaIds = evaluator.affected([...changedIds, ...system]);
     }
+    // a formula being converted to another type is no longer computed
+    const pending = new Set(
+      properties.filter((p) => p.pendingToken).map((p) => p.id),
+    );
+    formulaIds = formulaIds.filter((id) => !pending.has(id));
     if (formulaIds.length === 0) return { row, computed: {} };
 
     const computed = evaluator.evaluateRow(
@@ -102,7 +107,13 @@ export class BaseFormulaService {
     const evaluator = new FormulaEvaluator(properties.map(toEngineProperty));
     const wanted = new Set(opts.formulaIds);
     // evaluation order, restricted to live formulas that were asked for
-    const ids = evaluator.allFormulaIds().filter((id) => wanted.has(id));
+    const ids = evaluator
+      .allFormulaIds()
+      .filter(
+        (id) =>
+          wanted.has(id) &&
+          !properties.find((p) => p.id === id)?.pendingToken,
+      );
     const base = { pageId, workspaceId, actorId: actorId ?? null };
 
     emitBaseEvent(this.eventEmitter, EventName.BASE_FORMULA_RECOMPUTE_STARTED, {

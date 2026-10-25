@@ -19,18 +19,24 @@ export type PropertyUpdate = Omit<
 export class BasePropertyRepo {
   constructor(@InjectKysely() private readonly db: KyselyDB) {}
 
+  // `lock` takes row locks on the schema inside a transaction: row writes
+  // take 'share' so a type change ('update') waits for them, and they wait
+  // for it.
   async findByPageId(
     pageId: string,
     trx?: KyselyTransaction,
+    lock?: 'share' | 'update',
   ): Promise<BaseProperty[]> {
-    return dbOrTx(this.db, trx)
+    let q = dbOrTx(this.db, trx)
       .selectFrom('baseProperties')
       .selectAll()
       .where('pageId', '=', pageId)
       .where('deletedAt', 'is', null)
       .orderBy(sql`position collate "C"`, 'asc')
-      .orderBy('id', 'asc')
-      .execute();
+      .orderBy('id', 'asc');
+    if (lock === 'share') q = q.forShare();
+    if (lock === 'update') q = q.forUpdate();
+    return q.execute();
   }
 
   async findById(
@@ -186,6 +192,15 @@ export class BasePropertyRepo {
       .returning('baseSchemaVersion')
       .executeTakeFirst();
     return row?.baseSchemaVersion ?? 0;
+  }
+
+  // Removes properties that were soft deleted before the given date.
+  async purgeDeleted(before: Date, trx?: KyselyTransaction): Promise<number> {
+    const res = await dbOrTx(this.db, trx)
+      .deleteFrom('baseProperties')
+      .where('deletedAt', '<', before)
+      .executeTakeFirst();
+    return Number(res.numDeletedRows ?? 0);
   }
 
   // Duplicates the live properties of one base into another.

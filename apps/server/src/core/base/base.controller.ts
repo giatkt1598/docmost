@@ -36,6 +36,7 @@ import {
   ListRowsDto,
   ReorderPropertyDto,
   ReorderRowDto,
+  RestoreRowsDto,
   RowInfoDto,
   UpdateBaseDto,
   UpdatePropertyDto,
@@ -287,6 +288,18 @@ export class BaseController {
   ) {
     const page = await this.baseService.getEditablePage(dto.pageId, user, workspace);
     await this.rowService.deleteMany(page, dto, user);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('rows/restore')
+  @OAuthScope('write')
+  async restoreRows(
+    @Body() dto: RestoreRowsDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const page = await this.baseService.getEditablePage(dto.pageId, user, workspace);
+    return this.rowService.restoreMany(page, dto, user);
   }
 
   @HttpCode(HttpStatus.OK)

@@ -43,3 +43,6 @@ export function emitBaseEvent(
 export const FORMULA_BATCH_SIZE = 500;
 // Bases up to this many rows are converted / backfilled inside the request.
 export const INLINE_ROW_THRESHOLD = 1000;
+export const MAX_ROWS_PER_BASE = 100_000;
+// Deleted rows can be restored for this long, then they are purged.
+export const ROW_RETENTION_DAYS = 30;

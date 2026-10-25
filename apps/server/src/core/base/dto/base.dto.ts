@@ -208,6 +208,8 @@ export class DeleteRowsDto extends BasePageDto {
   requestId?: string;
 }
 
+export class RestoreRowsDto extends DeleteRowsDto {}
+
 export class ReorderRowDto extends RowInfoDto {
   @IsString()
   @IsNotEmpty()

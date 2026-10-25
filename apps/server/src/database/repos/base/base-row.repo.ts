@@ -5,7 +5,11 @@ import { dbOrTx } from '@docmost/db/utils';
 import { BaseRow, InsertableBaseRow } from '@docmost/db/types/entity.types';
 import { RawBuilder, sql } from 'kysely';
 
-export type RowSort = { expr: RawBuilder<any>; direction: 'asc' | 'desc' };
+export type RowSort = {
+  expr: RawBuilder<any>;
+  direction: 'asc' | 'desc';
+  sqlType: string;
+};
 
 export type RowListOptions = {
   pageId: string;
@@ -21,16 +25,53 @@ export type RowListResult = {
   nextCursor: string | null;
 };
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const encodeCursor = (v: object) =>
   Buffer.from(JSON.stringify(v)).toString('base64url');
 
 function decodeCursor(cursor?: string | null): any {
   if (!cursor) return null;
   try {
-    return JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+    const cur = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+    if (typeof cur?.p !== 'string' || !UUID_RE.test(String(cur.i))) {
+      throw new Error();
+    }
+    return cur;
   } catch {
     throw new Error('Invalid cursor');
   }
+}
+
+// Rows that come after the cursor row in (sorts..., position, id) order.
+// Sort keys put nulls last; position and id are never null.
+function keysetAfter(sorts: RowSort[], cur: any): RawBuilder<boolean> {
+  const values: unknown[] = Array.isArray(cur.s) ? cur.s : [];
+  const terms: RawBuilder<boolean>[] = [];
+  const equal: RawBuilder<boolean>[] = [];
+  sorts.forEach((s, i) => {
+    const v = values[i] ?? null;
+    const param = sql`cast(${v} as ${sql.raw(s.sqlType)})`;
+    if (v !== null) {
+      const cmp = s.direction === 'asc' ? sql.raw('>') : sql.raw('<');
+      terms.push(
+        and([...equal, sql<boolean>`(${s.expr} ${cmp} ${param} or ${s.expr} is null)`]),
+      );
+    }
+    equal.push(sql<boolean>`${s.expr} is not distinct from ${param}`);
+  });
+  terms.push(
+    and([
+      ...equal,
+      sql<boolean>`(base_rows.position collate "C", base_rows.id) > (${cur.p}::text collate "C", ${cur.i}::uuid)`,
+    ]),
+  );
+  return sql<boolean>`(${sql.join(terms, sql` or `)})`;
+}
+
+function and(parts: RawBuilder<boolean>[]): RawBuilder<boolean> {
+  return sql<boolean>`(${sql.join(parts, sql` and `)})`;
 }
 
 @Injectable()
@@ -67,19 +108,22 @@ export class BaseRowRepo {
   }
 
   // Rows in a stable id order, for background jobs that walk the whole base.
+  // Type conversions include soft-deleted rows so a restored row matches the
+  // current schema.
   async findBatch(
     pageId: string,
     afterId: string | null,
     limit: number,
     trx?: KyselyTransaction,
+    opts: { includeDeleted?: boolean } = {},
   ): Promise<BaseRow[]> {
     let q = dbOrTx(this.db, trx)
       .selectFrom('baseRows')
       .selectAll()
       .where('pageId', '=', pageId)
-      .where('deletedAt', 'is', null)
       .orderBy('id', 'asc')
       .limit(limit);
+    if (!opts.includeDeleted) q = q.where('deletedAt', 'is', null);
     if (afterId) q = q.where('id', '>', afterId);
     return q.execute();
   }
@@ -95,41 +139,39 @@ export class BaseRowRepo {
       .where('deletedAt', 'is', null);
     if (opts.filter) q = q.where(opts.filter);
 
-    if (sorts.length === 0) {
-      // keyset over (position, id), matching idx_base_rows_page_alive
-      if (cur?.p != null) {
-        q = q.where(
-          sql<boolean>`(base_rows.position collate "C", base_rows.id) > (${cur.p}::text collate "C", ${cur.i}::uuid)`,
-        );
-      }
-      q = q
-        .orderBy(sql`base_rows.position collate "C"`, 'asc')
-        .orderBy('id', 'asc');
-    } else {
-      // Sorted pages use an offset cursor: keyset over mixed directions and
-      // nullable expressions is not worth the complexity here.
-      for (const s of sorts) {
-        q = q.orderBy(sql`${s.expr} ${sql.raw(s.direction)} nulls last`);
-      }
-      q = q
-        .orderBy(sql`base_rows.position collate "C"`, 'asc')
-        .orderBy('id', 'asc');
-      if (cur?.o) q = q.offset(Number(cur.o));
+    // Keyset over (sort keys..., position, id). The sort keys are selected
+    // too so the cursor can carry the values of the last row.
+    sorts.forEach((s, i) => {
+      // as text: a JS Date would drop the microseconds of a timestamptz
+      q = q.select(sql`(${s.expr})::text`.as(`sortkey${i}`)) as typeof q;
+    });
+    if (cur?.p != null) {
+      q = q.where(keysetAfter(sorts, cur));
     }
+    for (const s of sorts) {
+      q = q.orderBy(sql`${s.expr} ${sql.raw(s.direction)} nulls last`);
+    }
+    q = q
+      .orderBy(sql`base_rows.position collate "C"`, 'asc')
+      .orderBy('id', 'asc');
 
-    const rows = await q.limit(opts.limit + 1).execute();
+    const rows: any[] = await q.limit(opts.limit + 1).execute();
     const hasNextPage = rows.length > opts.limit;
     if (hasNextPage) rows.pop();
 
     let nextCursor: string | null = null;
     if (hasNextPage) {
       const last = rows[rows.length - 1];
-      nextCursor =
-        sorts.length === 0
-          ? encodeCursor({ p: last.position, i: last.id })
-          : encodeCursor({ o: Number(cur?.o ?? 0) + rows.length });
+      nextCursor = encodeCursor({
+        s: sorts.map((_, i) => last[`sortkey${i}`] ?? null),
+        p: last.position,
+        i: last.id,
+      });
     }
-    return { items: rows, hasNextPage, nextCursor };
+    for (const row of rows) {
+      sorts.forEach((_, i) => delete row[`sortkey${i}`]);
+    }
+    return { items: rows as BaseRow[], hasNextPage, nextCursor };
   }
 
   // Every non-deleted row matching the filter, in batches (CSV export).
@@ -213,6 +255,7 @@ export class BaseRowRepo {
     pageId: string,
     patches: Array<{ id: string; patch: Record<string, unknown> }>,
     trx?: KyselyTransaction,
+    includeDeleted = false,
   ): Promise<void> {
     if (patches.length === 0) return;
     await sql`
@@ -221,7 +264,41 @@ export class BaseRowRepo {
       from jsonb_to_recordset(${JSON.stringify(patches)}::text::jsonb)
         as x(id uuid, patch jsonb)
       where r.id = x.id and r.page_id = ${pageId}::uuid
-        and r.deleted_at is null
+        and (${includeDeleted} or r.deleted_at is null)
+    `.execute(dbOrTx(this.db, trx));
+  }
+
+  // Finishes a staged type conversion: the converted value kept under
+  // `stagedKey` replaces the property value. A row with the property but no
+  // staged value converted to empty.
+  async commitStagedKey(
+    pageId: string,
+    propertyId: string,
+    stagedKey: string,
+    trx?: KyselyTransaction,
+  ): Promise<void> {
+    await sql`
+      update base_rows
+      set cells = case
+        when cells ? ${stagedKey}::text then
+          (cells - ${stagedKey}::text)
+            || jsonb_build_object(${propertyId}::text, cells -> ${stagedKey}::text)
+        else cells - ${propertyId}::text
+      end
+      where page_id = ${pageId}::uuid
+        and (cells ? ${propertyId}::text or cells ? ${stagedKey}::text)
+    `.execute(dbOrTx(this.db, trx));
+  }
+
+  // Undoes a staged conversion that failed or was superseded.
+  async dropStagedKey(
+    pageId: string,
+    stagedKey: string,
+    trx?: KyselyTransaction,
+  ): Promise<void> {
+    await sql`
+      update base_rows set cells = cells - ${stagedKey}::text
+      where page_id = ${pageId}::uuid and cells ? ${stagedKey}::text
     `.execute(dbOrTx(this.db, trx));
   }
 
@@ -256,6 +333,41 @@ export class BaseRowRepo {
       .returning('id')
       .execute();
     return rows.map((r) => r.id);
+  }
+
+  // Brings back rows deleted after `since`. Returns the restored rows.
+  async restoreMany(
+    rowIds: string[],
+    pageId: string,
+    since: Date,
+    trx?: KyselyTransaction,
+  ): Promise<BaseRow[]> {
+    if (rowIds.length === 0) return [];
+    return dbOrTx(this.db, trx)
+      .updateTable('baseRows')
+      .set({ deletedAt: null })
+      .where('id', 'in', rowIds)
+      .where('pageId', '=', pageId)
+      .where('deletedAt', 'is not', null)
+      .where('deletedAt', '>=', since)
+      .returningAll()
+      .execute();
+  }
+
+  // Hard deletes up to `limit` rows that were soft deleted before `before`.
+  async purgeDeleted(
+    before: Date,
+    limit: number,
+    trx?: KyselyTransaction,
+  ): Promise<number> {
+    const res = await sql`
+      delete from base_rows where id in (
+        select id from base_rows
+        where deleted_at is not null and deleted_at < ${before}
+        limit ${limit}
+      )
+    `.execute(dbOrTx(this.db, trx));
+    return Number(res.numAffectedRows ?? 0);
   }
 
   async lastPosition(
