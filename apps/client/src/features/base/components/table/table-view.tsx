@@ -40,6 +40,7 @@ import { GridRow, RowActions } from "./grid-row";
 import { EditState } from "./grid-cell";
 import { SelectionBar, showUndoToast } from "./selection-bar";
 import { useColumnActions } from "./use-column-actions";
+import { usePropertyDialogs } from "@/features/base/components/properties/property-dialogs";
 import classes from "./grid.module.css";
 
 const ROW_HEIGHT = 34;
@@ -80,6 +81,7 @@ export function TableView({
   const refs = useMemo(() => withReferences(picked, references), [picked, references]);
 
   const columnActions = useColumnActions(pageId, view, properties);
+  const propertyDialogs = usePropertyDialogs({ pageId, view, properties, rows });
   const columns = useMemo(
     () => buildColumns(properties, view.config, columnActions.widthOverrides),
     [properties, view.config, columnActions.widthOverrides],
@@ -345,8 +347,9 @@ export function TableView({
             editable={editable}
             selectAll={selectAllState(selection, order)}
             onSelectAll={(all) => setSelection(all ? selectAll(order) : emptySelection())}
-            allPropertyNames={properties.map((p) => p.name)}
+            properties={properties}
             onRename={columnActions.rename}
+            onPropertyAction={propertyDialogs.open}
             onHide={columnActions.hide}
             onDelete={columnActions.remove}
             onMove={columnActions.move}
@@ -399,6 +402,7 @@ export function TableView({
           )}
         </div>
       </div>
+      {propertyDialogs.element}
     </Box>
   );
 }

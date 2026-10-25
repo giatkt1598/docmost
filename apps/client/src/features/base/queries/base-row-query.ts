@@ -19,6 +19,7 @@ import { baseKeys } from "@/features/base/queries/base-query-keys";
 import {
   defaultInsertPolicy,
   flattenRows,
+  getCachedRow,
   InsertPolicy,
   mergeReferences,
   moveRow,
@@ -30,7 +31,7 @@ import {
   upsertRows,
 } from "@/features/base/utils/row-cache";
 import { createRequestId } from "@/features/base/utils/request-id";
-import { notifyBaseError } from "@/features/base/utils/errors";
+import { apiErrorStatus, notifyBaseError } from "@/features/base/utils/errors";
 
 // Rows of a base for one (filter, sorts, search), 100 per page.
 export function useBaseRowsQuery(
@@ -63,12 +64,18 @@ export function useBaseRows(
   return { ...result, rows, references };
 }
 
-export const useBaseRowQuery = (pageId?: string, rowId?: string) =>
-  useQuery({
+export function useBaseRowQuery(pageId?: string, rowId?: string) {
+  const qc = useQueryClient();
+  return useQuery({
     queryKey: baseKeys.row(pageId ?? "", rowId ?? ""),
     enabled: Boolean(pageId && rowId),
     queryFn: () => basesApi.rows.get(pageId as string, rowId as string),
+    // show the listed copy at once, then refresh it
+    initialData: () => (pageId && rowId ? getCachedRow(qc, pageId, rowId) : undefined),
+    initialDataUpdatedAt: 0,
+    retry: (count, e) => apiErrorStatus(e) !== 404 && count < 2,
   });
+}
 
 // ---- writes ---------------------------------------------------------------
 

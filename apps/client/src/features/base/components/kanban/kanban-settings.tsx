@@ -1,8 +1,9 @@
-import { Button, Group, Popover, ScrollArea, Select, Stack, Switch, Text } from "@mantine/core";
-import { IconCards, IconLayoutColumns } from "@tabler/icons-react";
+import { ActionIcon, Button, Group, Popover, ScrollArea, Select, Stack, Switch, Text } from "@mantine/core";
+import { IconAdjustments, IconCards, IconLayoutColumns } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { BaseProperty, BaseView } from "@/features/base/types/base.types";
-import { getPropertyType } from "@/features/base/registry/property-types";
+import { getPropertyType, hasTypeOptions } from "@/features/base/registry/property-types";
+import { usePropertyDialogs } from "@/features/base/components/properties/property-dialogs";
 import { useUpdateViewMutation } from "@/features/base/queries/base-view-query";
 import { orderProperties, toggleHidden } from "@/features/base/utils/grid-columns";
 import { groupableProperties, resolveGroupProperty } from "@/features/base/utils/kanban";
@@ -21,6 +22,7 @@ export function KanbanSettings({ pageId, view, properties, editable }: Props) {
   const group = resolveGroupProperty(properties, view.config);
   const visible = view.config.visiblePropertyIds ?? [];
   const fields = orderProperties(properties, view.config.propertyOrder).filter((p) => !p.isPrimary);
+  const dialogs = usePropertyDialogs({ pageId, view, properties, rows: [] });
 
   return (
     <Group gap={4} wrap="nowrap">
@@ -72,6 +74,14 @@ export function KanbanSettings({ pageId, view, properties, editable }: Props) {
                         {p.name}
                       </Text>
                     </Group>
+                    <Group gap={4} wrap="nowrap">
+                    {editable && (hasTypeOptions(p.type) || p.type === "formula") && (
+                      <ActionIcon size="sm" variant="subtle" color="gray"
+                        aria-label={t("{{name}} options", { name: p.name })}
+                        onClick={() => dialogs.open(p.id, "options")}>
+                        <IconAdjustments size={14} />
+                      </ActionIcon>
+                    )}
                     <Switch
                       size="xs"
                       disabled={!editable}
@@ -84,6 +94,7 @@ export function KanbanSettings({ pageId, view, properties, editable }: Props) {
                         })
                       }
                     />
+                    </Group>
                   </Group>
                 );
               })}
@@ -91,6 +102,7 @@ export function KanbanSettings({ pageId, view, properties, editable }: Props) {
           </ScrollArea.Autosize>
         </Popover.Dropdown>
       </Popover>
+      {dialogs.element}
     </Group>
   );
 }

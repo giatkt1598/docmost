@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader, Menu, TextInput, Tooltip } from "@mantine/core";
 import { modals } from "@mantine/modals";
-import { IconEyeOff, IconPencil, IconTrash } from "@tabler/icons-react";
+import {
+  IconAdjustments,
+  IconArrowBarLeft,
+  IconArrowBarRight,
+  IconEyeOff,
+  IconPencil,
+  IconReplace,
+  IconTrash,
+} from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import {
@@ -12,7 +20,8 @@ import {
   attachClosestEdge,
   extractClosestEdge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
-import { getPropertyType } from "@/features/base/registry/property-types";
+import { getPropertyType, hasTypeOptions } from "@/features/base/registry/property-types";
+import { PropertyMenuAction } from "@/features/base/components/properties/property-dialogs";
 import { GridColumn } from "@/features/base/utils/grid-columns";
 import classes from "./grid.module.css";
 
@@ -23,6 +32,7 @@ type Props = {
   instanceId: string;
   editable: boolean;
   onRename: (name: string) => void;
+  onAction: (action: PropertyMenuAction) => void;
   onHide: () => void;
   onDelete: () => void;
   onMove: (movedId: string, edge: "left" | "right") => void;
@@ -34,6 +44,7 @@ export function HeaderCell({
   instanceId,
   editable,
   onRename,
+  onAction,
   onHide,
   onDelete,
   onMove,
@@ -155,6 +166,31 @@ export function HeaderCell({
             <Menu.Label>{t(def.label)}</Menu.Label>
             <Menu.Item leftSection={<IconPencil size={14} />} onClick={() => setRenaming(true)}>
               {t("Rename")}
+            </Menu.Item>
+            {(hasTypeOptions(property.type) || property.type === "formula") && (
+              <Menu.Item
+                leftSection={<IconAdjustments size={14} />}
+                disabled={converting}
+                onClick={() => onAction("options")}
+              >
+                {property.type === "formula" ? t("Edit formula") : t("Options")}
+              </Menu.Item>
+            )}
+            <Menu.Item
+              leftSection={<IconReplace size={14} />}
+              disabled={converting}
+              onClick={() => onAction("changeType")}
+            >
+              {t("Change type")}
+            </Menu.Item>
+            <Menu.Divider />
+            {!property.isPrimary && (
+              <Menu.Item leftSection={<IconArrowBarLeft size={14} />} onClick={() => onAction("insertLeft")}>
+                {t("Insert left")}
+              </Menu.Item>
+            )}
+            <Menu.Item leftSection={<IconArrowBarRight size={14} />} onClick={() => onAction("insertRight")}>
+              {t("Insert right")}
             </Menu.Item>
             {!property.isPrimary && (
               <Menu.Item leftSection={<IconEyeOff size={14} />} onClick={onHide}>

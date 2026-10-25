@@ -1,4 +1,5 @@
 import { Checkbox } from "@mantine/core";
+import { BaseProperty } from "@/features/base/types/base.types";
 import { useTranslation } from "react-i18next";
 import {
   ADD_COLUMN_WIDTH,
@@ -7,6 +8,7 @@ import {
 } from "@/features/base/utils/grid-columns";
 import { SelectAllState } from "@/features/base/utils/row-selection";
 import { HeaderCell } from "./header-cell";
+import { PropertyMenuAction } from "@/features/base/components/properties/property-dialogs";
 import { AddPropertyButton } from "./add-property-button";
 import classes from "./grid.module.css";
 
@@ -18,8 +20,9 @@ type Props = {
   editable: boolean;
   selectAll: SelectAllState;
   onSelectAll: (select: boolean) => void;
-  allPropertyNames: string[];
+  properties: BaseProperty[];
   onRename: (propertyId: string, name: string) => void;
+  onPropertyAction: (propertyId: string, action: PropertyMenuAction) => void;
   onHide: (propertyId: string) => void;
   onDelete: (propertyId: string) => void;
   onMove: (movedId: string, targetId: string, edge: "left" | "right") => void;
@@ -49,6 +52,7 @@ export function GridHeader(props: Props) {
           instanceId={props.instanceId}
           editable={editable}
           onRename={(name) => props.onRename(column.property.id, name)}
+          onAction={(action) => props.onPropertyAction(column.property.id, action)}
           onHide={() => props.onHide(column.property.id)}
           onDelete={() => props.onDelete(column.property.id)}
           onMove={(movedId, edge) => props.onMove(movedId, column.property.id, edge)}
@@ -57,7 +61,7 @@ export function GridHeader(props: Props) {
       ))}
       {editable && (
         <div className={classes.addColumn} style={{ width: ADD_COLUMN_WIDTH }}>
-          <AddPropertyButton pageId={props.pageId} existingNames={props.allPropertyNames} />
+          <AddPropertyButton pageId={props.pageId} properties={props.properties} />
         </div>
       )}
     </div>

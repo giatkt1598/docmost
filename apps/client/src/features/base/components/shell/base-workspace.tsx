@@ -16,6 +16,7 @@ import { insertIntoView } from "@/features/base/utils/cell-values";
 import { registerCellComponents } from "@/features/base/components/cells/register-cells";
 import { TableView } from "@/features/base/components/table/table-view";
 import { ViewTabs } from "./view-tabs";
+import { RowDetailModal } from "@/features/base/components/row-detail/row-detail-modal";
 import { BaseToolbar } from "./base-toolbar";
 import { DraftBanner } from "./draft-banner";
 import { KanbanView } from "@/features/base/components/kanban/kanban-view";
@@ -168,6 +169,13 @@ export function BaseWorkspace({ pageId, editable, title, embedded = false, fill 
           fill={fill}
         />
       )}
+      <RowDetailModal
+        pageId={pageId}
+        view={view}
+        properties={properties}
+        query={query}
+        editable={canEdit}
+      />
     </Stack>
   );
 }
