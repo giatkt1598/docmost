@@ -1,7 +1,7 @@
 import { KeyboardEvent, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Box, Button, Center, Loader, Text } from "@mantine/core";
 import { IconPlus } from "@tabler/icons-react";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { useVirtualizer, useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useAtomValue } from "jotai";
 import { useTranslation } from "react-i18next";
 import { BaseProperty, BaseView, RowQuery } from "@/features/base/types/base.types";
@@ -54,9 +54,21 @@ type Props = {
   // a row to focus once it is listed (new rows)
   focusRowId?: string | null;
   onFocusHandled?: () => void;
+  // fill the parent's height and scroll inside (sticky header); otherwise
+  // the rows flow with the page and the window scrolls
+  fill?: boolean;
 };
 
-export function TableView({ pageId, view, properties, query, editable, focusRowId, onFocusHandled }: Props) {
+export function TableView({
+  pageId,
+  view,
+  properties,
+  query,
+  editable,
+  focusRowId,
+  onFocusHandled,
+  fill = false,
+}: Props) {
   const { t } = useTranslation();
   const instanceId = useId();
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -88,18 +100,30 @@ export function TableView({ pageId, view, properties, query, editable, focusRowI
   const reorderRow = useReorderRowMutation(pageId);
   const openRow = useOpenRow(pageId);
 
-  // ---- virtual rows over the window scroll -------------------------------
+  // ---- virtual rows: over the window, or inside the scroller (fill) ------
   const [scrollMargin, setScrollMargin] = useState(0);
   useLayoutEffect(() => {
-    const top = bodyRef.current ? bodyRef.current.getBoundingClientRect().top + window.scrollY : 0;
+    const body = bodyRef.current;
+    if (!body) return;
+    const top = fill ? body.offsetTop : body.getBoundingClientRect().top + window.scrollY;
     if (Math.abs(top - scrollMargin) > 1) setScrollMargin(top);
   });
-  const virtualizer = useWindowVirtualizer({
+  const windowVirtualizer = useWindowVirtualizer({
     count: rows.length,
     estimateSize: () => ROW_HEIGHT,
     overscan: 12,
     scrollMargin,
+    enabled: !fill,
   });
+  const boxVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollerRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 12,
+    scrollMargin,
+    enabled: fill,
+  });
+  const virtualizer = fill ? boxVirtualizer : windowVirtualizer;
   const items = virtualizer.getVirtualItems();
   const lastIndex = items.length ? items[items.length - 1].index : -1;
   useEffect(() => {
@@ -293,7 +317,7 @@ export function TableView({ pageId, view, properties, query, editable, focusRowI
   const filtered = !!(query.filter || query.search);
 
   return (
-    <Box className={classes.root}>
+    <Box className={classes.root} data-fill={fill || undefined}>
       {selection.ids.size > 0 && (
         <SelectionBar
           count={selection.ids.size}
@@ -305,6 +329,7 @@ export function TableView({ pageId, view, properties, query, editable, focusRowI
       <div
         ref={scrollerRef}
         className={classes.scroller}
+        data-fill={fill || undefined}
         tabIndex={0}
         role="grid"
         aria-rowcount={rows.length + 1}

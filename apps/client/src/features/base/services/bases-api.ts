@@ -26,7 +26,7 @@ import {
   ViewChanges,
 } from "@/features/base/types/base.types";
 import { fileNameFromDisposition } from "@/features/base/utils/download";
-import { normalizeRowQuery } from "@/features/base/utils/rows-params";
+import { toRequestQuery } from "@/features/base/utils/rows-params";
 
 export const ROWS_PAGE_SIZE = 100;
 
@@ -49,7 +49,7 @@ function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
 }
 
 function rowsBody(query: RowQuery, cursor?: string, limit = ROWS_PAGE_SIZE) {
-  return { ...normalizeRowQuery(query), ...compact({ cursor }), limit };
+  return { ...toRequestQuery(query), ...compact({ cursor }), limit };
 }
 
 export const basesApi = {

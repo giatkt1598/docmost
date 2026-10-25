@@ -26,6 +26,22 @@ export const defaultInsertPolicy: InsertPolicy = (params) =>
 
 export const insertEverywhere: InsertPolicy = () => true;
 
+// Only reconciles kanban column lists; other lists are left alone.
+export const columnListsOnly: InsertPolicy = () => false;
+
+// The group value of a row for a kanban column (null: no value).
+export function groupValueOf(row: BaseRow, propertyId: string): string | null {
+  const v = row.cells?.[propertyId];
+  return typeof v === "string" && v !== "" ? v : null;
+}
+
+// Column lists know their membership rule; the view filter is assumed to
+// match (it cannot be evaluated here).
+export function belongsToColumn(params: RowQuery, row: BaseRow): boolean | undefined {
+  if (!params.column) return undefined;
+  return groupValueOf(row, params.column.propertyId) === params.column.value;
+}
+
 // ---- pure helpers on one list --------------------------------------------
 
 export function flattenRows(data: RowsData | undefined): BaseRow[] {
@@ -144,6 +160,12 @@ export function upsertRowsInData(
   const sorted = !!params.sorts?.length;
   for (const row of rows) {
     const existing = findRowInData(out, row.id);
+    const inColumn = belongsToColumn(params, row);
+    if (existing && inColumn === false) {
+      // moved to another kanban column
+      out = removeRowsFromData(out, [row.id]);
+      continue;
+    }
     if (existing) {
       if (!sorted && existing.position !== row.position) {
         // keep manual order: move it to its new place
@@ -153,7 +175,7 @@ export function upsertRowsInData(
       }
       continue;
     }
-    if (!insert(params, row)) continue;
+    if (!(inColumn ?? insert(params, row))) continue;
     out = sorted ? appendRow(out, row, true) : insertByPosition(out, row);
   }
   return out;
@@ -282,6 +304,13 @@ export function patchRowCells(
     ...row,
     cells: applyCellPatch(row.cells ?? {}, cells),
   }));
+  reconcileColumns(qc, pageId, rowId);
+}
+
+// After a local change, moves the row between kanban column lists.
+export function reconcileColumns(qc: QueryClient, pageId: string, rowId: string) {
+  const row = getCachedRow(qc, pageId, rowId);
+  if (row) upsertRows(qc, pageId, [row], columnListsOnly);
 }
 
 export function moveRow(
@@ -297,6 +326,7 @@ export function moveRow(
   if (single) {
     qc.setQueryData(baseKeys.row(pageId, rowId), { ...single, position });
   }
+  reconcileColumns(qc, pageId, rowId);
 }
 
 // Snapshot of every row list of a base, to roll back an optimistic update.

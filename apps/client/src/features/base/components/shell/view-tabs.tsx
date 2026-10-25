@@ -10,7 +10,8 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { BaseView, ViewKind } from "@/features/base/types/base.types";
+import { BaseProperty, BaseView, ViewKind } from "@/features/base/types/base.types";
+import { defaultGroupProperty } from "@/features/base/utils/kanban";
 import {
   useCreateViewMutation,
   useDeleteViewMutation,
@@ -23,12 +24,13 @@ const kindIcon = (kind: ViewKind) =>
 type Props = {
   pageId: string;
   views: BaseView[];
+  properties: BaseProperty[];
   activeId: string | null;
   onSelect: (viewId: string) => void;
   editable: boolean;
 };
 
-export function ViewTabs({ pageId, views, activeId, onSelect, editable }: Props) {
+export function ViewTabs({ pageId, views, properties, activeId, onSelect, editable }: Props) {
   const { t } = useTranslation();
   const [renaming, setRenaming] = useState<string | null>(null);
   const createView = useCreateViewMutation(pageId);
@@ -39,6 +41,10 @@ export function ViewTabs({ pageId, views, activeId, onSelect, editable }: Props)
     const view = await createView.mutateAsync({
       name: type === "kanban" ? t("Board") : t("Table"),
       type,
+      // boards group by a status (or select) property when there is one
+      ...(type === "kanban" && defaultGroupProperty(properties)
+        ? { config: { groupByPropertyId: defaultGroupProperty(properties)!.id } }
+        : {}),
     });
     onSelect(view.id);
   };

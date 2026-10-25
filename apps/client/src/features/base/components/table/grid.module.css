@@ -215,3 +215,22 @@
   --grid-hover: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
   --grid-selected: light-dark(var(--mantine-color-blue-0), rgba(34, 139, 230, 0.15));
 }
+
+/* fill mode: the grid scrolls inside its parent and the header sticks */
+.root[data-fill] {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.scroller[data-fill] {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.scroller[data-fill] .header {
+  position: sticky;
+  top: 0;
+}

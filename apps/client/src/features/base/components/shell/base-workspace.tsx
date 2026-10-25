@@ -18,7 +18,7 @@ import { TableView } from "@/features/base/components/table/table-view";
 import { ViewTabs } from "./view-tabs";
 import { BaseToolbar } from "./base-toolbar";
 import { DraftBanner } from "./draft-banner";
-import { KanbanPlaceholder } from "./kanban-placeholder";
+import { KanbanView } from "@/features/base/components/kanban/kanban-view";
 
 registerCellComponents();
 
@@ -29,10 +29,12 @@ type Props = {
   title?: ReactNode;
   // rendered inside a document instead of on its own page
   embedded?: boolean;
+  // fill the parent's height; the view scrolls inside (sticky table header)
+  fill?: boolean;
 };
 
 // A base with its view tabs, toolbar and the active view.
-export function BaseWorkspace({ pageId, editable, title, embedded = false }: Props) {
+export function BaseWorkspace({ pageId, editable, title, embedded = false, fill = false }: Props) {
   const { t } = useTranslation();
   useBaseRealtime(pageId);
   const { data: base, isLoading, isError } = useBaseInfoQuery(pageId);
@@ -96,13 +98,18 @@ export function BaseWorkspace({ pageId, editable, title, embedded = false }: Pro
   };
 
   return (
-    <Stack gap={0} onKeyDown={embedded ? (e) => e.stopPropagation() : undefined}>
+    <Stack
+      gap={0}
+      style={fill ? { height: "100%", minHeight: 0 } : undefined}
+      onKeyDown={embedded ? (e) => e.stopPropagation() : undefined}
+    >
       <Group justify="space-between" wrap="nowrap" gap="sm" py={6}>
         <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}>
           {title}
           <ViewTabs
             pageId={pageId}
             views={views}
+            properties={properties}
             activeId={view?.id ?? null}
             onSelect={selectView}
             editable={canEdit}
@@ -140,7 +147,15 @@ export function BaseWorkspace({ pageId, editable, title, embedded = false }: Pro
           {t("This base has no views.")}
         </Text>
       ) : view.type === "kanban" ? (
-        <KanbanPlaceholder />
+        <KanbanView
+          pageId={pageId}
+          view={view}
+          properties={properties}
+          filter={query.filter}
+          search={debouncedSearch}
+          editable={canEdit}
+          fill={fill}
+        />
       ) : (
         <TableView
           pageId={pageId}
@@ -150,6 +165,7 @@ export function BaseWorkspace({ pageId, editable, title, embedded = false }: Pro
           editable={canEdit}
           focusRowId={focusRowId}
           onFocusHandled={() => setFocusRowId(null)}
+          fill={fill}
         />
       )}
     </Stack>

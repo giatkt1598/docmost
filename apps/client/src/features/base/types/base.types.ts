@@ -243,11 +243,20 @@ export type RowFilter = {
 
 export type SortRule = { propertyId: string; direction: "asc" | "desc" };
 
+// Kanban column a row list is limited to: rows whose group property holds
+// `value` (null: the "No value" column).
+export type GroupColumn = { propertyId: string; value: string | null };
+
+// Column id of the "No value" kanban column (also stored in choiceOrder and
+// hiddenChoiceIds of the view config).
+export const NO_VALUE_COLUMN = "__no_value";
+
 // What a row list is narrowed and ordered by (also its cache identity).
 export type RowQuery = {
   filter?: RowFilter;
   sorts?: SortRule[];
   search?: string;
+  column?: GroupColumn;
 };
 
 // ---- views -----------------------------------------------------------------

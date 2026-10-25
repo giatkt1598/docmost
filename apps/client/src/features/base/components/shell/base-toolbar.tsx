@@ -17,6 +17,7 @@ import { FilterEditor } from "./filter-editor";
 import { SortEditor } from "./sort-editor";
 import { ColumnsMenu } from "./columns-menu";
 import { CsvImportModal } from "./csv-import-modal";
+import { KanbanSettings } from "@/features/base/components/kanban/kanban-settings";
 
 type Props = {
   pageId: string;
@@ -89,6 +90,7 @@ export function BaseToolbar(props: Props) {
         </Popover.Dropdown>
       </Popover>
 
+      {view.type !== "kanban" && (
       <Popover position="bottom-end" withinPortal shadow="md" trapFocus={false}>
         <Popover.Target>
           <Button size="compact-sm" variant="subtle" color={sortCount ? undefined : "gray"}
@@ -100,8 +102,11 @@ export function BaseToolbar(props: Props) {
           <SortEditor sorts={sorts} properties={properties} onChange={props.onSortsChange} />
         </Popover.Dropdown>
       </Popover>
+      )}
 
-      {view.type !== "kanban" && (
+      {view.type === "kanban" ? (
+        <KanbanSettings pageId={pageId} view={view} properties={properties} editable={editable} />
+      ) : (
         <ColumnsMenu pageId={pageId} view={view} properties={properties} editable={editable} />
       )}
 

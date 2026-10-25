@@ -2121,7 +2121,6 @@
   "Add filter group": "Add filter group",
   "And": "And",
   "Board": "Board",
-  "Board views are coming soon.": "Board views are coming soon.",
   "Checked": "Checked",
   "Clear": "Clear",
   "Clear search": "Clear search",
@@ -2181,5 +2180,16 @@
   "{{count}} selected": "{{count}} selected",
   "{{count}} sorts": "{{count}} sorts",
   "≤": "≤",
-  "≥": "≥"
+  "≥": "≥",
+  "Choose a select or status property to group the board by.": "Choose a select or status property to group the board by.",
+  "Create a Status property": "Create a Status property",
+  "Edit option": "Edit option",
+  "Group: {{name}}": "Group: {{name}}",
+  "Hide column": "Hide column",
+  "New": "New",
+  "No other properties": "No other properties",
+  "Select or status property": "Select or status property",
+  "Show {{name}}": "Show {{name}}",
+  "This board has no property to group by yet.": "This board has no property to group by yet.",
+  "{{count}} hidden columns": "{{count}} hidden columns"
 }
