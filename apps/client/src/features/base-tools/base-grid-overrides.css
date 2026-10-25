@@ -1,0 +1,27 @@
+/*
+ * Base table: rows end with the last column instead of stretching across
+ * the page. The base grid lives in the enterprise code, so this adjusts it
+ * from outside through its ARIA roles and CSS-module class names.
+ */
+
+/* The row container is already as wide as the columns; only an inline
+   min-width of 100% pulled it to the page width. Without it the trailing
+   flexible track collapses to zero. */
+[role="grid"][aria-multiselectable] > [role="rowgroup"] {
+  min-width: 0 !important;
+}
+
+/* Header line: drawn under each header cell rather than under the whole band. */
+[class*="stickyBand"]:has(> [role="row"]) {
+  border-bottom: none !important;
+}
+
+[class*="stickyBand"] > [role="row"] > [class*="headerRow"] > * {
+  border-bottom: 1px solid
+    light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
+/* Empty base placeholder rows, same rule. */
+[role="grid"][aria-multiselectable] [class*="ghostRow"] {
+  min-width: 0 !important;
+}

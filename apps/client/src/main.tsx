@@ -24,6 +24,8 @@ import {
 import { installChunkLoadRecovery } from "@/lib/chunk-load-recovery.ts";
 import { AppErrorBoundary } from "@/components/ui/app-error-boundary.tsx";
 import posthog from "posthog-js";
+import { installBaseRowDedupe } from "@/features/base-tools/dedupe-base-rows";
+import "@/features/base-tools/base-grid-overrides.css";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +37,8 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+installBaseRowDedupe(queryClient);
 
 if (isCloud() && isPostHogEnabled) {
   posthog.init(getPostHogKey(), {
