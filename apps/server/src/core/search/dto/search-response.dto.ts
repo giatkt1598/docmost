@@ -10,6 +10,8 @@ export class SearchResponseDto {
   highlight: string;
   matchedText: string[];
   wholeWord: boolean;
+  // found by meaning rather than by the words of the query
+  semantic?: boolean;
   createdAt: Date;
   updatedAt: Date;
   space: Partial<Space>;

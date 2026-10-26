@@ -19,7 +19,7 @@ import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { PaginationOptions } from '@docmost/db/pagination/pagination-options';
 import { PageService } from '../page/services/page.service';
 import { PageAccessService } from '../page/page-access/page-access.service';
-import { SearchService } from '../search/search.service';
+import { HybridSearchService } from '../search/hybrid-search.service';
 import { SpaceMemberService } from '../space/services/space-member.service';
 import SpaceAbilityFactory from '../casl/abilities/space-ability.factory';
 import {
@@ -67,7 +67,7 @@ export class McpService {
     private readonly pageRepo: PageRepo,
     private readonly pageService: PageService,
     private readonly pageAccessService: PageAccessService,
-    private readonly searchService: SearchService,
+    private readonly searchService: HybridSearchService,
     private readonly spaceMemberService: SpaceMemberService,
     private readonly spaceAbility: SpaceAbilityFactory,
     @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
@@ -426,7 +426,7 @@ export class McpService {
       );
     }
 
-    const result = await this.searchService.searchPage(
+    const result = await this.searchService.searchPages(
       { query: args.query, spaceId: args.spaceId, limit: args.limit ?? 20 },
       { userId: actor.user.id, workspaceId: actor.workspace.id },
     );

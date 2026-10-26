@@ -69,7 +69,7 @@ function createService(
       validateCanEdit: jest.fn().mockResolvedValue({ hasRestriction: false }),
       validateCanComment: jest.fn().mockResolvedValue(undefined),
     },
-    searchService: { searchPage: jest.fn().mockResolvedValue({ items: [] }) },
+    searchService: { searchPages: jest.fn().mockResolvedValue({ items: [] }) },
     spaceMemberService: {
       getUserSpaces: jest.fn().mockResolvedValue({ items: [], meta: {} }),
     },
@@ -151,7 +151,7 @@ describe('McpService tools', () => {
     await expect(
       service.searchPages(actor, { query: 'x', spaceId: 'space_1' }),
     ).rejects.toThrow(ForbiddenException);
-    expect(deps.searchService.searchPage).not.toHaveBeenCalled();
+    expect(deps.searchService.searchPages).not.toHaveBeenCalled();
   });
 
   it('list_child_pages checks space read access', async () => {
