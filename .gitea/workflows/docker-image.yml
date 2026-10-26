@@ -30,8 +30,13 @@ jobs:
         id: image
         shell: bash
         run: |
-          # pull requests have refs like "12/merge"; docker tags allow [A-Za-z0-9_.-]
-          tag="$(echo "${{ gitea.ref_name }}" | tr -c 'A-Za-z0-9_.-' '-' | sed 's/-*$//')"
+          if [[ "${{ gitea.event_name }}" == "push" && "${{ gitea.ref }}" == "refs/heads/main" ]]; then
+            # every push to main gets its own tag: main-<workflow run number>
+            tag="main-${{ gitea.run_number }}"
+          else
+            # pull requests have refs like "12/merge"; docker tags allow [A-Za-z0-9_.-]
+            tag="$(echo "${{ gitea.ref_name }}" | tr -c 'A-Za-z0-9_.-' '-' | sed 's/-*$//')"
+          fi
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to Gitea Container Registry
