@@ -80,9 +80,12 @@ function ToolChip({ call }: { call: IChatToolCall }) {
 export function ChatMessage({
   message,
   streaming,
+  compact,
 }: {
   message: IChatMessage;
   streaming?: boolean;
+  // beside a page, on the tinted side panel
+  compact?: boolean;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -105,7 +108,14 @@ export function ChatMessage({
           px="md"
           py={8}
           maw="85%"
-          bg="var(--mantine-color-default-hover)"
+          // the side panel is tinted like the default-hover colour, so the
+          // block needs the page background and an outline to stand out there
+          bg={
+            compact
+              ? "var(--mantine-color-body)"
+              : "var(--mantine-color-default-hover)"
+          }
+          withBorder={compact}
         >
           <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
             {message.content}

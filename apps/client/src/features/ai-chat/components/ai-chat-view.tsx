@@ -98,6 +98,7 @@ export function AiChatView({
               <ChatMessage
                 key={message.id ?? `pending-${i}`}
                 message={message}
+                compact={compact}
                 streaming={
                   session.streaming && i === session.messages.length - 1
                 }
