@@ -22,6 +22,146 @@ export class SearchService {
     private pagePermissionRepo: PagePermissionRepo,
   ) {}
 
+  // Pages visible within the scope of the request (space membership, share,
+  // public space), before any page-level permission filtering. Null when the
+  // scope can match nothing.
+  private async scopedPages(
+    searchParams: SearchDTO,
+    opts: {
+      userId?: string;
+      workspaceId: string;
+      publicPageIds?: string[];
+    },
+  ) {
+    const labelIds = [...new Set(searchParams.labelIds ?? [])];
+
+    let qb = this.db
+      .selectFrom('pages')
+      .select([
+        'id',
+        'slugId',
+        'title',
+        'icon',
+        'parentPageId',
+        'creatorId',
+        'createdAt',
+        'updatedAt',
+      ])
+      .$if(Boolean(searchParams.creatorId), (qb) =>
+        qb.where('creatorId', '=', searchParams.creatorId),
+      )
+      .$if(labelIds.length > 0, (qb) =>
+        qb.where(
+          'id',
+          'in',
+          this.db
+            .selectFrom('pageLabels')
+            .select('pageId')
+            .where('labelId', 'in', labelIds),
+        ),
+      )
+      .where('deletedAt', 'is', null);
+
+    if (!searchParams.shareId && !opts.publicPageIds) {
+      qb = qb.select((eb) => this.pageRepo.withSpace(eb));
+    }
+
+    if (searchParams.spaceId && opts.userId) {
+      qb = qb.where('spaceId', '=', searchParams.spaceId);
+    } else if (opts.userId && !searchParams.spaceId) {
+      // only search spaces the user is a member of
+      qb = qb
+        .where(
+          'spaceId',
+          'in',
+          this.spaceMemberRepo.getUserSpaceIdsQuery(opts.userId),
+        )
+        .where('workspaceId', '=', opts.workspaceId);
+    } else if (opts.publicPageIds && !opts.userId) {
+      // Public space search: the allowed id set is computed from live DB
+      // state by the controller on every request.
+      if (opts.publicPageIds.length === 0) {
+        return null;
+      }
+      qb = qb
+        .where('id', 'in', opts.publicPageIds)
+        .where('workspaceId', '=', opts.workspaceId);
+    } else if (searchParams.shareId && !searchParams.spaceId && !opts.userId) {
+      // search in shares
+      const share = await this.shareRepo.findById(searchParams.shareId);
+      if (!share || share.workspaceId !== opts.workspaceId) {
+        return null;
+      }
+
+      const isRestricted = await this.pagePermissionRepo.hasRestrictedAncestor(
+        share.pageId,
+      );
+      if (isRestricted) {
+        return null;
+      }
+
+      const pageIdsToSearch: string[] = [];
+      if (share.includeSubPages) {
+        const pageList =
+          await this.pageRepo.getPageAndDescendantsExcludingRestricted(
+            share.pageId,
+            {
+              includeContent: false,
+            },
+          );
+
+        pageIdsToSearch.push(...pageList.map((page) => page.id));
+      } else {
+        pageIdsToSearch.push(share.pageId);
+      }
+
+      if (pageIdsToSearch.length === 0) {
+        return null;
+      }
+      qb = qb
+        .where('id', 'in', pageIdsToSearch)
+        .where('workspaceId', '=', opts.workspaceId);
+    } else {
+      return null;
+    }
+    return qb;
+  }
+
+  // Drops the pages the user may not read through page-level permissions.
+  private async filterReadable<T extends { id: string }>(
+    rows: T[],
+    searchParams: SearchDTO,
+    userId?: string,
+  ): Promise<T[]> {
+    if (!userId || rows.length === 0) return rows;
+    const accessibleIds = await this.pagePermissionRepo.filterAccessiblePageIds(
+      {
+        pageIds: rows.map((r) => r.id),
+        userId,
+        spaceId: searchParams.spaceId,
+      },
+    );
+    const accessibleSet = new Set(accessibleIds);
+    return rows.filter((r) => accessibleSet.has(r.id));
+  }
+
+  // Loads and authorizes pages found by another engine (Typesense, vectors),
+  // keeping the order of the given ids. Postgres stays the source of truth for
+  // who may read what.
+  async hydrateReadablePages(
+    ids: string[],
+    searchParams: SearchDTO,
+    opts: { userId?: string; workspaceId: string },
+  ): Promise<any[]> {
+    if (ids.length === 0) return [];
+    const base = await this.scopedPages(searchParams, opts);
+    if (!base) return [];
+    const rows: any[] = await base.where('id', 'in', ids).execute();
+    const readable = await this.filterReadable(rows, searchParams, opts.userId);
+    const byId = new Map(readable.map((r) => [r.id, r]));
+    return ids.map((id) => byId.get(id)).filter(Boolean);
+  }
+
   async searchPage(
     searchParams: SearchDTO,
     opts: {
@@ -45,6 +185,11 @@ export class SearchService {
     const titleQuery = query;
     // escape LIKE wildcards; ranking keeps the raw query
     const titleLikeQuery = query.replace(/[\\%_]/g, '\\$&');
+    const limit = searchParams.limit || 25;
+    const offset = searchParams.offset || 0;
+
+    const base = await this.scopedPages(searchParams, opts);
+    if (!base) return { items: [] };
 
     const rankColumn = browseByFilters
       ? sql<number>`0`.as('rank')
@@ -52,28 +197,18 @@ export class SearchService {
         ? sql<number>`word_similarity(lower(${titleQuery}), lower(pages.title))`.as(
             'rank',
           )
-        : sql<number>`ts_rank(tsv, to_tsquery('english', f_unaccent(${searchQuery})))`.as(
+        : // titles that match with their accents rank above accent-stripped twins
+          sql<number>`ts_rank(tsv, to_tsquery('simple', f_unaccent(${searchQuery}))) + 0.5 * word_similarity(lower(${titleQuery}), lower(pages.title))`.as(
             'rank',
           );
 
-    let queryResults = this.db
-      .selectFrom('pages')
-      .select([
-        'id',
-        'slugId',
-        'title',
-        'icon',
-        'parentPageId',
-        'creatorId',
-        'createdAt',
-        'updatedAt',
-        rankColumn,
-      ])
+    const queryResults = base
+      .select(rankColumn)
       .$if(!browseByFilters && !titleOnly, (qb) =>
         qb.where(
           'tsv',
           '@@',
-          sql<string>`to_tsquery('english', f_unaccent(${searchQuery}))`,
+          sql<string>`to_tsquery('simple', f_unaccent(${searchQuery}))`,
         ),
       )
       .$if(!browseByFilters && titleOnly, (qb) =>
@@ -85,151 +220,96 @@ export class SearchService {
           ),
         ),
       )
-      .$if(Boolean(searchParams.creatorId), (qb) =>
-        qb.where('creatorId', '=', searchParams.creatorId),
-      )
-      .$if(labelIds?.length > 0, (qb) =>
-        qb.where(
-          'id',
-          'in',
-          this.db
-            .selectFrom('pageLabels')
-            .select('pageId')
-            .where('labelId', 'in', labelIds),
-        ),
-      )
-      .where('deletedAt', 'is', null)
       .$if(browseByFilters, (qb) => qb.orderBy('updatedAt', 'desc'))
       .$if(!browseByFilters, (qb) => qb.orderBy('rank', 'desc'))
-      .limit(searchParams.limit || 25)
-      .offset(searchParams.offset || 0);
-
-    if (!searchParams.shareId && !opts.publicPageIds) {
-      queryResults = queryResults.select((eb) => this.pageRepo.withSpace(eb));
-    }
-
-    if (searchParams.spaceId && opts.userId) {
-      queryResults = queryResults.where('spaceId', '=', searchParams.spaceId);
-    } else if (opts.userId && !searchParams.spaceId) {
-      // only search spaces the user is a member of
-      queryResults = queryResults
-        .where(
-          'spaceId',
-          'in',
-          this.spaceMemberRepo.getUserSpaceIdsQuery(opts.userId),
-        )
-        .where('workspaceId', '=', opts.workspaceId);
-    } else if (opts.publicPageIds && !opts.userId) {
-      // Public space search: the allowed id set is computed from live DB
-      // state by the controller on every request.
-      if (opts.publicPageIds.length === 0) {
-        return { items: [] };
-      }
-      queryResults = queryResults
-        .where('id', 'in', opts.publicPageIds)
-        .where('workspaceId', '=', opts.workspaceId);
-    } else if (searchParams.shareId && !searchParams.spaceId && !opts.userId) {
-      // search in shares
-      const shareId = searchParams.shareId;
-      const share = await this.shareRepo.findById(shareId);
-      if (!share || share.workspaceId !== opts.workspaceId) {
-        return { items: [] };
-      }
-
-      const isRestricted =
-        await this.pagePermissionRepo.hasRestrictedAncestor(share.pageId);
-      if (isRestricted) {
-        return { items: [] };
-      }
-
-      const pageIdsToSearch = [];
-      if (share.includeSubPages) {
-        const pageList = await this.pageRepo.getPageAndDescendantsExcludingRestricted(
-          share.pageId,
-          {
-            includeContent: false,
-          },
-        );
-
-        pageIdsToSearch.push(...pageList.map((page) => page.id));
-      } else {
-        pageIdsToSearch.push(share.pageId);
-      }
-
-      if (pageIdsToSearch.length > 0) {
-        queryResults = queryResults
-          .where('id', 'in', pageIdsToSearch)
-          .where('workspaceId', '=', opts.workspaceId);
-      } else {
-        return { items: [] };
-      }
-    } else {
-      return { items: [] };
-    }
+      .limit(limit)
+      .offset(offset);
 
     //@ts-ignore
     let results: any[] = await queryResults.execute();
+    results = await this.filterReadable(results, searchParams, opts.userId);
 
-    // Filter results by page-level permissions (if user is authenticated)
-    if (opts.userId && results.length > 0) {
-      const pageIds = results.map((r: any) => r.id);
-      const accessibleIds =
-        await this.pagePermissionRepo.filterAccessiblePageIds({
-          pageIds,
-          userId: opts.userId,
-          spaceId: searchParams.spaceId,
-        });
-      const accessibleSet = new Set(accessibleIds);
-      results = results.filter((r: any) => accessibleSet.has(r.id));
-    }
-
-    if (!browseByFilters && !titleOnly && results.length > 0) {
-      const highlights = await this.db
-        .selectFrom('pages')
-        .select([
-          'id',
-          sql<string>`ts_headline('english', substring(text_content, 1, 100000), to_tsquery('english', f_unaccent(${searchQuery})),'MinWords=9, MaxWords=10, MaxFragments=3')`.as(
-            'highlight',
+    // Typo tolerance: when full-text matching leaves room, add the pages whose
+    // title is merely similar to the query.
+    if (
+      !browseByFilters &&
+      !titleOnly &&
+      offset === 0 &&
+      results.length < limit &&
+      query.length >= 3
+    ) {
+      const seen = new Set<string>(results.map((r) => r.id));
+      const fuzzyBase = await this.scopedPages(searchParams, opts);
+      const fuzzy: any[] = await fuzzyBase
+        .select(
+          sql<number>`word_similarity(lower(${titleQuery}), lower(pages.title))`.as(
+            'rank',
           ),
-        ])
-        .where(
-          'id',
-          'in',
-          results.map((r: any) => r.id),
         )
+        .where(
+          sql<boolean>`word_similarity(lower(${titleQuery}), lower(pages.title)) > 0.45`,
+        )
+        .$if(seen.size > 0, (qb) => qb.where('id', 'not in', [...seen]))
+        .orderBy('rank', 'desc')
+        .limit(limit - results.length)
         .execute();
-      const highlightById = new Map(highlights.map((h) => [h.id, h.highlight]));
-      for (const result of results) {
-        result.highlight = highlightById.get(result.id) ?? '';
-      }
+      results.push(
+        ...(await this.filterReadable(fuzzy, searchParams, opts.userId)),
+      );
     }
 
-    //@ts-ignore
-    const searchResults = results.map((result: SearchResponseDto) => {
-      result.wholeWord = true
-      if (!result.highlight) {
-        result.highlight = '';
-        result.matchedText = [];
-        return result;
-      }
+    if (!browseByFilters && !titleOnly) {
+      await this.addHighlights(results, searchQuery);
+    }
 
-      result.highlight = result.highlight
-        .replace(/\r\n|\r|\n/g, ' ')
-        .replace(/\s+/g, ' ');
+    return { items: results.map((r) => this.toSearchResult(r)) };
+  }
 
-      result.matchedText = [
-        ...new Set(
-          Array.from(
-            result.highlight.matchAll(/<b>([^<]*)<\/b>/gi),
-            (match) => match[1],
-          ),
+  private async addHighlights(results: any[], searchQuery: string) {
+    if (results.length === 0) return;
+    const highlights = await this.db
+      .selectFrom('pages')
+      .select([
+        'id',
+        sql<string>`ts_headline('simple', substring(text_content, 1, 100000), to_tsquery('simple', f_unaccent(${searchQuery})),'MinWords=9, MaxWords=10, MaxFragments=3')`.as(
+          'highlight',
         ),
-      ];
+      ])
+      .where(
+        'id',
+        'in',
+        results.map((r: any) => r.id),
+      )
+      .execute();
+    const highlightById = new Map(highlights.map((h) => [h.id, h.highlight]));
+    for (const result of results) {
+      result.highlight = highlightById.get(result.id) ?? '';
+    }
+  }
 
+  // Normalizes the highlight of a result and lists the matched words.
+  toSearchResult(result: any): SearchResponseDto {
+    result.wholeWord = true;
+    if (!result.highlight) {
+      result.highlight = '';
+      result.matchedText = [];
       return result;
-    });
+    }
 
-    return { items: searchResults };
+    result.highlight = result.highlight
+      .replace(/\r\n|\r|\n/g, ' ')
+      .replace(/\s+/g, ' ');
+
+    result.matchedText = [
+      ...new Set(
+        Array.from(
+          result.highlight.matchAll(/<b>([^<]*)<\/b>/gi),
+          (match: RegExpMatchArray) => match[1],
+        ),
+      ),
+    ];
+
+    return result;
   }
 
   async searchSuggestions(

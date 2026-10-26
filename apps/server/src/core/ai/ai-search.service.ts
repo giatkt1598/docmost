@@ -39,7 +39,7 @@ export class AiSearchService {
     const tsQuery = orTsQuery(terms);
     if (!tsQuery) return { sources: [], context: '' };
 
-    const query = sql<string>`to_tsquery('english', f_unaccent(${tsQuery}))`;
+    const query = sql<string>`to_tsquery('simple', f_unaccent(${tsQuery}))`;
     const rows = await this.db
       .selectFrom('pages')
       .innerJoin('spaces', 'spaces.id', 'pages.spaceId')
