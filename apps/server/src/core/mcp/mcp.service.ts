@@ -50,6 +50,12 @@ import {
   IAuditService,
 } from '../../integrations/audit/audit.service';
 import { getPageTitle } from '../../common/helpers';
+import { AiPageToolsService } from '../ai-tools/ai-page-tools.service';
+import {
+  BLOCK_GUIDE,
+  PAGE_TOOL_DESCRIPTIONS,
+  pageToolSchemas,
+} from '../ai-tools/tool-schemas';
 import { SEARCH_QUERY_MAX_LENGTH } from '../search/dto/search.dto';
 import { UpdateSpaceDto } from '../space/dto/update-space.dto';
 import { CreateCommentDto } from '../comment/dto/create-comment.dto';
@@ -79,6 +85,7 @@ export class McpService {
     private readonly userRepo: UserRepo,
     private readonly attachmentRepo: AttachmentRepo,
     private readonly pagePermissionRepo: PagePermissionRepo,
+    private readonly pageTools: AiPageToolsService,
   ) {}
 
   // Stateless: a fresh server per request, bound to the authenticated actor.
@@ -391,6 +398,8 @@ export class McpService {
       },
       () => this.run(async () => this.getCurrentUser(actor)),
     );
+
+    this.registerPageTools(server, actor);
 
     return server;
   }
@@ -1097,11 +1106,45 @@ export class McpService {
     };
   }
 
+  // Block-level page tools (shared with AI chat).
+  private registerPageTools(server: McpServer, actor: McpActor) {
+    const tools = this.pageTools;
+    const reads = {
+      get_page_outline: (a: any) => tools.getPageOutline(actor, a),
+      get_blocks: (a: any) => tools.getBlocks(actor, a),
+      find_blocks: (a: any) => tools.findBlocks(actor, a),
+    };
+    const writes = {
+      apply_operations: (a: any) => tools.applyOperations(actor, a),
+      insert_blocks: (a: any) => tools.insertBlocks(actor, a),
+      update_block: (a: any) => tools.updateBlock(actor, a),
+      move_block: (a: any) => tools.moveBlock(actor, a),
+      delete_blocks: (a: any) => tools.deleteBlocks(actor, a),
+      undo_ai_edit: (a: any) => tools.undoAiEdit(actor, a),
+    };
+    for (const [name, handler] of Object.entries({ ...reads, ...writes })) {
+      const readOnly = name in reads;
+      server.registerTool(
+        name,
+        {
+          title: name.replace(/_/g, ' '),
+          description:
+            PAGE_TOOL_DESCRIPTIONS[name] +
+            (readOnly || name === 'undo_ai_edit' ? '' : ` ${BLOCK_GUIDE}`),
+          inputSchema: (pageToolSchemas as any)[name],
+          annotations: { readOnlyHint: readOnly },
+        },
+        (args: any) => this.run(() => handler(args)),
+      );
+    }
+  }
+
   // Permission and validation failures become tool errors the model can read.
   private async run(fn: () => Promise<unknown>): Promise<CallToolResult> {
     try {
       const result = await fn();
       return {
+        ...((result as any)?.error && { isError: true }),
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       };
     } catch (err) {

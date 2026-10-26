@@ -295,6 +295,8 @@ export interface PageTransclusions {
 }
 
 export interface PageHistory {
+  source: Generated<string | null>;
+  aiEditId: string | null;
   content: Json | null;
   contributorIds: Generated<string[] | null>;
   coverPhoto: string | null;
@@ -602,6 +604,23 @@ export interface SearchEmbeddings {
   createdAt: Generated<Timestamp>;
 }
 
+export interface AiPageEdits {
+  id: Generated<string>;
+  pageId: string;
+  workspaceId: string;
+  userId: string | null;
+  aiChatId: string | null;
+  summary: string | null;
+  operations: Json;
+  inverse: Json | null;
+  affected: Json | null;
+  status: string;
+  undoOf: string | null;
+  error: string | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+}
+
 export interface McpTokens {
   id: Generated<string>;
   name: string;
@@ -825,6 +844,7 @@ export interface DB {
   labels: Labels;
   mcpTokens: McpTokens;
   aiProviderConfigs: AiProviderConfigs;
+  aiPageEdits: AiPageEdits;
   searchEmbeddings: SearchEmbeddings;
   notifications: Notifications;
   pageAccess: PageAccess;

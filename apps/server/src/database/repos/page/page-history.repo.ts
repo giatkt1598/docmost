@@ -29,6 +29,8 @@ export class PageHistoryRepo {
     'spaceId',
     'workspaceId',
     'createdAt',
+    'source',
+    'aiEditId',
   ];
 
   async findById(
@@ -46,6 +48,7 @@ export class PageHistoryRepo {
       .$if(opts?.includeContent, (qb) => qb.select('content'))
       .select((eb) => this.withLastUpdatedBy(eb))
       .select((eb) => this.withContributors(eb))
+      .select((eb) => this.withAiEdit(eb))
       .where('id', '=', pageHistoryId)
       .executeTakeFirst();
   }
@@ -89,6 +92,7 @@ export class PageHistoryRepo {
       .select(this.baseFields)
       .select((eb) => this.withLastUpdatedBy(eb))
       .select((eb) => this.withContributors(eb))
+      .select((eb) => this.withAiEdit(eb))
       .where('pageId', '=', pageId);
 
     return executeWithCursorPagination(query, {
@@ -117,6 +121,16 @@ export class PageHistoryRepo {
       .limit(1)
       .orderBy('createdAt', 'desc')
       .executeTakeFirst();
+  }
+
+  // the AI edit that produced a version, for the history list
+  withAiEdit(eb: ExpressionBuilder<DB, 'pageHistory'>) {
+    return jsonObjectFrom(
+      eb
+        .selectFrom('aiPageEdits')
+        .select(['aiPageEdits.id', 'aiPageEdits.summary', 'aiPageEdits.status'])
+        .whereRef('aiPageEdits.id', '=', 'pageHistory.aiEditId'),
+    ).as('aiEdit');
   }
 
   withLastUpdatedBy(eb: ExpressionBuilder<DB, 'pageHistory'>) {

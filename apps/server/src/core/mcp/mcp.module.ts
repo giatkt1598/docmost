@@ -8,9 +8,10 @@ import { McpTokenController } from './mcp-token.controller';
 import { McpService } from './mcp.service';
 import { McpTokenService } from './mcp-token.service';
 import { McpAuthGuard } from './mcp-auth.guard';
+import { AiToolsModule } from '../ai-tools/ai-tools.module';
 
 @Module({
-  imports: [PageModule, SearchModule, SpaceModule, CommentModule],
+  imports: [PageModule, SearchModule, SpaceModule, CommentModule, AiToolsModule],
   controllers: [McpController, McpTokenController],
   providers: [McpService, McpTokenService, McpAuthGuard],
   exports: [McpService],

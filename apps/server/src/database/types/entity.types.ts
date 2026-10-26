@@ -13,6 +13,7 @@ import {
   Labels,
   McpTokens,
   AiProviderConfigs,
+  AiPageEdits,
   SearchEmbeddings,
   Notifications,
   PageLabels,
@@ -240,6 +241,9 @@ export type AiProviderConfig = Selectable<AiProviderConfigs>;
 export type InsertableAiProviderConfig = Insertable<AiProviderConfigs>;
 
 export type SearchEmbedding = Selectable<SearchEmbeddings>;
+
+export type AiPageEdit = Selectable<AiPageEdits>;
+export type InsertableAiPageEdit = Insertable<AiPageEdits>;
 
 export type McpToken = Selectable<McpTokens>;
 export type InsertableMcpToken = Insertable<McpTokens>;

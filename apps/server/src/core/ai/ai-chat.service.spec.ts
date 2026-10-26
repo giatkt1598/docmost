@@ -104,9 +104,33 @@ describe('buildChatSystemPrompt', () => {
       buildChatSystemPrompt({
         ...base,
         settings: { readOnly: true, workspaceKnowledgeOnly: false },
-        currentPage: { id: 'p1', title: 'VPN' },
+        currentPage: {
+          id: 'p1',
+          title: 'VPN',
+          canEdit: false,
+          path: ['IT'],
+          headings: [{ id: 'h1', level: 2, text: 'Setup' }],
+        },
       }),
-    ).toMatch(/viewing the page "VPN" \(id p1\)/);
+    ).toMatch(/viewing the page "VPN" \(id p1, under IT\)/);
+  });
+
+  it('adds the outline, the selection and the block workflow', () => {
+    const prompt = buildChatSystemPrompt({
+      ...base,
+      settings: { readOnly: false, workspaceKnowledgeOnly: false },
+      currentPage: {
+        id: 'p1',
+        title: 'VPN',
+        canEdit: true,
+        path: [],
+        headings: [{ id: 'h1', level: 2, text: 'Setup' }],
+      },
+      selection: { text: 'Install the client', blockIds: ['b7'] },
+    });
+    expect(prompt).toMatch(/\[h1\] Setup/);
+    expect(prompt).toMatch(/blocks b7/);
+    expect(prompt).toMatch(/apply_operations/);
   });
 });
 

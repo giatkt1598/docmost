@@ -9,9 +9,10 @@ import { AiChatController } from './ai-chat.controller';
 import { AiChatService } from './ai-chat.service';
 import { McpModule } from '../mcp/mcp.module';
 import { EmbeddingModule } from '../embedding/embedding.module';
+import { AiToolsModule } from '../ai-tools/ai-tools.module';
 
 @Module({
-  imports: [AiProviderModule, EmbeddingModule, McpModule],
+  imports: [AiProviderModule, EmbeddingModule, McpModule, AiToolsModule],
   controllers: [
     AiAssistController,
     AiProviderController,

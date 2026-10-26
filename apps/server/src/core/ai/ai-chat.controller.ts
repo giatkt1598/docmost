@@ -11,6 +11,8 @@ import {
 import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
 import { FastifyReply } from 'fastify';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -69,6 +71,18 @@ class SendChatMessageDto {
   @IsString()
   @MaxLength(100)
   pageId?: string;
+
+  // text the user selected on that page, and the blocks it spans
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  selectionText?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  selectionBlockIds?: string[];
 }
 
 type AiChatSettings = {
@@ -153,6 +167,12 @@ export class AiChatController {
       chatId: dto.chatId,
       message: dto.message,
       pageId: dto.pageId,
+      ...(dto.selectionText && {
+        selection: {
+          text: dto.selectionText,
+          blockIds: dto.selectionBlockIds ?? [],
+        },
+      }),
       settings,
       abort: abort.signal,
     });

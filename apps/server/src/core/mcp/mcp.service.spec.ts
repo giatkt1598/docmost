@@ -121,6 +121,7 @@ function createService(
     deps.userRepo as any,
     deps.attachmentRepo as any,
     deps.pagePermissionRepo as any,
+    {} as any,
   );
   return { service, deps };
 }
@@ -527,23 +528,32 @@ describe('McpService HTTP handler', () => {
 
     expect(status).toBe(200);
     expect(body.result.tools.map((t: any) => t.name).sort()).toEqual([
+      'apply_operations',
       'copy_page_to_space',
       'create_comment',
       'create_page',
       'create_space',
+      'delete_blocks',
       'duplicate_page',
+      'find_blocks',
+      'get_blocks',
       'get_comments',
       'get_current_user',
       'get_page',
+      'get_page_outline',
       'get_space',
+      'insert_blocks',
       'list_child_pages',
       'list_pages',
       'list_spaces',
       'list_workspace_members',
+      'move_block',
       'move_page',
       'move_page_to_space',
       'search_attachments',
       'search_pages',
+      'undo_ai_edit',
+      'update_block',
       'update_comment',
       'update_page',
       'update_space',

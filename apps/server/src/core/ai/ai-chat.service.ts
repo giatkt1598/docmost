@@ -6,9 +6,16 @@ import { AiChatRepo } from '@docmost/db/repos/ai/ai-chat.repo';
 import { McpActor, McpService } from '../mcp/mcp.service';
 import { SpaceRepo } from '@docmost/db/repos/space/space.repo';
 import { AiProviderService } from './ai-provider.service';
+import { AiPageToolsService } from '../ai-tools/ai-page-tools.service';
+import {
+  BLOCK_GUIDE,
+  PAGE_TOOL_DESCRIPTIONS,
+  pageToolSchemas,
+} from '../ai-tools/tool-schemas';
 
 const HISTORY_MESSAGES = 30;
-const MAX_STEPS = 8;
+const MAX_STEPS = 20;
+const OUTLINE_HEADINGS = 40;
 const MAX_TOOL_RESULT_CHARS = 12_000;
 const TITLE_LENGTH = 60;
 
@@ -23,7 +30,13 @@ export type ChatEvent =
   | { type: 'chat'; chat: AiChat }
   | { type: 'text'; text: string }
   | { type: 'tool-call'; id: string; name: string; input: unknown }
-  | { type: 'tool-result'; id: string; name: string; ok: boolean }
+  | {
+      type: 'tool-result';
+      id: string;
+      name: string;
+      ok: boolean;
+      editId?: string;
+    }
   | { type: 'error'; message: string }
   | { type: 'done'; messageId: string };
 
@@ -32,7 +45,19 @@ export type SavedToolCall = {
   name: string;
   input: unknown;
   ok?: boolean;
+  // page edits: what Undo needs
+  editId?: string;
 };
+
+export type PageContext = {
+  id: string;
+  title: string;
+  canEdit: boolean;
+  path: string[];
+  headings: { id: string; level: number; text: string }[];
+};
+
+export type SelectionContext = { text: string; blockIds: string[] };
 
 function pageUrl(page: { slugId?: string; space?: { slug?: string } }) {
   return page?.slugId && page.space?.slug
@@ -54,6 +79,12 @@ async function runTool(fn: () => Promise<unknown>) {
   }
 }
 
+// The edit_id a page write returned, for the Undo button.
+function editIdOf(output: unknown): string | undefined {
+  const match = /"edit_id":"([0-9a-f-]{36})"/.exec(String(output ?? ''));
+  return match?.[1];
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SPACE_FIELD = 'Space id or slug';
 
@@ -67,6 +98,8 @@ export function buildChatTools(
   actor: McpActor,
   readOnly: boolean,
   resolveSpace: SpaceResolver = async (value) => value,
+  pageTools?: AiPageToolsService,
+  chatId?: string,
 ): ToolSet {
   const withSpace = async <T extends { spaceId?: string }>(args: T) =>
     args.spaceId
@@ -146,7 +179,7 @@ export function buildChatTools(
     });
     tools.update_page = tool({
       description:
-        'Change a page title and/or content (Markdown, appended, prepended or replacing the content). Only when the user asks for it.',
+        'Change a page title, or append/prepend/replace its whole content as Markdown. To change part of a page use the block tools (apply_operations) instead. Only when the user asks for it.',
       inputSchema: z.object({
         pageId: z.string().min(1),
         title: z.string().optional(),
@@ -160,6 +193,56 @@ export function buildChatTools(
         }),
     });
   }
+
+  if (pageTools) {
+    const ctx = { aiChatId: chatId };
+    const pageTool = (
+      name: keyof typeof pageToolSchemas,
+      run: (args: any) => Promise<unknown>,
+      guide = false,
+    ) =>
+      tool({
+        description:
+          PAGE_TOOL_DESCRIPTIONS[name] + (guide ? ` ${BLOCK_GUIDE}` : ''),
+        inputSchema: pageToolSchemas[name] as any,
+        execute: (args: any) => runTool(() => run(args)),
+      });
+    tools.get_page_outline = pageTool('get_page_outline', (a) =>
+      pageTools.getPageOutline(actor, a),
+    );
+    tools.get_blocks = pageTool('get_blocks', (a) =>
+      pageTools.getBlocks(actor, a),
+    );
+    tools.find_blocks = pageTool('find_blocks', (a) =>
+      pageTools.findBlocks(actor, a),
+    );
+    if (!readOnly) {
+      tools.apply_operations = pageTool(
+        'apply_operations',
+        (a) => pageTools.applyOperations(actor, a, ctx),
+        true,
+      );
+      tools.insert_blocks = pageTool(
+        'insert_blocks',
+        (a) => pageTools.insertBlocks(actor, a, ctx),
+        true,
+      );
+      tools.update_block = pageTool(
+        'update_block',
+        (a) => pageTools.updateBlock(actor, a, ctx),
+        true,
+      );
+      tools.move_block = pageTool('move_block', (a) =>
+        pageTools.moveBlock(actor, a, ctx),
+      );
+      tools.delete_blocks = pageTool('delete_blocks', (a) =>
+        pageTools.deleteBlocks(actor, a, ctx),
+      );
+      tools.undo_ai_edit = pageTool('undo_ai_edit', (a) =>
+        pageTools.undoAiEdit(actor, a),
+      );
+    }
+  }
   return tools;
 }
 
@@ -167,7 +250,8 @@ export function buildChatSystemPrompt(opts: {
   workspaceName: string;
   userName: string;
   settings: ChatSettings;
-  currentPage?: { id: string; title: string } | null;
+  currentPage?: PageContext | null;
+  selection?: SelectionContext | null;
 }): string {
   const lines = [
     `You are the AI assistant of the "${opts.workspaceName}" workspace, talking to ${opts.userName}.`,
@@ -185,9 +269,32 @@ export function buildChatSystemPrompt(opts: {
       ? 'You can only read pages; you cannot create or change pages.'
       : 'Create or change pages only when the user explicitly asks you to.',
   );
-  if (opts.currentPage) {
+  if (!opts.settings.readOnly) {
     lines.push(
-      `The user is currently viewing the page "${opts.currentPage.title}" (id ${opts.currentPage.id}); "this page" refers to it.`,
+      'To change part of a page, work on blocks: find the place (get_page_outline, find_blocks, get_blocks), plan the smallest set of operations, apply them in one apply_operations call with a short summary and the rev of every block you change, check the blocks it returns, then tell the user what changed.',
+      'Never rewrite a whole page to change part of it. If you get CONFLICT, read the blocks again and re-plan. Keep content you were not asked to change, including extra_marks and inline spans.',
+      'Every edit can be undone with undo_ai_edit and the edit_id it returned.',
+    );
+  }
+  const page = opts.currentPage;
+  if (page) {
+    lines.push(
+      `The user is currently viewing the page "${page.title}" (id ${page.id}${page.path.length ? `, under ${page.path.join(' / ')}` : ''}); "this page" refers to it. The user ${page.canEdit ? 'can' : 'cannot'} edit it.`,
+    );
+    if (page.headings.length) {
+      lines.push(
+        'Its outline (heading block ids):',
+        ...page.headings.map(
+          (h) =>
+            `${'  '.repeat(Math.max(0, h.level - 1))}- [${h.id}] ${h.text}`,
+        ),
+      );
+    }
+  }
+  if (opts.selection?.text) {
+    lines.push(
+      `The user has selected this text on the page${opts.selection.blockIds.length ? ` (blocks ${opts.selection.blockIds.join(', ')})` : ''}; "the selection" or "this" refers to it:`,
+      opts.selection.text.slice(0, 4000),
     );
   }
   return lines.join('\n');
@@ -207,6 +314,7 @@ export class AiChatService {
     private readonly mcp: McpService,
     private readonly aiProvider: AiProviderService,
     private readonly spaceRepo: SpaceRepo,
+    private readonly pageTools: AiPageToolsService,
   ) {}
 
   // a slug becomes the id of that space; access is checked by the tool
@@ -251,6 +359,7 @@ export class AiChatService {
     chatId?: string;
     message: string;
     pageId?: string;
+    selection?: SelectionContext;
     settings: ChatSettings;
     abort: AbortSignal;
   }): AsyncGenerator<ChatEvent> {
@@ -258,13 +367,23 @@ export class AiChatService {
     const model = await this.aiProvider.model(workspace.id, 'chat');
 
     const actor: McpActor = { user, workspace };
-    let currentPage: { id: string; title: string } | null = null;
+    let currentPage: PageContext | null = null;
     if (opts.pageId) {
-      // only mention pages the user can actually read
-      const page: any = await this.mcp
-        .getPage(actor, { pageId: opts.pageId })
+      // only describe pages the user can actually read
+      const outline: any = await this.pageTools
+        .getPageOutline(actor, { page_id: opts.pageId })
         .catch(() => null);
-      if (page) currentPage = { id: page.id, title: page.title || 'Untitled' };
+      if (outline?.page) {
+        currentPage = {
+          id: outline.page.id,
+          title: outline.page.title,
+          canEdit: !!outline.page.can_edit,
+          path: outline.page.path ?? [],
+          headings: (outline.headings ?? [])
+            .slice(0, OUTLINE_HEADINGS)
+            .map((h: any) => ({ id: h.id, level: h.level, text: h.text })),
+        };
+      }
     }
 
     const chat = opts.chatId
@@ -303,6 +422,7 @@ export class AiChatService {
         userName: user.name,
         settings: opts.settings,
         currentPage,
+        selection: opts.selection,
       }),
       messages,
       tools: buildChatTools(
@@ -310,6 +430,8 @@ export class AiChatService {
         actor,
         opts.settings.readOnly,
         this.spaceResolver(workspace),
+        this.pageTools,
+        chat.id,
       ),
       stopWhen: stepCountIs(MAX_STEPS),
       abortSignal: opts.abort,
@@ -341,12 +463,17 @@ export class AiChatService {
             part.type === 'tool-result' &&
             !String(part.output ?? '').startsWith('{"error"');
           const call = toolCalls.find((c) => c.id === part.toolCallId);
-          if (call) call.ok = ok;
+          const editId = ok ? editIdOf(part.output) : undefined;
+          if (call) {
+            call.ok = ok;
+            if (editId) call.editId = editId;
+          }
           yield {
             type: 'tool-result',
             id: part.toolCallId,
             name: part.toolName,
             ok,
+            ...(editId && { editId }),
           };
         } else if (part.type === 'error') {
           failure = String((part.error as Error)?.message ?? part.error);
