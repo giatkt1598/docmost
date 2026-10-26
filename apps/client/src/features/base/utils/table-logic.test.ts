@@ -100,14 +100,6 @@ describe("frozen column edges", () => {
     expect(pinnedEdge({ left: 800, width: 260 }, 900, 600)).toBe("left");
   });
 
-  it("measures from the scroller's left padding (embeds)", () => {
-    // padded grid: at scroll 0 the column sits padLeft further right
-    expect(pinnedEdge(col, 0, 1000, 300)).toBeNull();
-    expect(pinnedEdge(col, 300, 1000, 300)).toBeNull();
-    expect(pinnedEdge(col, 301, 1000, 300)).toBe("left");
-    expect(pinnedEdge(col, 0, 500, 300)).toBe("right");
-  });
-
   it("lays columns out by flow: the natural offset follows the widths", () => {
     const cols = buildColumns(props, {});
     const frozen = cols.find((c) => c.pinned)!;

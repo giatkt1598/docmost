@@ -99,8 +99,7 @@ export function TableView({
       return;
     }
     const update = () => {
-      const padLeft = parseFloat(getComputedStyle(el).paddingLeft) || 0;
-      setStuck(pinnedEdge(frozen, el.scrollLeft, el.clientWidth, padLeft));
+      setStuck(pinnedEdge(frozen, el.scrollLeft, el.clientWidth));
     };
     update();
     el.addEventListener("scroll", update, { passive: true });

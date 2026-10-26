@@ -127,8 +127,6 @@ export type PinnedEdge = "left" | "right" | null;
 
 // Which edge the frozen column is stuck to, from the scroller's geometry.
 //  - scrollLeft / viewportWidth: the scroll container (clientWidth)
-//  - padLeft: left padding of the scroller (embed gutters), where the grid
-//    starts when scrolled to the far left
 // The column is stuck left once its natural x would fall left of the gutter
 // cell, and stuck right once its natural right side would pass the right
 // edge. Both are sticky offsets of the CSS (left: gutter width, right: 0).
@@ -136,9 +134,8 @@ export function pinnedEdge(
   column: Pick<GridColumn, "left" | "width">,
   scrollLeft: number,
   viewportWidth: number,
-  padLeft = 0,
 ): PinnedEdge {
-  const x = padLeft + column.left - scrollLeft;
+  const x = column.left - scrollLeft;
   if (x < GUTTER_WIDTH - 0.5) return "left";
   if (x + column.width > viewportWidth + 0.5) return "right";
   return null;

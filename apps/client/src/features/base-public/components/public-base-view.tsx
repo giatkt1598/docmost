@@ -100,7 +100,7 @@ export function PublicBaseView({ pageId, access }: Props) {
   const group = view.type === "kanban" ? resolveGroupProperty(base.properties, view.config) : null;
 
   return (
-    <Stack gap="xs" my="md">
+    <Stack gap="xs" my="md" miw={0} maw="100%">
       {views.length > 1 && (
         <Tabs value={view.id} onChange={setViewId}>
           <Tabs.List>
@@ -142,7 +142,7 @@ function PublicTable({
 }) {
   const { t } = useTranslation();
   return (
-    <ScrollArea type="auto" offsetScrollbars>
+    <ScrollArea type="auto" offsetScrollbars maw="100%">
       <Table withTableBorder withColumnBorders verticalSpacing={6} miw="100%">
         <Table.Thead>
           <Table.Tr>
@@ -205,7 +205,7 @@ function PublicBoard({
   }
 
   return (
-    <ScrollArea type="auto" offsetScrollbars>
+    <ScrollArea type="auto" offsetScrollbars maw="100%">
       <Group align="flex-start" wrap="nowrap" gap="sm">
         {columns.map((col) => {
           const cards = byColumn.get(col.id) ?? [];

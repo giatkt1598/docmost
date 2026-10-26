@@ -1,8 +1,7 @@
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { ActionIcon, Box, Menu, Text } from "@mantine/core";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { pinOffsetWatcher } from "@docmost/editor-ext";
 import { BaseWorkspace } from "@/features/base/components/shell/base-workspace";
 import { useBaseInfoQuery } from "@/features/base/queries/base-query";
 import { BaseGridSkeleton } from "@/features/base/components/common/base-grid-skeleton";
@@ -15,44 +14,6 @@ import { buildPageUrl } from "@/features/page/page.utils.ts";
 import classes from "./base-embed.module.css";
 import { usePublicBaseAccess } from "@/features/base-public/public-base-context";
 import { PublicBaseView } from "@/features/base-public/components/public-base-view";
-
-const SIDE_GUTTER = 8;
-
-// Extend the scroll viewport on both sides (toward AppShell.Main's
-// edges), but offset the grid content with padding-left = extendLeft
-// so the first cell still lines up with page-content on load.
-function applyExtension(wrapper: HTMLDivElement) {
-  const rect = wrapper.getBoundingClientRect();
-  if (rect.width === 0) return;
-
-  const main = wrapper.closest("main") as HTMLElement | null;
-  const mainRect = main?.getBoundingClientRect();
-  const targetLeft = (mainRect?.left ?? 0) + SIDE_GUTTER;
-  const targetRight = mainRect
-    ? mainRect.right - SIDE_GUTTER
-    : window.innerWidth - SIDE_GUTTER;
-
-  const extendLeft = Math.max(0, rect.left - targetLeft);
-  const extendRight = Math.max(0, targetRight - rect.right);
-
-  wrapper.style.setProperty("--embed-extend-l", `${extendLeft}px`);
-  wrapper.style.setProperty("--embed-extend-r", `${extendRight}px`);
-  wrapper.style.setProperty("--embed-grid-pad-left", `${extendLeft}px`);
-  // Symmetric right-side padding so the user can pan past the last
-  // column into empty space.
-  // This gives the table breathing room on the right when scrolled fully right.
-  wrapper.style.setProperty("--embed-grid-pad-right", `${extendRight}px`);
-  // Inline sticky band clears whatever fixed surface sits above the editor —
-  // the page header AND the fixed formatting toolbar. `--editor-pin-offset`
-  // is the same offset the default ProseMirror table header-pin uses
-  // (published by pinOffsetWatcher); fall back to the page-header height.
-  // Standalone leaves --sticky-band-top unset (resolves to the rule default
-  // of 0).
-  wrapper.style.setProperty(
-    "--sticky-band-top",
-    "var(--editor-pin-offset, var(--page-header-height))",
-  );
-}
 
 export function BaseEmbedView(props: NodeViewProps) {
   const publicAccess = usePublicBaseAccess();
@@ -71,7 +32,6 @@ function AppBaseEmbedView({ node, editor, deleteNode }: NodeViewProps) {
   const { t } = useTranslation();
   const pageId = node.attrs.pageId as string | null;
   const pendingKey = node.attrs.pendingKey as string | null;
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   // Suppress the query while the slash command awaits the server-assigned
   // pageId.
@@ -89,35 +49,6 @@ function AppBaseEmbedView({ node, editor, deleteNode }: NodeViewProps) {
     );
     notifications.show({ message: t("Link copied") });
   };
-
-  useEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-
-    const update = () => applyExtension(wrapper);
-    update();
-
-    const ro = new ResizeObserver(update);
-    ro.observe(wrapper);
-    // Sidebar collapse changes <main>'s left/width without resizing
-    // the wrapper itself, so observe <main> too.
-    const main = wrapper.closest("main");
-    if (main) ro.observe(main);
-
-    window.addEventListener("resize", update);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", update);
-    };
-  }, [isLoading, isError, pageId]);
-
-  // Keep --editor-pin-offset published while the embed is mounted, so the
-  // sticky column header clears the fixed toolbar even when this document
-  // has no default ProseMirror table holding the watcher open.
-  useEffect(() => {
-    pinOffsetWatcher.acquire();
-    return () => pinOffsetWatcher.release();
-  }, []);
 
   // Error/invalid states render a compact message, not a tall reserved box.
   // The 200px min-height (which avoids a layout jump when the real table
@@ -206,7 +137,16 @@ function AppBaseEmbedView({ node, editor, deleteNode }: NodeViewProps) {
         <IconTable size={16} />
         <span>{page?.title?.trim() || "Untitled base"}</span>
       </div>
-      <div ref={wrapperRef} style={{ minHeight: isCompact ? undefined : 200 }}>
+      {/* exactly the editor's text column; the table and the board scroll
+          inside it instead of widening it */}
+      <div
+        style={{
+          minHeight: isCompact ? undefined : 200,
+          minWidth: 0,
+          maxWidth: "100%",
+          overflow: "hidden",
+        }}
+      >
         {content}
       </div>
     </NodeViewWrapper>

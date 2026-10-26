@@ -1,14 +1,9 @@
 .scroller {
   position: relative;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  /* In an embed the scroll viewport reaches into the page gutters (negative
-     margins) and the padding keeps the first column in line with the text.
-     The two always go together; outside an embed they are 0. */
-  margin-left: calc(-1 * var(--embed-extend-l, 0px));
-  margin-right: calc(-1 * var(--embed-extend-r, 0px));
-  padding-left: var(--embed-grid-pad-left, 0px);
-  padding-right: var(--embed-grid-pad-right, 0px);
   outline: none;
 }
 
@@ -124,8 +119,7 @@
    row and scrolls with the others until it would leave the visible area:
    then it sticks right after the gutter on the left (left: gutter width) or
    to the right edge (right: 0), and the other columns slide under it. The
-   scroller is the sticky ancestor, so the embed padding does not shift the
-   offsets: the gutter sticks at the same scroller edge. */
+   scroller is the sticky ancestor. */
 .frozen {
   position: sticky;
   left: var(--grid-gutter-width);
@@ -247,6 +241,8 @@
 }
 
 .root {
+  min-width: 0;
+  max-width: 100%;
   --grid-gutter-width: 64px;
   --grid-row-height: 34px;
   --grid-header-height: 34px;
