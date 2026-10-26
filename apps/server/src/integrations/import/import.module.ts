@@ -5,6 +5,9 @@ import { StorageModule } from '../storage/storage.module';
 import { FileImportTaskService } from './services/file-import-task.service';
 import { FileTaskProcessor } from './processors/file-task.processor';
 import { ImportAttachmentService } from './services/import-attachment.service';
+import { ImportImageService } from './services/import-image.service';
+import { DocxImportService } from './services/docx-import.service';
+import { PdfImportService } from './services/pdf-import.service';
 import { FileTaskController } from './file-task.controller';
 import { PageModule } from '../../core/page/page.module';
 import { BaseTransferService } from '../../core/base/base-transfer.service';
@@ -16,6 +19,9 @@ import { BaseReferenceService } from '../../core/base/base-reference.service';
     FileImportTaskService,
     FileTaskProcessor,
     ImportAttachmentService,
+    ImportImageService,
+    DocxImportService,
+    PdfImportService,
     BaseTransferService,
     BaseReferenceService,
   ],
