@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { BLOCK_ID_TYPES } from '@docmost/editor-ext';
+import { BLOCK_ID_TYPES, getEmbedUrlAndProvider } from '@docmost/editor-ext';
 import {
   inlineFromSpans,
   PmNode,
@@ -24,6 +24,12 @@ export type DocBlockType =
   | 'todo_list'
   | 'todo_item'
   | 'table'
+  | 'toggle'
+  | 'columns'
+  | 'column'
+  | 'image'
+  | 'file'
+  | 'embed'
   | 'unsupported';
 
 export type DocBlock = {
@@ -40,6 +46,18 @@ export type DocBlock = {
   start?: number;
   header_row?: boolean;
   rows?: Span[][][];
+  // toggle
+  open?: boolean;
+  // columns / column
+  layout?: string;
+  width?: number | string | null;
+  // image, file, embed
+  url?: string;
+  attachment_id?: string | null;
+  caption?: string | null;
+  align?: string | null;
+  name?: string;
+  provider?: string;
   children?: DocBlock[];
   has_children?: boolean;
   child_count?: number;
@@ -57,48 +75,42 @@ export const CALLOUT_VARIANTS = [
   'danger',
 ] as const;
 
+export const COLUMN_LAYOUTS: Record<number, string> = {
+  2: 'two_equal',
+  3: 'three_equal',
+  4: 'four_equal',
+  5: 'five_equal',
+};
+
+export const IMAGE_ALIGNS = ['left', 'center', 'right'] as const;
+
 const ID_TYPES = new Set<string>(BLOCK_ID_TYPES);
+
+const TEXT_BLOCKS: DocBlockType[] = [
+  'paragraph',
+  'heading',
+  'quote',
+  'callout',
+  'code',
+  'divider',
+  'bulleted_list',
+  'numbered_list',
+  'todo_list',
+  'table',
+  'toggle',
+  'image',
+  'file',
+  'embed',
+  'unsupported',
+];
 
 // Containers and the block types they accept. `root` is the page itself.
 export const CONTAINER_CHILDREN: Record<string, readonly DocBlockType[]> = {
-  root: [
-    'paragraph',
-    'heading',
-    'quote',
-    'callout',
-    'code',
-    'divider',
-    'bulleted_list',
-    'numbered_list',
-    'todo_list',
-    'table',
-    'unsupported',
-  ],
-  quote: [
-    'paragraph',
-    'heading',
-    'quote',
-    'callout',
-    'code',
-    'divider',
-    'bulleted_list',
-    'numbered_list',
-    'todo_list',
-    'table',
-    'unsupported',
-  ],
-  callout: [
-    'paragraph',
-    'heading',
-    'quote',
-    'code',
-    'divider',
-    'bulleted_list',
-    'numbered_list',
-    'todo_list',
-    'table',
-    'unsupported',
-  ],
+  root: [...TEXT_BLOCKS, 'columns'],
+  quote: TEXT_BLOCKS,
+  callout: TEXT_BLOCKS.filter((t) => t !== 'callout'),
+  toggle: [...TEXT_BLOCKS, 'columns'],
+  column: TEXT_BLOCKS,
   list_item: [
     'paragraph',
     'heading',
@@ -108,6 +120,7 @@ export const CONTAINER_CHILDREN: Record<string, readonly DocBlockType[]> = {
     'bulleted_list',
     'numbered_list',
     'todo_list',
+    'image',
   ],
   todo_item: [
     'paragraph',
@@ -118,10 +131,12 @@ export const CONTAINER_CHILDREN: Record<string, readonly DocBlockType[]> = {
     'bulleted_list',
     'numbered_list',
     'todo_list',
+    'image',
   ],
   bulleted_list: ['list_item'],
   numbered_list: ['list_item'],
   todo_list: ['todo_item'],
+  columns: ['column'],
 };
 
 export function newBlockId(): string {
@@ -221,6 +236,14 @@ export function isSimpleTable(node: PmNode): boolean {
   );
 }
 
+function isSimpleToggle(node: PmNode): boolean {
+  return (
+    node.content?.length === 2 &&
+    node.content[0].type === 'detailsSummary' &&
+    node.content[1].type === 'detailsContent'
+  );
+}
+
 // The DocBlock type of an editor node.
 export function docTypeOf(node: PmNode): DocBlockType {
   switch (node.type) {
@@ -248,27 +271,42 @@ export function docTypeOf(node: PmNode): DocBlockType {
       return 'todo_item';
     case 'table':
       return isSimpleTable(node) ? 'table' : 'unsupported';
+    case 'details':
+      return isSimpleToggle(node) ? 'toggle' : 'unsupported';
+    case 'columns':
+      return 'columns';
+    case 'column':
+      return 'column';
+    case 'image':
+      return 'image';
+    case 'attachment':
+      return 'file';
+    case 'embed':
+      return 'embed';
     default:
       return 'unsupported';
   }
 }
 
-// The nodes that count as DocBlock children of a node: for list items the
-// first paragraph is the item's own text, not a child.
+// The editor node whose content holds a block's DocBlock children: a toggle
+// keeps them in its content part, everything else in itself.
+export function childHolder(node: PmNode): PmNode {
+  if (docTypeOf(node) === 'toggle') return node.content[1];
+  return node;
+}
+
+// first index of DocBlock children in the holder (list items start with
+// their own text paragraph)
+export function childStart(holder: PmNode): number {
+  return holder.type === 'listItem' || holder.type === 'taskItem' ? 1 : 0;
+}
+
+// The nodes that count as DocBlock children of a node.
 export function blockChildren(node: PmNode): PmNode[] {
   const type = docTypeOf(node);
-  const content = node.content ?? [];
-  if (type === 'list_item' || type === 'todo_item') return content.slice(1);
-  if (
-    type === 'quote' ||
-    type === 'callout' ||
-    type === 'bulleted_list' ||
-    type === 'numbered_list' ||
-    type === 'todo_list'
-  ) {
-    return content;
-  }
-  return [];
+  if (!(type in CONTAINER_CHILDREN)) return [];
+  const holder = childHolder(node);
+  return (holder.content ?? []).slice(childStart(holder));
 }
 
 export function isContainer(type: DocBlockType): boolean {
@@ -315,6 +353,33 @@ export function toDocBlock(node: PmNode, depth = 1): DocBlock {
       );
       break;
     }
+    case 'toggle':
+      block.rich_text = spansFromInline(node.content[0].content);
+      // HTML import sets open to "" for <details open>
+      block.open = a.open === true || a.open === '';
+      break;
+    case 'columns':
+      if (a.layout) block.layout = a.layout;
+      break;
+    case 'column':
+      if (a.width) block.width = a.width;
+      break;
+    case 'image':
+      block.url = a.src;
+      if (a.attachmentId) block.attachment_id = a.attachmentId;
+      if (a.alt) block.caption = a.alt;
+      if (a.width) block.width = a.width;
+      if (a.align) block.align = a.align;
+      break;
+    case 'file':
+      block.url = a.url;
+      block.name = a.name;
+      if (a.attachmentId) block.attachment_id = a.attachmentId;
+      break;
+    case 'embed':
+      block.url = a.src;
+      block.provider = a.provider;
+      break;
     case 'unsupported':
       block.docmost_type = node.type;
       block.preview = nodeText(node).slice(0, 300);
@@ -348,10 +413,35 @@ export type BlockInput = {
   start?: number;
   header_row?: boolean;
   rows?: Span[][][];
+  open?: boolean;
+  layout?: string;
+  width?: number | string | null;
+  url?: string;
+  attachment_id?: string;
+  caption?: string | null;
+  align?: string | null;
   items?: (string | Span[] | BlockInput)[];
   children?: BlockInput[];
   markdown?: string;
 };
+
+// A file of the workspace the user may read, looked up before the edit.
+export type AttachmentRef = {
+  id: string;
+  fileName: string;
+  mimeType: string | null;
+  fileSize: number | null;
+};
+
+export type BuildContext = {
+  // expands markdown into editor nodes; injected so this module stays pure
+  markdownToNodes: MarkdownToNodes;
+  attachments?: Map<string, AttachmentRef>;
+};
+
+export type MarkdownToNodes = (markdown: string) => PmNode[];
+
+export class BlockInputError extends Error {}
 
 function spansOf(input: { rich_text?: Span[]; text?: string }): Span[] {
   if (input.rich_text) return input.rich_text;
@@ -382,21 +472,36 @@ function itemInputs(
   ];
 }
 
-// Expands markdown into editor nodes; injected so this module stays pure.
-export type MarkdownToNodes = (markdown: string) => PmNode[];
+export function attachmentUrl(ref: AttachmentRef): string {
+  return `/api/files/${ref.id}/${ref.fileName}`;
+}
+
+function attachmentOf(input: BlockInput, ctx: BuildContext): AttachmentRef {
+  const ref = input.attachment_id
+    ? ctx.attachments?.get(input.attachment_id)
+    : undefined;
+  if (!ref) {
+    throw new BlockInputError(
+      `File ${input.attachment_id} is not available to you in this workspace`,
+    );
+  }
+  return ref;
+}
 
 // Editor nodes for a new block, with fresh ids.
 export function fromBlockInput(
   input: BlockInput,
-  markdownToNodes: MarkdownToNodes,
+  context: BuildContext | MarkdownToNodes,
 ): PmNode[] {
+  const ctx: BuildContext =
+    typeof context === 'function' ? { markdownToNodes: context } : context;
   const children = (list: BlockInput[] = []) =>
-    list.flatMap((c) => fromBlockInput(c, markdownToNodes));
+    list.flatMap((c) => fromBlockInput(c, ctx));
   const id = newBlockId();
 
   switch (input.type) {
     case 'markdown':
-      return markdownToNodes(input.markdown ?? '');
+      return ctx.markdownToNodes(input.markdown ?? '');
     case 'paragraph':
       return [paragraph(spansOf(input))];
     case 'heading': {
@@ -487,6 +592,95 @@ export function fromBlockInput(
           })),
         },
       ];
+    }
+    case 'toggle': {
+      const summary = inlineFromSpans(spansOf(input));
+      const inner = children(input.children);
+      if (inner.length === 0) inner.push(paragraph([]));
+      return [
+        {
+          type: 'details',
+          attrs: { id, open: input.open ?? true },
+          content: [
+            {
+              type: 'detailsSummary',
+              ...(summary.length && { content: summary }),
+            },
+            { type: 'detailsContent', content: inner },
+          ],
+        },
+      ];
+    }
+    case 'columns': {
+      const columns = (input.children ?? []).map((c) =>
+        c.type === 'column' ? c : { type: 'column' as const, children: [c] },
+      );
+      const count = columns.length;
+      if (!COLUMN_LAYOUTS[count]) {
+        throw new BlockInputError('Columns need 2 to 5 column children');
+      }
+      return [
+        {
+          type: 'columns',
+          attrs: { id, layout: COLUMN_LAYOUTS[count] },
+          content: children(columns),
+        },
+      ];
+    }
+    case 'column': {
+      const inner = children(input.children);
+      if (inner.length === 0) inner.push(paragraph(spansOf(input)));
+      return [
+        {
+          type: 'column',
+          attrs: { id, ...(input.width && { width: input.width }) },
+          content: inner,
+        },
+      ];
+    }
+    case 'image': {
+      const ref = input.attachment_id ? attachmentOf(input, ctx) : null;
+      const src = ref ? attachmentUrl(ref) : input.url;
+      if (!src)
+        throw new BlockInputError('An image needs a url or attachment_id');
+      return [
+        {
+          type: 'image',
+          attrs: {
+            id,
+            src,
+            align: input.align ?? 'center',
+            ...(input.caption && { alt: input.caption }),
+            ...(input.width && { width: input.width }),
+            ...(ref && { attachmentId: ref.id, size: ref.fileSize }),
+          },
+        },
+      ];
+    }
+    case 'file': {
+      const ref = attachmentOf(input, ctx);
+      return [
+        {
+          type: 'attachment',
+          attrs: {
+            id,
+            url: attachmentUrl(ref),
+            name: ref.fileName,
+            mime: ref.mimeType,
+            size: ref.fileSize,
+            attachmentId: ref.id,
+          },
+        },
+      ];
+    }
+    case 'embed': {
+      const { provider } = getEmbedUrlAndProvider(input.url ?? '');
+      if (!input.url || provider === 'iframe') {
+        throw new BlockInputError(
+          'Embeds must be a link from a known provider (YouTube, Vimeo, Loom, Figma, Miro, Airtable, Typeform, Framer, Google Drive/Sheets)',
+        );
+      }
+      return [{ type: 'embed', attrs: { id, src: input.url, provider } }];
     }
   }
   return [];

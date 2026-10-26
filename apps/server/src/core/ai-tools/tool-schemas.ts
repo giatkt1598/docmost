@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CALLOUT_VARIANTS } from './blocks/doc-blocks';
+import { CALLOUT_VARIANTS, IMAGE_ALIGNS } from './blocks/doc-blocks';
 import { isSafeLink } from './blocks/rich-text';
 
 // Input schemas of the AI page tools, shared by AI chat and the MCP server.
@@ -44,6 +44,14 @@ export const spanSchema = z.union([
     inline: z.any().describe('Copy as is from what you read'),
     preview: z.string().optional(),
   }),
+  z.object({
+    mention: z
+      .object({
+        page_id: z.string().max(100).optional(),
+        user_id: z.string().max(100).optional(),
+      })
+      .describe('Mention a page (page_id) or a workspace member (user_id)'),
+  }),
 ]);
 
 const richText = z
@@ -66,6 +74,12 @@ const BLOCK_TYPES = [
   'todo_list',
   'todo_item',
   'table',
+  'toggle',
+  'columns',
+  'column',
+  'image',
+  'file',
+  'embed',
   'markdown',
 ] as const;
 
@@ -95,11 +109,31 @@ export const blockInputSchema: z.ZodType<any> = z.lazy(() =>
       .max(200)
       .optional()
       .describe('lists: items as strings, rich text or item blocks'),
+    open: z.boolean().optional().describe('toggle: expanded'),
+    width: z
+      .union([z.number(), z.string().max(20)])
+      .nullable()
+      .optional()
+      .describe('image width in px, column width ratio'),
+    url: z
+      .string()
+      .max(2000)
+      .refine(isSafeLink, 'Must be an http(s) link')
+      .optional()
+      .describe('image or embed link'),
+    attachment_id: z
+      .uuid()
+      .optional()
+      .describe('image/file: a file already uploaded to the workspace'),
+    caption: z.string().max(500).nullable().optional().describe('image'),
+    align: z.enum(IMAGE_ALIGNS).nullable().optional().describe('image'),
     children: z
       .array(blockInputSchema)
       .max(100)
       .optional()
-      .describe('quote, callout, list items: blocks inside'),
+      .describe(
+        'quote, callout, toggle, column, list items: blocks inside; columns: 2-5 column blocks',
+      ),
     markdown: z
       .string()
       .max(20_000)
@@ -123,6 +157,30 @@ const patchSchema = z.object({
   start: z.number().int().min(1).optional(),
   header_row: z.boolean().optional(),
   rows: z.array(z.array(richText).max(30)).max(200).optional(),
+  cells: z
+    .array(
+      z.object({
+        row: z.number().int().min(0),
+        col: z.number().int().min(0),
+        rich_text: richText.optional(),
+        text: z.string().max(10_000).optional(),
+      }),
+    )
+    .max(200)
+    .optional()
+    .describe('table: change single cells (0-based)'),
+  open: z.boolean().optional(),
+  width: z
+    .union([z.number(), z.string().max(20)])
+    .nullable()
+    .optional(),
+  caption: z.string().max(500).nullable().optional(),
+  align: z.enum(IMAGE_ALIGNS).nullable().optional(),
+  url: z
+    .string()
+    .max(2000)
+    .refine(isSafeLink, 'Must be an http(s) link')
+    .optional(),
 });
 
 const parentAndPosition = {
@@ -240,7 +298,8 @@ export const PAGE_TOOL_DESCRIPTIONS: Record<
 
 export const BLOCK_GUIDE = [
   'Blocks: paragraph, heading (level 1-3), quote, callout (variant default|info|note|success|warning|danger), code (language, text), divider,',
-  'bulleted_list / numbered_list (items or list_item children), todo_list (todo_item with checked), table (header_row, rows of cells),',
-  'and type "markdown" to insert longer Markdown at once. Text is rich_text spans or plain "text".',
-  'Blocks of type "unsupported" (images, columns, embeds...) can be moved or deleted but not edited.',
+  'bulleted_list / numbered_list (items or list_item children), todo_list (todo_item with checked), table (header_row, rows of cells; update single cells with patch.cells),',
+  'toggle (rich_text summary, open, children), columns (2-5 column children, each with children), image (url or attachment_id, caption, align), file (attachment_id), embed (url of YouTube, Vimeo, Loom, Figma, Miro, Airtable, Typeform, Framer, Google Drive/Sheets),',
+  'and type "markdown" to insert longer Markdown at once. Text is rich_text spans or plain "text"; a span { mention: { page_id } } or { mention: { user_id } } links a page or a person.',
+  'Blocks of type "unsupported" (drawings, complex tables...) can be moved or deleted but not edited.',
 ].join(' ');

@@ -8,6 +8,7 @@ import { AiPageEditService, ApplyOutcome } from './ai-page-edit.service';
 import { findBlocks, outline, sliceBlocks } from './blocks/navigation';
 import { Operation } from './operations/engine';
 import { pageToolSchemas } from './tool-schemas';
+import { ReferenceError, ReferenceResolver } from './reference-resolver';
 
 export type ToolActor = { user: User; workspace: Workspace };
 type Args<K extends keyof typeof pageToolSchemas> = z.infer<
@@ -24,6 +25,7 @@ export class AiPageToolsService {
     private readonly pageService: PageService,
     private readonly pageAccess: PageAccessService,
     private readonly edits: AiPageEditService,
+    private readonly references: ReferenceResolver,
   ) {}
 
   private async findPage(actor: ToolActor, pageId: string): Promise<Page> {
@@ -107,9 +109,20 @@ export class AiPageToolsService {
     ctx: { aiChatId?: string } = {},
   ) {
     const page = await this.editable(actor, args.page_id);
+    let resolved;
+    try {
+      resolved = await this.references.resolve(args.operations, actor);
+    } catch (err) {
+      if (err instanceof ReferenceError) {
+        return { error: { code: 'VALIDATION', message: err.message } };
+      }
+      throw err;
+    }
     const outcome = await this.edits.apply(page, actor.user, {
       summary: args.summary,
-      operations: args.operations,
+      operations: resolved.operations,
+      attachments: resolved.attachments,
+      trustedInline: resolved.trustedInline,
       aiChatId: ctx.aiChatId,
     });
     return this.result(outcome);

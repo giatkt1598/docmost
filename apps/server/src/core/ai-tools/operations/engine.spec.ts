@@ -340,11 +340,11 @@ describe('applyOperations', () => {
         {
           ...opts,
           markdownToNodes: () => [
-            { type: 'image', attrs: { src: 'https://x.io/a.png' } },
+            { type: 'drawio', attrs: { src: 'https://x.io/a.svg' } },
           ],
         },
       ),
-    ).toThrow(/image blocks cannot be created/);
+    ).toThrow(/drawio blocks cannot be created/);
   });
 
   it('keeps a mention and a comment that are echoed back, refuses new ones', () => {

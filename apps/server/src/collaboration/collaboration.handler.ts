@@ -10,6 +10,7 @@ import * as Y from 'yjs';
 import { User } from '@docmost/db/types/entity.types';
 import { applyToLiveDoc, readDocWithIds } from '../core/ai-tools/live-doc';
 import { PmNode } from '../core/ai-tools/blocks/rich-text';
+import { AttachmentRef } from '../core/ai-tools/blocks/doc-blocks';
 import { Operation } from '../core/ai-tools/operations/engine';
 
 export type MediaReplacement = {
@@ -175,6 +176,8 @@ export class CollaborationHandler {
           user: User;
           operations: Operation[];
           markdown: [string, PmNode[]][];
+          attachments?: [string, AttachmentRef][];
+          trustedInline?: PmNode[];
           mode?: 'edit' | 'undo';
         },
       ) => {
@@ -187,6 +190,8 @@ export class CollaborationHandler {
             (ydoc) => {
               result = applyToLiveDoc(ydoc, payload.operations, {
                 markdown: new Map(payload.markdown ?? []),
+                attachments: new Map(payload.attachments ?? []),
+                trustedInline: payload.trustedInline ?? [],
                 mode: payload.mode,
               });
             },

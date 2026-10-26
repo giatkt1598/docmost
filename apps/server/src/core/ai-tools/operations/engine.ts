@@ -1,14 +1,20 @@
 import {
+  AttachmentRef,
   BlockInput,
+  BlockInputError,
   blockRev,
+  childHolder,
+  childStart,
   CONTAINER_CHILDREN,
   DocBlockType,
   docTypeOf,
   fromBlockInput,
+  IMAGE_ALIGNS,
   MarkdownToNodes,
   newBlockId,
   withFreshIds,
 } from '../blocks/doc-blocks';
+import { getEmbedUrlAndProvider } from '@docmost/editor-ext';
 import {
   inlineFromSpans,
   isSafeLink,
@@ -34,6 +40,13 @@ export type BlockPatch = {
   start?: number;
   header_row?: boolean;
   rows?: Span[][][];
+  // table: change single cells (0-based row and column)
+  cells?: { row: number; col: number; rich_text?: Span[]; text?: string }[];
+  open?: boolean;
+  width?: number | string | null;
+  caption?: string | null;
+  align?: string | null;
+  url?: string;
 };
 
 export type Operation =
@@ -97,22 +110,15 @@ type Location = {
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
-function containerKind(parent: PmNode, isRoot: boolean): string {
-  return isRoot ? 'root' : docTypeOf(parent);
-}
-
-// first content index of a container's DocBlock children
-function childStart(parent: PmNode, isRoot: boolean): number {
-  if (isRoot) return 0;
-  const kind = docTypeOf(parent);
-  return kind === 'list_item' || kind === 'todo_item' ? 1 : 0;
-}
-
 export function applyOperations(
   source: PmNode,
   operations: Operation[],
   opts: {
     markdownToNodes: MarkdownToNodes;
+    // files the user may use, looked up before the edit
+    attachments?: Map<string, AttachmentRef>;
+    // inline nodes (mentions) checked and built before the edit
+    trustedInline?: PmNode[];
     // throws when the result breaks the editor schema
     checkSchema: (doc: PmNode) => void;
     maxBytes?: number;
@@ -212,8 +218,9 @@ export function applyOperations(
     }
   };
 
+  // the editor node that holds a container's children, and its kind
   const resolveParent = (parentId: string | null | undefined, i: number) => {
-    if (!parentId) return { parent: doc, isRoot: true };
+    if (!parentId) return { holder: doc, kind: 'root' };
     const loc = mustLocate(parentId, i);
     const kind = docTypeOf(loc.node);
     if (!CONTAINER_CHILDREN[kind] || kind === 'unsupported') {
@@ -224,16 +231,23 @@ export function applyOperations(
         `A ${kind} block cannot hold child blocks`,
       );
     }
-    return { parent: loc.node, isRoot: false };
+    return { holder: childHolder(loc.node), kind };
   };
+
+  // blocks inside something the tools do not model (a complex table, an
+  // unknown container) can only change together with it
+  const isEditableHolder = (holder: PmNode): boolean =>
+    holder === doc ||
+    holder.type === 'detailsContent' ||
+    (CONTAINER_CHILDREN[docTypeOf(holder)] !== undefined &&
+      docTypeOf(holder) !== 'unsupported');
 
   const insertIndex = (
     parent: PmNode,
-    isRoot: boolean,
     afterId: string | null | undefined,
     i: number,
   ) => {
-    const start = childStart(parent, isRoot);
+    const start = childStart(parent);
     if (!afterId) return start;
     const index = (parent.content ?? []).findIndex(
       (c, idx) => idx >= start && c.attrs?.id === afterId,
@@ -269,7 +283,22 @@ export function applyOperations(
   };
 
   // New content may only use what the tools model, and safe links.
+  const trusted = opts.trustedInline ?? [];
+  const isTrusted = (node: PmNode) =>
+    trusted.some((t) => isDeepStrictEqual(t, node));
+
   const checkNewContent = (node: PmNode, i: number) => {
+    if (KEEP_ONLY_INLINE.has(node.type)) {
+      if (!isTrusted(node)) {
+        fail(
+          'VALIDATION',
+          i,
+          undefined,
+          `${node.type} can only be added through a mention span`,
+        );
+      }
+      return;
+    }
     if (!INSERTABLE.has(node.type)) {
       fail(
         'VALIDATION',
@@ -312,8 +341,8 @@ export function applyOperations(
         checkMarks(node, original, i);
         return;
       }
-      if (INLINE_TYPES.has(node.type)) {
-        if (!containsNode(original, node)) {
+      if (KEEP_ONLY_INLINE.has(node.type)) {
+        if (!containsNode(original, node) && !isTrusted(node)) {
           fail(
             'VALIDATION',
             i,
@@ -328,13 +357,7 @@ export function applyOperations(
     (next.content ?? []).forEach(walk);
   };
 
-  const checkPlacement = (
-    node: PmNode,
-    parent: PmNode,
-    isRoot: boolean,
-    i: number,
-  ) => {
-    const kind = containerKind(parent, isRoot);
+  const checkPlacement = (node: PmNode, kind: string, i: number) => {
     const type: DocBlockType = docTypeOf(node);
     if (!CONTAINER_CHILDREN[kind]?.includes(type)) {
       fail(
@@ -348,7 +371,7 @@ export function applyOperations(
 
   // DocBlock sibling before a node, for putting it back later
   const previousSiblingId = (loc: Location): string | null => {
-    const start = childStart(loc.parent, loc.parent === doc);
+    const start = childStart(loc.parent);
     return loc.index > start
       ? (loc.parent.content[loc.index - 1].attrs?.id ?? null)
       : null;
@@ -365,12 +388,24 @@ export function applyOperations(
     switch (op.op) {
       case 'insert':
       case 'reinsert': {
-        const { parent, isRoot } = resolveParent(op.parent_id, i);
+        const { holder, kind } = resolveParent(op.parent_id, i);
         let nodes: PmNode[];
         if (op.op === 'insert') {
-          nodes = op.blocks
-            .flatMap((b) => fromBlockInput(b, opts.markdownToNodes))
-            .map((n) => withFreshIds(n));
+          try {
+            nodes = op.blocks
+              .flatMap((b) =>
+                fromBlockInput(b, {
+                  markdownToNodes: opts.markdownToNodes,
+                  attachments: opts.attachments,
+                }),
+              )
+              .map((n) => withFreshIds(n));
+          } catch (err) {
+            if (err instanceof BlockInputError) {
+              fail('VALIDATION', i, undefined, err.message);
+            }
+            throw err;
+          }
           if (nodes.length === 0) {
             fail('VALIDATION', i, undefined, 'Nothing to insert');
           }
@@ -390,12 +425,12 @@ export function applyOperations(
           nodes = [op.node];
         }
         nodes.forEach((n) => {
-          checkPlacement(n, parent, isRoot, i);
+          checkPlacement(n, kind, i);
           checkTables(n, i);
         });
-        const index = insertIndex(parent, isRoot, op.after_id, i);
-        parent.content = parent.content ?? [];
-        parent.content.splice(index, 0, ...nodes);
+        const index = insertIndex(holder, op.after_id, i);
+        holder.content = holder.content ?? [];
+        holder.content.splice(index, 0, ...nodes);
         for (const n of nodes) {
           const id = n.attrs?.id;
           if (!id) continue;
@@ -436,6 +471,14 @@ export function applyOperations(
       case 'move': {
         const loc = mustLocate(op.block_id, i);
         checkRev(op.block_id, op.rev, i);
+        if (!isEditableHolder(loc.parent)) {
+          fail(
+            'VALIDATION',
+            i,
+            op.block_id,
+            `This block sits inside a ${loc.parent.type} the tools cannot change; move or delete that block instead`,
+          );
+        }
         if (
           op.parent_id === op.block_id ||
           (op.parent_id && isInside(loc.node, op.parent_id))
@@ -447,11 +490,11 @@ export function applyOperations(
           after_id: previousSiblingId(loc),
         };
         loc.parent.content.splice(loc.index, 1);
-        const { parent, isRoot } = resolveParent(op.parent_id, i);
-        checkPlacement(loc.node, parent, isRoot, i);
-        const index = insertIndex(parent, isRoot, op.after_id, i);
-        parent.content = parent.content ?? [];
-        parent.content.splice(index, 0, loc.node);
+        const { holder, kind } = resolveParent(op.parent_id, i);
+        checkPlacement(loc.node, kind, i);
+        const index = insertIndex(holder, op.after_id, i);
+        holder.content = holder.content ?? [];
+        holder.content.splice(index, 0, loc.node);
         touched.add(op.block_id);
         changed.add(op.block_id);
         inverse.unshift({
@@ -466,6 +509,14 @@ export function applyOperations(
       case 'delete': {
         const loc = mustLocate(op.block_id, i);
         checkRev(op.block_id, op.rev, i);
+        if (!isEditableHolder(loc.parent)) {
+          fail(
+            'VALIDATION',
+            i,
+            op.block_id,
+            `This block sits inside a ${loc.parent.type} the tools cannot change; delete that block instead`,
+          );
+        }
         const back: Operation = {
           op: 'reinsert',
           parent_id: loc.parentId,
@@ -511,7 +562,11 @@ const PATCH_KEYS: Record<string, (keyof BlockPatch)[]> = {
   code: ['text', 'language'],
   callout: ['variant', 'icon'],
   numbered_list: ['start'],
-  table: ['header_row', 'rows'],
+  table: ['header_row', 'rows', 'cells'],
+  toggle: ['rich_text', 'text', 'open'],
+  column: ['width'],
+  image: ['caption', 'width', 'align'],
+  embed: ['url'],
 };
 
 function patchNode(
@@ -594,8 +649,56 @@ function patchNode(
     case 'numbered_list':
       if (patch.start !== undefined) next.attrs.start = patch.start;
       break;
+    case 'toggle': {
+      if (patch.open !== undefined) next.attrs.open = patch.open;
+      if (spans) {
+        const summary = { ...next.content[0] };
+        setInline(summary, spans);
+        next.content = [summary, next.content[1]];
+      }
+      break;
+    }
+    case 'column':
+      next.attrs.width = patch.width ?? null;
+      break;
+    case 'image':
+      if (patch.caption !== undefined) next.attrs.alt = patch.caption;
+      if (patch.width !== undefined) next.attrs.width = patch.width;
+      if (patch.align !== undefined) {
+        if (!(IMAGE_ALIGNS as readonly string[]).includes(patch.align)) {
+          fail('VALIDATION', i, id, 'align must be left, center or right');
+        }
+        next.attrs.align = patch.align;
+      }
+      break;
+    case 'embed': {
+      const { provider } = getEmbedUrlAndProvider(patch.url ?? '');
+      if (!patch.url || provider === 'iframe') {
+        fail(
+          'VALIDATION',
+          i,
+          id,
+          'Embeds must be a link from a known provider',
+        );
+      }
+      next.attrs.src = patch.url;
+      next.attrs.provider = provider;
+      break;
+    }
     case 'table': {
       const rows = patch.rows ?? currentRows(node);
+      for (const cell of patch.cells ?? []) {
+        if (!rows[cell.row] || rows[cell.row][cell.col] === undefined) {
+          fail(
+            'VALIDATION',
+            i,
+            id,
+            `The table has no cell at row ${cell.row}, column ${cell.col}`,
+          );
+        }
+        rows[cell.row][cell.col] =
+          cell.rich_text ?? (cell.text ? [{ text: cell.text }] : []);
+      }
       const header =
         patch.header_row ??
         node.content?.[0]?.content?.every((c) => c.type === 'tableHeader') ??
@@ -655,6 +758,14 @@ const INSERTABLE = new Set([
   'tableRow',
   'tableCell',
   'tableHeader',
+  'details',
+  'detailsSummary',
+  'detailsContent',
+  'columns',
+  'column',
+  'image',
+  'attachment',
+  'embed',
   'text',
   'hardBreak',
   'mathInline',
@@ -674,9 +785,9 @@ const PASSTHROUGH_MARKS = new Set([
   'comment',
 ]);
 
-const INLINE_TYPES = new Set([
+// inline nodes that may be kept as they were but not made up
+const KEEP_ONLY_INLINE = new Set([
   'mention',
-  'mathInline',
   'status',
   'footnoteReference',
   'integrationMention',

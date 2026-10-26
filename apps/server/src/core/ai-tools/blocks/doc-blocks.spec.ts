@@ -19,6 +19,13 @@ const SAMPLES: Record<string, string> = {
   numbered_list: '<ol start="3"><li><p>Three</p></li><li><p>Four</p></li></ol>',
   todo_list:
     '<ul data-type="taskList"><li data-type="taskItem" data-checked="true"><p>Done</p></li><li data-type="taskItem" data-checked="false"><p>Open</p></li></ul>',
+  toggle:
+    '<details open><summary>More</summary><div data-type="detailsContent"><p>Inside</p></div></details>',
+  columns:
+    '<div data-type="columns" data-layout="two_equal"><div data-type="column"><p>Left</p></div><div data-type="column"><p>Right</p></div></div>',
+  image: '<img src="https://x.io/a.png" alt="Chart" data-align="center">',
+  embed:
+    '<div data-type="embed" data-src="https://www.youtube.com/watch?v=dQw4w9WgXcQ" data-provider="youtube"></div>',
   table:
     '<table><tbody><tr><th><p>H1</p></th><th><p>H2</p></th></tr><tr><td><p>a</p></td><td><p>b</p></td></tr></tbody></table>',
 };
@@ -43,6 +50,11 @@ function withoutIds(node: any): any {
   const out: any = {};
   for (const [k, v] of Object.entries(node)) {
     if (k === 'id') continue;
+    // HTML import stores an open toggle as ""
+    if (k === 'open') {
+      out[k] = v === true || v === '';
+      continue;
+    }
     out[k] = withoutIds(v);
   }
   return out;

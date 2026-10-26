@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 import { TiptapTransformer } from '@hocuspocus/transformer';
-import { assignBlockIds, blockRev } from './blocks/doc-blocks';
+import { assignBlockIds, AttachmentRef, blockRev } from './blocks/doc-blocks';
 import { PmNode } from './blocks/rich-text';
 import {
   applyOperations,
@@ -59,6 +59,8 @@ export function applyToLiveDoc(
   operations: Operation[],
   opts: {
     markdown: Map<string, PmNode[]>;
+    attachments?: Map<string, AttachmentRef>;
+    trustedInline?: PmNode[];
     mode?: 'edit' | 'undo';
   },
 ): LiveApplyResult {
@@ -66,6 +68,8 @@ export function applyToLiveDoc(
   try {
     const result = applyOperations(before, operations, {
       markdownToNodes: (md) => opts.markdown.get(md) ?? [],
+      attachments: opts.attachments,
+      trustedInline: opts.trustedInline,
       checkSchema: checkPageSchema,
       mode: opts.mode,
     });

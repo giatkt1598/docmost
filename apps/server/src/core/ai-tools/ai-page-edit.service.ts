@@ -8,7 +8,12 @@ import { Page, User } from '@docmost/db/types/entity.types';
 import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { PageHistoryRepo } from '@docmost/db/repos/page/page-history.repo';
 import { CollaborationGateway } from '../../collaboration/collaboration.gateway';
-import { BlockInput, DocBlock, toDocBlock } from './blocks/doc-blocks';
+import {
+  AttachmentRef,
+  BlockInput,
+  DocBlock,
+  toDocBlock,
+} from './blocks/doc-blocks';
 import { PmNode } from './blocks/rich-text';
 import { Operation } from './operations/engine';
 import { expandMarkdown } from './page-schema';
@@ -171,6 +176,8 @@ export class AiPageEditService implements OnModuleInit {
       operations: Operation[];
       aiChatId?: string | null;
       undoOf?: string;
+      attachments?: Map<string, AttachmentRef>;
+      trustedInline?: PmNode[];
     },
   ): Promise<ApplyOutcome> {
     const undo = !!opts.undoOf;
@@ -207,6 +214,8 @@ export class AiPageEditService implements OnModuleInit {
           user,
           operations: opts.operations,
           markdown: [...markdown.entries()],
+          attachments: [...(opts.attachments ?? new Map()).entries()],
+          trustedInline: opts.trustedInline ?? [],
           mode: undo ? 'undo' : 'edit',
         },
       );
