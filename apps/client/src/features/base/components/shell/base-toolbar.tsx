@@ -17,7 +17,7 @@ import { FilterEditor } from "./filter-editor";
 import { SortEditor } from "./sort-editor";
 import { ColumnsMenu } from "./columns-menu";
 import { CsvImportModal } from "./csv-import-modal";
-import { useFullWidth } from "@/features/base/hooks/use-full-width";
+import { useUpdateViewMutation } from "@/features/base/queries/base-view-query";
 import { KanbanSettings } from "@/features/base/components/kanban/kanban-settings";
 
 type Props = {
@@ -41,7 +41,11 @@ export function BaseToolbar(props: Props) {
   const { t } = useTranslation();
   const { pageId, view, properties, editable, filter, sorts } = props;
   const [importOpen, setImportOpen] = useState(false);
-  const [fullWidth, setFullWidth] = useFullWidth(pageId);
+  // the setting belongs to the view and is shared, so only editors change it
+  const updateView = useUpdateViewMutation(pageId);
+  const fullWidth = view.config.fullWidth === true;
+  const setFullWidth = (next: boolean) =>
+    updateView.mutate({ viewId: view.id, config: { fullWidth: next ? true : null } });
   const [searchOpen, setSearchOpen] = useState(!!props.search);
   const filterCount = countConditions(filter);
   const sortCount = sorts?.length ?? 0;
@@ -128,15 +132,16 @@ export function BaseToolbar(props: Props) {
             </Menu.Item>
           )}
           <Menu.Divider />
-          {/* a personal display preference (kept in this browser), so it is
-              there for viewers too */}
+          {/* shown to viewers too, but only editors can change the view */}
           <Menu.Item
             closeMenuOnClick={false}
+            disabled={!editable}
             onClick={() => setFullWidth(!fullWidth)}
             rightSection={
               <Switch
                 size="xs"
                 checked={fullWidth}
+                disabled={!editable}
                 readOnly
                 tabIndex={-1}
                 aria-label={t("Full width")}

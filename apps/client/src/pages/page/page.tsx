@@ -17,6 +17,7 @@ import { Button } from "@mantine/core";
 import { Link } from "react-router-dom";
 import { ErrorBoundary } from "react-error-boundary";
 import { BaseWorkspace } from "@/features/base/components/shell/base-workspace";
+import { useViewFullWidth } from "@/features/base/hooks/use-view-full-width";
 import { PageWidthContainer } from "@/features/base/components/common/page-width-container";
 import { getPageTitle } from "@/features/page/page.utils";
 import { DocumentTitle } from "@/components/ui/document-title.tsx";
@@ -67,6 +68,11 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
   }, [page?.id, setAsideState]);
 
   useCommentDeepLink(page?.id);
+  // width of a base page follows the "Full width" setting of its active view
+  const { fullWidth: baseFullWidth } = useViewFullWidth(
+    page?.isBase ? page.id : undefined,
+    false,
+  );
 
   const canEdit = !page?.deletedAt && (page?.permissions?.canEdit ?? false);
   const canComment =
@@ -124,7 +130,7 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
           withAppName={false}
         />
         <MemoizedPageHeader readOnly={!canEdit} />
-        <PageWidthContainer pageId={page.id} fill>
+        <PageWidthContainer fullWidth={baseFullWidth} fill>
           <BaseWorkspace
             pageId={page.id}
             editable={canEdit}

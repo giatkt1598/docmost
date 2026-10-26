@@ -1,41 +1,18 @@
-// "Full width" display preference of a base, and the geometry of breaking an
-// embedded base out of the editor's text column.
+// Geometry of breaking an embedded base out of the editor's text column (the
+// "Full width" setting of a view; see BaseViewConfig.fullWidth).
 
-// ---- preference storage -------------------------------------------------------
+// ---- the view's setting ---------------------------------------------------------
 
-export const FULL_WIDTH_EVENT = "docmost:base-full-width";
-
-export const fullWidthKey = (pageId: string) => `docmost.base.fullWidth:${pageId}`;
-
-type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-
-function defaultStorage(): StorageLike | null {
-  try {
-    return typeof window !== "undefined" ? window.localStorage : null;
-  } catch {
-    return null;
-  }
+// The view on screen: the wanted one, else the first (views in tab order).
+export function pickActiveView<T extends { id: string }>(
+  views: readonly T[],
+  wantedId: string | null | undefined,
+): T | null {
+  return views.find((v) => v.id === wantedId) ?? views[0] ?? null;
 }
 
-export function readFullWidth(pageId: string, store: StorageLike | null = defaultStorage()): boolean {
-  try {
-    return store?.getItem(fullWidthKey(pageId)) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function writeFullWidth(
-  pageId: string,
-  value: boolean,
-  store: StorageLike | null = defaultStorage(),
-): void {
-  try {
-    if (value) store?.setItem(fullWidthKey(pageId), "1");
-    else store?.removeItem(fullWidthKey(pageId));
-  } catch {
-    // storage blocked or full: the switch then only lasts until reload
-  }
+export function viewFullWidth(view: { config?: { fullWidth?: boolean } } | null | undefined): boolean {
+  return view?.config?.fullWidth === true;
 }
 
 // ---- geometry -----------------------------------------------------------------

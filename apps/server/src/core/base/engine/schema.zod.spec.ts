@@ -4,6 +4,7 @@ import {
   normalizeTypeOptions,
   parseFilter,
   validateCells,
+  viewConfigSchema,
 } from './schema.zod';
 import { EngineProperty } from './base.types';
 
@@ -111,5 +112,26 @@ describe('parseFilter', () => {
     let f: any = { propertyId: 'a', op: 'eq', value: 1 };
     for (let i = 0; i < 10; i++) f = { op: 'and', children: [f] };
     expect(() => parseFilter(f)).toThrow();
+  });
+});
+
+describe('viewConfigSchema', () => {
+  it('accepts fullWidth as a boolean', () => {
+    expect(viewConfigSchema.parse({ fullWidth: true })).toEqual({ fullWidth: true });
+    expect(viewConfigSchema.parse({ fullWidth: false })).toEqual({ fullWidth: false });
+    expect(() => viewConfigSchema.parse({ fullWidth: 'yes' })).toThrow();
+    expect(() => viewConfigSchema.parse({ fullWidth: null })).toThrow();
+  });
+
+  it('validates a patch the way views/update does: set keys only, null removes', () => {
+    // BaseViewService.update strips null keys (they delete the key) before
+    // validating the keys that are being set
+    const patch = { fullWidth: true, groupByPropertyId: 'p' };
+    expect(viewConfigSchema.partial().parse(patch)).toEqual(patch);
+    expect(() => viewConfigSchema.partial().parse({ fullWidth: 1 })).toThrow();
+  });
+
+  it('still rejects unknown keys', () => {
+    expect(() => viewConfigSchema.parse({ full_width: true })).toThrow();
   });
 });

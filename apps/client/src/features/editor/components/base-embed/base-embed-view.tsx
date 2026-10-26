@@ -2,7 +2,7 @@ import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { ActionIcon, Box, Menu, Text } from "@mantine/core";
 import { useRef, useState } from "react";
 import { useBreakout } from "@/features/base/hooks/use-breakout";
-import { useFullWidth } from "@/features/base/hooks/use-full-width";
+import { useViewFullWidth } from "@/features/base/hooks/use-view-full-width";
 import { useTranslation } from "react-i18next";
 import { BaseWorkspace } from "@/features/base/components/shell/base-workspace";
 import { useBaseInfoQuery } from "@/features/base/queries/base-query";
@@ -36,7 +36,11 @@ function AppBaseEmbedView({ node, editor, deleteNode }: NodeViewProps) {
   const pendingKey = node.attrs.pendingKey as string | null;
   const [menuOpen, setMenuOpen] = useState(false);
   const columnRef = useRef<HTMLDivElement | null>(null);
-  const [fullWidth] = useFullWidth(pageId ?? undefined);
+  // each embed follows the setting of the view selected in it
+  const { fullWidth, onFullWidthChange } = useViewFullWidth(
+    pendingKey ? undefined : (pageId ?? undefined),
+    true,
+  );
   const breakout = useBreakout(columnRef, fullWidth && !pendingKey && !!pageId);
   // Suppress the query while the slash command awaits the server-assigned
   // pageId.
@@ -94,6 +98,7 @@ function AppBaseEmbedView({ node, editor, deleteNode }: NodeViewProps) {
       <BaseWorkspace
         pageId={pageId}
         embedded
+        onFullWidthChange={onFullWidthChange}
         editable={editor.isEditable && (base?.permissions?.canEdit ?? false)}
       />
     );

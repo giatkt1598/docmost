@@ -1,4 +1,4 @@
-import { ReactNode, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import { Box, Center, Group, Loader, Stack, Text } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
@@ -36,6 +36,9 @@ type Props = {
   embedded?: boolean;
   // fill the parent's height; the view scrolls inside (sticky table header)
   fill?: boolean;
+  // reports the "Full width" setting of the active view, so the component
+  // that owns the width of the box around the workspace can follow it
+  onFullWidthChange?: (fullWidth: boolean) => void;
 };
 
 // A base with its view tabs, toolbar and the active view.
@@ -45,6 +48,7 @@ export function BaseWorkspace({
   title,
   embedded = false,
   fill = false,
+  onFullWidthChange,
 }: Props) {
   const { t } = useTranslation();
   useBaseRealtime(pageId);
@@ -56,6 +60,12 @@ export function BaseWorkspace({
   const views = useMemo(() => sortByPosition(base?.views ?? []), [base?.views]);
   const [view, selectView] = useActiveView(views, embedded);
   const canEdit = editable && base?.permissions?.canEdit !== false;
+
+  // tell the owner of the surrounding box what the active view wants
+  const viewWantsFullWidth = view?.config?.fullWidth === true;
+  useEffect(() => {
+    onFullWidthChange?.(viewWantsFullWidth);
+  }, [view?.id, viewWantsFullWidth, onFullWidthChange]);
 
   const draft = useViewDraft(view);
   const [search, setSearch] = useState("");

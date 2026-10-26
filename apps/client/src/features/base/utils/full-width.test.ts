@@ -1,26 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import {
   BREAKOUT_MARGIN,
   breakoutBox,
   contentBounds,
-  fullWidthKey,
   paddingsOf,
-  readFullWidth,
+  pickActiveView,
   sameBox,
-  writeFullWidth,
+  viewFullWidth,
 } from "./full-width";
-import { useFullWidth } from "@/features/base/hooks/use-full-width";
-
-function fakeStore() {
-  const data = new Map<string, string>();
-  return {
-    data,
-    getItem: (k: string) => data.get(k) ?? null,
-    setItem: (k: string, v: string) => void data.set(k, v),
-    removeItem: (k: string) => void data.delete(k),
-  };
-}
 
 describe("content bounds of the app shell", () => {
   it("takes the content box of main: the sidebar and aside live in its padding", () => {
@@ -73,70 +60,21 @@ describe("breakout box", () => {
   });
 });
 
-describe("full width preference storage", () => {
-  it("is per base and off by default", () => {
-    const store = fakeStore();
-    expect(readFullWidth("a", store)).toBe(false);
-    writeFullWidth("a", true, store);
-    expect(readFullWidth("a", store)).toBe(true);
-    expect(readFullWidth("b", store)).toBe(false);
-    expect(store.data.has(fullWidthKey("a"))).toBe(true);
-    writeFullWidth("a", false, store);
-    expect(store.data.size).toBe(0);
+describe("the view's full width setting", () => {
+  const views = [{ id: "a", config: { fullWidth: true } }, { id: "b", config: {} }];
+
+  it("picks the wanted view, else the first", () => {
+    expect(pickActiveView(views, "b")?.id).toBe("b");
+    expect(pickActiveView(views, "zzz")?.id).toBe("a");
+    expect(pickActiveView(views, null)?.id).toBe("a");
+    expect(pickActiveView([], "a")).toBeNull();
   });
 
-  it("survives a storage that throws or is missing", () => {
-    const broken = {
-      getItem: () => {
-        throw new Error("blocked");
-      },
-      setItem: () => {
-        throw new Error("blocked");
-      },
-      removeItem: () => {
-        throw new Error("blocked");
-      },
-    };
-    expect(readFullWidth("a", broken)).toBe(false);
-    expect(() => writeFullWidth("a", true, broken)).not.toThrow();
-    expect(readFullWidth("a", null)).toBe(false);
-    expect(() => writeFullWidth("a", true, null)).not.toThrow();
-  });
-});
-
-describe("useFullWidth", () => {
-  afterEach(() => window.localStorage.clear());
-
-  it("reads, writes and keeps every user of the same base in sync", () => {
-    const first = renderHook(() => useFullWidth("base-1"));
-    const second = renderHook(() => useFullWidth("base-1"));
-    const other = renderHook(() => useFullWidth("base-2"));
-    expect(first.result.current[0]).toBe(false);
-
-    act(() => first.result.current[1](true));
-    expect(first.result.current[0]).toBe(true);
-    expect(second.result.current[0]).toBe(true);
-    expect(other.result.current[0]).toBe(false);
-    expect(window.localStorage.getItem(fullWidthKey("base-1"))).toBe("1");
-
-    act(() => second.result.current[1](false));
-    expect(first.result.current[0]).toBe(false);
-    expect(window.localStorage.getItem(fullWidthKey("base-1"))).toBeNull();
-  });
-
-  it("follows changes made in another tab", () => {
-    const { result } = renderHook(() => useFullWidth("base-3"));
-    act(() => {
-      window.localStorage.setItem(fullWidthKey("base-3"), "1");
-      window.dispatchEvent(new StorageEvent("storage", { key: fullWidthKey("base-3") }));
-    });
-    expect(result.current[0]).toBe(true);
-  });
-
-  it("does nothing without a page id", () => {
-    const { result } = renderHook(() => useFullWidth(undefined));
-    act(() => result.current[1](true));
-    expect(result.current[0]).toBe(false);
-    expect(window.localStorage.length).toBe(0);
+  it("is on only for an explicit true", () => {
+    expect(viewFullWidth(views[0])).toBe(true);
+    expect(viewFullWidth(views[1])).toBe(false);
+    expect(viewFullWidth({ config: { fullWidth: false } })).toBe(false);
+    expect(viewFullWidth(null)).toBe(false);
+    expect(viewFullWidth({})).toBe(false);
   });
 });

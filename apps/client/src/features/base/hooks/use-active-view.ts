@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BaseView } from "@/features/base/types/base.types";
+import { pickActiveView } from "@/features/base/utils/full-width";
 
 export const VIEW_PARAM = "view";
 
@@ -11,7 +12,7 @@ export function useActiveView(views: BaseView[], embedded: boolean) {
   const [params, setParams] = useSearchParams();
   const [localId, setLocalId] = useState<string | null>(null);
   const wanted = embedded ? localId : params.get(VIEW_PARAM);
-  const active = views.find((v) => v.id === wanted) ?? views[0] ?? null;
+  const active = pickActiveView(views, wanted);
 
   const select = useCallback(
     (viewId: string) => {

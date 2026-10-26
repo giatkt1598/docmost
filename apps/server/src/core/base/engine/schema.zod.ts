@@ -229,6 +229,9 @@ export const viewConfigSchema = z
     groupByPropertyId: z.string().max(64).optional(),
     hiddenChoiceIds: z.array(z.string()).max(500).optional(),
     choiceOrder: z.array(z.string()).max(501).optional(),
+    // display preference of the view, shared by everyone: use the whole
+    // content area instead of the page column width
+    fullWidth: z.boolean().optional(),
   })
   .strict();
 

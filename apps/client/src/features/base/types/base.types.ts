@@ -272,6 +272,8 @@ export type BaseViewConfig = {
   groupByPropertyId?: string;
   hiddenChoiceIds?: string[];
   choiceOrder?: string[];
+  // shared display setting: use the whole content area, not the page column
+  fullWidth?: boolean;
 };
 
 // views/update merges the config; a null value removes the key

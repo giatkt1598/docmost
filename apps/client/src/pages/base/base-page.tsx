@@ -5,6 +5,7 @@ import { DocumentTitle } from "@/components/ui/document-title.tsx";
 import { BaseWorkspace } from "@/features/base/components/shell/base-workspace";
 import { PageWidthContainer } from "@/features/base/components/common/page-width-container";
 import { useBaseInfoQuery } from "@/features/base/queries/base-query";
+import { useViewFullWidth } from "@/features/base/hooks/use-view-full-width";
 
 // Standalone base page (/base/:pageId).
 export default function BasePage() {
@@ -12,6 +13,7 @@ export default function BasePage() {
   const { pageId } = useParams();
   const { data: base } = useBaseInfoQuery(pageId);
   const name = base?.name?.trim() || t("Untitled base");
+  const { fullWidth } = useViewFullWidth(pageId, false);
 
   if (!pageId) return null;
   return (
@@ -21,7 +23,7 @@ export default function BasePage() {
       style={{ display: "flex", flexDirection: "column" }}
     >
       <DocumentTitle title={`${base?.icon || ""} ${name}`.trim()} withAppName={false} />
-      <PageWidthContainer pageId={pageId} fill>
+      <PageWidthContainer fullWidth={fullWidth} fill>
         <BaseWorkspace
           pageId={pageId}
           editable
