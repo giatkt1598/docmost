@@ -64,6 +64,23 @@ export function buildModel(
   }
 }
 
+// Gateways in front of other engines (LiteLLM over Ollama, ...) reject the
+// encoding_format the AI SDK always sends with embedding requests; every
+// server returns floats by default, so it is dropped.
+export const withoutEncodingFormat: typeof fetch = async (input, init) => {
+  const body = init?.body;
+  if (typeof body === 'string' && body.includes('encoding_format')) {
+    try {
+      const json = JSON.parse(body);
+      delete json.encoding_format;
+      return fetch(input, { ...init, body: JSON.stringify(json) });
+    } catch {
+      // not JSON: send it as it is
+    }
+  }
+  return fetch(input, init);
+};
+
 // Builds an embedding model for a provider configuration.
 export function buildEmbeddingModel(
   config: Pick<AiConfig, 'driver' | 'baseUrl' | 'apiKey'>,
@@ -86,6 +103,7 @@ export function buildEmbeddingModel(
         name: 'openai-compatible',
         baseURL,
         apiKey,
+        fetch: withoutEncodingFormat,
       }).embeddingModel(modelId);
     case 'gemini':
       return createGoogleGenerativeAI({ apiKey }).embedding(modelId);

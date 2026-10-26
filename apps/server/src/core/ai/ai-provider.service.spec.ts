@@ -133,3 +133,48 @@ describe('validateConnection', () => {
     expect(() => validateConnection('gemini', { apiKey: 'k' })).not.toThrow();
   });
 });
+
+describe('embeddings through an OpenAI-compatible gateway', () => {
+  it('does not send encoding_format', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const http = require('node:http');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { embed } = require('ai');
+    const { buildEmbeddingModel } = require('./ai-provider.service');
+    let received: any = null;
+    const server = http.createServer((req: any, res: any) => {
+      let body = '';
+      req.on('data', (c: any) => (body += c));
+      req.on('end', () => {
+        received = JSON.parse(body);
+        res.setHeader('content-type', 'application/json');
+        res.end(
+          JSON.stringify({
+            data: [{ index: 0, embedding: [0.1, 0.2] }],
+            usage: { prompt_tokens: 1, total_tokens: 1 },
+          }),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const port = server.address().port;
+    try {
+      const { embedding } = await embed({
+        model: buildEmbeddingModel(
+          {
+            driver: 'openai-compatible',
+            baseUrl: `http://localhost:${port}/v1`,
+            apiKey: 'k',
+          },
+          'bge-m3',
+        ),
+        value: 'xin chào',
+      });
+      expect(embedding).toEqual([0.1, 0.2]);
+      expect(received.model).toBe('bge-m3');
+      expect(received).not.toHaveProperty('encoding_format');
+    } finally {
+      server.close();
+    }
+  });
+});
