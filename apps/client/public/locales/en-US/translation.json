@@ -2289,5 +2289,11 @@
   "Read blocks": "Read blocks",
   "Searched the page for “{{query}}”": "Searched the page for “{{query}}”",
   "Edited the page": "Edited the page",
-  "Undid an AI edit": "Undid an AI edit"
+  "Undid an AI edit": "Undid an AI edit",
+  "Searched files for “{{query}}”": "Searched files for “{{query}}”",
+  "Read the comments": "Read the comments",
+  "Looked up people": "Looked up people",
+  "Added a comment": "Added a comment",
+  "Moved a page": "Moved a page",
+  "Copied a page": "Copied a page"
 }

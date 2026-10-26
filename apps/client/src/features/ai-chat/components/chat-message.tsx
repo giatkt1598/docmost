@@ -53,6 +53,25 @@ const TOOL_ICONS: Record<string, React.ReactNode> = {
   move_block: <IconPencil size={12} />,
   delete_blocks: <IconPencil size={12} />,
   undo_ai_edit: <IconArrowBackUp size={12} />,
+  search_file_contents: <IconSearch size={12} />,
+  list_comments: <IconFileText size={12} />,
+  list_workspace_members: <IconListTree size={12} />,
+  add_comment: <IconPencil size={12} />,
+  move_page: <IconListTree size={12} />,
+  duplicate_page: <IconFilePlus size={12} />,
+};
+
+const OTHER_TOOL_LABELS: Record<
+  string,
+  (t: (key: string, opts?: any) => string, input: any) => string
+> = {
+  search_file_contents: (t, input) =>
+    t("Searched files for “{{query}}”", { query: input?.query ?? "" }),
+  list_comments: (t) => t("Read the comments"),
+  list_workspace_members: (t) => t("Looked up people"),
+  add_comment: (t) => t("Added a comment"),
+  move_page: (t) => t("Moved a page"),
+  duplicate_page: (t) => t("Copied a page"),
 };
 
 const PAGE_EDIT_TOOLS = new Set([
@@ -165,7 +184,8 @@ function ToolChip({ call }: { call: IChatToolCall }) {
                         ? t("Edited the page")
                         : call.name === "undo_ai_edit"
                           ? t("Undid an AI edit")
-                          : call.name;
+                          : (OTHER_TOOL_LABELS[call.name]?.(t, call.input) ??
+                            call.name);
   return (
     <Badge
       variant="light"

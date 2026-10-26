@@ -375,6 +375,22 @@ export class McpService {
     );
 
     server.registerTool(
+      'search_file_contents',
+      {
+        title: 'Search inside files',
+        description:
+          'Search the text inside attached PDF, DOCX and TXT files (and their names) across pages the current user can read.',
+        inputSchema: z.object({
+          query: z.string().min(1).max(SEARCH_QUERY_MAX_LENGTH),
+          spaceId: z.uuid().optional(),
+          limit: z.number().int().min(1).max(MAX_LIST_LIMIT).optional(),
+        }),
+        annotations: { readOnlyHint: true },
+      },
+      (args) => this.run(() => this.searchFileContents(actor, args)),
+    );
+
+    server.registerTool(
       'list_workspace_members',
       {
         title: 'List workspace members',
@@ -993,6 +1009,47 @@ export class McpService {
           spaceId: a.spaceId,
           createdAt: a.createdAt,
         })),
+    };
+  }
+
+  // Full-text (and, with embeddings, semantic) search inside files.
+  async searchFileContents(
+    actor: McpActor,
+    args: { query: string; spaceId?: string; limit?: number },
+  ) {
+    if (args.spaceId) {
+      await this.assertSpaceAction(
+        actor.user,
+        args.spaceId,
+        SpaceCaslAction.Read,
+      );
+    }
+    const result = await this.searchService.searchAttachments(
+      {
+        query: args.query,
+        spaceId: args.spaceId,
+        limit: args.limit ?? 10,
+      } as any,
+      { userId: actor.user.id, workspaceId: actor.workspace.id },
+    );
+    return {
+      items: result.items.map((item: any) => ({
+        id: item.id,
+        fileName: item.fileName,
+        excerpt: String(item.highlight ?? '')
+          .replace(/<[^>]+>/g, '')
+          .slice(0, 400),
+        page: item.page,
+        space: {
+          id: item.space?.id,
+          name: item.space?.name,
+          slug: item.space?.slug,
+        },
+        url:
+          item.space?.slug && item.page?.slugId
+            ? `/s/${item.space.slug}/p/${item.page.slugId}`
+            : undefined,
+      })),
     };
   }
 

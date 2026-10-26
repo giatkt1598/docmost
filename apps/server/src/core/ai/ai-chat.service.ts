@@ -194,6 +194,67 @@ export function buildChatTools(
     });
   }
 
+  // the rest of the workspace the assistant can reach
+  tools.search_file_contents = tool({
+    description:
+      'Search the text inside attached PDF, DOCX and TXT files. Results link to the page holding each file.',
+    inputSchema: z.object({
+      query: z.string().min(1).max(200),
+      spaceId: z.string().optional().describe(SPACE_FIELD),
+    }),
+    execute: (args) =>
+      runTool(async () =>
+        mcp.searchFileContents(actor, {
+          ...(await withSpace(args)),
+          limit: 10,
+        }),
+      ),
+  });
+  tools.list_comments = tool({
+    description: 'Read the comments of a page.',
+    inputSchema: z.object({ pageId: z.string().min(1) }),
+    execute: (args) =>
+      runTool(() => mcp.getComments(actor, { ...args, limit: 50 })),
+  });
+  tools.list_workspace_members = tool({
+    description:
+      'Find people in the workspace (name, email); use their id to mention them.',
+    inputSchema: z.object({ query: z.string().optional() }),
+    execute: (args) =>
+      runTool(() => mcp.listWorkspaceMembers(actor, { ...args, limit: 20 })),
+  });
+  if (!readOnly) {
+    tools.add_comment = tool({
+      description:
+        'Add a comment (Markdown) to a page, or reply to a comment. Only when the user asks for it.',
+      inputSchema: z.object({
+        pageId: z.string().min(1),
+        content: z.string().min(1).max(5000),
+        parentCommentId: z.string().optional(),
+      }),
+      execute: (args) => runTool(() => mcp.createComment(actor, args)),
+    });
+    tools.move_page = tool({
+      description:
+        'Move a page under another page of the same space, or to the top level with parentPageId null. Only when the user asks for it.',
+      inputSchema: z.object({
+        pageId: z.string().min(1),
+        parentPageId: z.string().nullable().optional(),
+      }),
+      execute: (args) => runTool(() => mcp.movePage(actor, args)),
+    });
+    tools.duplicate_page = tool({
+      description:
+        'Copy a page (with its sub-pages), optionally into another space. Only when the user asks for it.',
+      inputSchema: z.object({
+        pageId: z.string().min(1),
+        spaceId: z.string().optional().describe(SPACE_FIELD),
+      }),
+      execute: (args) =>
+        runTool(async () => mcp.duplicatePage(actor, await withSpace(args))),
+    });
+  }
+
   if (pageTools) {
     const ctx = { aiChatId: chatId };
     const pageTool = (

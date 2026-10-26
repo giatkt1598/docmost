@@ -551,6 +551,7 @@ describe('McpService HTTP handler', () => {
       'move_page',
       'move_page_to_space',
       'search_attachments',
+      'search_file_contents',
       'search_pages',
       'undo_ai_edit',
       'update_block',

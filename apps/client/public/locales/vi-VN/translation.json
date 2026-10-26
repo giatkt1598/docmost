@@ -2104,5 +2104,11 @@
   "Read blocks": "Đã đọc các block",
   "Searched the page for “{{query}}”": "Đã tìm “{{query}}” trong trang",
   "Edited the page": "Đã chỉnh sửa trang",
-  "Undid an AI edit": "Đã hoàn tác một chỉnh sửa của AI"
+  "Undid an AI edit": "Đã hoàn tác một chỉnh sửa của AI",
+  "Searched files for “{{query}}”": "Đã tìm “{{query}}” trong tệp",
+  "Read the comments": "Đã đọc bình luận",
+  "Looked up people": "Đã tra cứu thành viên",
+  "Added a comment": "Đã thêm bình luận",
+  "Moved a page": "Đã di chuyển trang",
+  "Copied a page": "Đã sao chép trang"
 }
