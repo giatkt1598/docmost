@@ -19,4 +19,7 @@ export interface IPageHistory {
   updatedAt: string;
   lastUpdatedBy: IPageHistoryUser;
   contributors?: IPageHistoryUser[];
+  // 'ai' for a version written by an AI edit, 'undo' for its undo
+  source?: "user" | "ai" | "undo" | null;
+  aiEdit?: { id: string; summary: string | null; status: string } | null;
 }

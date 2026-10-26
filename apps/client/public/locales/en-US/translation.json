@@ -2279,5 +2279,15 @@
   "{{indexed}} of {{total}} pages and files indexed with {{model}}": "{{indexed}} of {{total}} pages and files indexed with {{model}}",
   "Rebuild index": "Rebuild index",
   "Rebuilding the search index": "Rebuilding the search index",
-  "Export the space from Confluence as HTML (Space settings > Export space > HTML), then upload the zip file.": "Export the space from Confluence as HTML (Space settings > Export space > HTML), then upload the zip file."
+  "Export the space from Confluence as HTML (Space settings > Export space > HTML), then upload the zip file.": "Export the space from Confluence as HTML (Space settings > Export space > HTML), then upload the zip file.",
+  "AI edit undone": "AI edit undone",
+  "Undo this AI edit?": "Undo this AI edit?",
+  "Only the blocks this edit changed are put back. If someone changed them since, the undo is refused.": "Only the blocks this edit changed are put back. If someone changed them since, the undo is refused.",
+  "Undone": "Undone",
+  "View changes": "View changes",
+  "Read the page outline": "Read the page outline",
+  "Read blocks": "Read blocks",
+  "Searched the page for “{{query}}”": "Searched the page for “{{query}}”",
+  "Edited the page": "Edited the page",
+  "Undid an AI edit": "Undid an AI edit"
 }

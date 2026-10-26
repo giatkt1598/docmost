@@ -2094,5 +2094,15 @@
   "{{indexed}} of {{total}} pages and files indexed with {{model}}": "Đã lập chỉ mục {{indexed}}/{{total}} trang và tệp bằng {{model}}",
   "Rebuild index": "Xây dựng lại chỉ mục",
   "Rebuilding the search index": "Đang xây dựng lại chỉ mục tìm kiếm",
-  "Export the space from Confluence as HTML (Space settings > Export space > HTML), then upload the zip file.": "Xuất space từ Confluence dạng HTML (Space settings > Export space > HTML), rồi tải file zip lên."
+  "Export the space from Confluence as HTML (Space settings > Export space > HTML), then upload the zip file.": "Xuất space từ Confluence dạng HTML (Space settings > Export space > HTML), rồi tải file zip lên.",
+  "AI edit undone": "Đã hoàn tác chỉnh sửa của AI",
+  "Undo this AI edit?": "Hoàn tác chỉnh sửa này của AI?",
+  "Only the blocks this edit changed are put back. If someone changed them since, the undo is refused.": "Chỉ các block mà lần chỉnh sửa này đã thay đổi được khôi phục. Nếu ai đó đã sửa các block đó sau đó, việc hoàn tác sẽ bị từ chối.",
+  "Undone": "Đã hoàn tác",
+  "View changes": "Xem thay đổi",
+  "Read the page outline": "Đã đọc dàn ý trang",
+  "Read blocks": "Đã đọc các block",
+  "Searched the page for “{{query}}”": "Đã tìm “{{query}}” trong trang",
+  "Edited the page": "Đã chỉnh sửa trang",
+  "Undid an AI edit": "Đã hoàn tác một chỉnh sửa của AI"
 }

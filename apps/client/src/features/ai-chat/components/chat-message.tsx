@@ -3,6 +3,7 @@ import {
   Alert,
   Badge,
   Box,
+  Button,
   Group,
   Loader,
   Paper,
@@ -11,7 +12,9 @@ import {
 } from "@mantine/core";
 import {
   IconAlertTriangle,
+  IconArrowBackUp,
   IconCheck,
+  IconHistory,
   IconFilePlus,
   IconFileText,
   IconListTree,
@@ -21,6 +24,12 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { useNavigate } from "react-router-dom";
+import { useSetAtom } from "jotai";
+import { modals } from "@mantine/modals";
+import { notifications } from "@mantine/notifications";
+import { useMutation } from "@tanstack/react-query";
+import { historyAtoms } from "@/features/page-history/atoms/history-atoms.ts";
+import { undoAiPageEdit } from "@/features/ai-chat/services/ai-chat-service";
 import { useTranslation } from "react-i18next";
 import { renderAiMarkdown } from "@/features/ai/render-ai-markdown";
 import {
@@ -35,7 +44,97 @@ const TOOL_ICONS: Record<string, React.ReactNode> = {
   list_child_pages: <IconListTree size={12} />,
   create_page: <IconFilePlus size={12} />,
   update_page: <IconPencil size={12} />,
+  get_page_outline: <IconListTree size={12} />,
+  get_blocks: <IconFileText size={12} />,
+  find_blocks: <IconSearch size={12} />,
+  apply_operations: <IconPencil size={12} />,
+  insert_blocks: <IconPencil size={12} />,
+  update_block: <IconPencil size={12} />,
+  move_block: <IconPencil size={12} />,
+  delete_blocks: <IconPencil size={12} />,
+  undo_ai_edit: <IconArrowBackUp size={12} />,
 };
+
+const PAGE_EDIT_TOOLS = new Set([
+  "apply_operations",
+  "insert_blocks",
+  "update_block",
+  "move_block",
+  "delete_blocks",
+]);
+
+// Summary of an AI page edit with its Undo and "View changes".
+function EditActions({
+  call,
+  canViewHistory,
+}: {
+  call: IChatToolCall;
+  canViewHistory?: boolean;
+}) {
+  const { t } = useTranslation();
+  const [undone, setUndone] = useState(false);
+  const openHistory = useSetAtom(historyAtoms);
+  const undo = useMutation({
+    mutationFn: () => undoAiPageEdit(call.editId),
+    onSuccess: () => {
+      setUndone(true);
+      notifications.show({ message: t("AI edit undone") });
+    },
+    onError: (err: any) =>
+      notifications.show({
+        color: "red",
+        message: err?.response?.data?.message ?? err?.message,
+      }),
+  });
+
+  const confirmUndo = () =>
+    modals.openConfirmModal({
+      title: t("Undo this AI edit?"),
+      children: (
+        <Text size="sm">
+          {t(
+            "Only the blocks this edit changed are put back. If someone changed them since, the undo is refused.",
+          )}
+        </Text>
+      ),
+      labels: { confirm: t("Undo"), cancel: t("Cancel") },
+      onConfirm: () => undo.mutate(),
+    });
+
+  return (
+    <Group gap={4} wrap="nowrap" mt={4}>
+      <Text size="xs" c="dimmed" lineClamp={1} style={{ flex: 1 }}>
+        {call.input?.summary}
+      </Text>
+      {undone ? (
+        <Text size="xs" c="dimmed">
+          {t("Undone")}
+        </Text>
+      ) : (
+        <Button
+          size="compact-xs"
+          variant="subtle"
+          leftSection={<IconArrowBackUp size={12} />}
+          onClick={confirmUndo}
+          loading={undo.isPending}
+        >
+          {t("Undo")}
+        </Button>
+      )}
+      {canViewHistory && (
+        <Button
+          size="compact-xs"
+          variant="subtle"
+          color="gray"
+          leftSection={<IconHistory size={12} />}
+          onClick={() => openHistory(true)}
+        >
+          {t("View changes")}
+        </Button>
+      )}
+    </Group>
+  );
+}
 
 function ToolChip({ call }: { call: IChatToolCall }) {
   const { t } = useTranslation();
@@ -54,7 +153,19 @@ function ToolChip({ call }: { call: IChatToolCall }) {
                 })
               : call.name === "update_page"
                 ? t("Updated a page")
-                : call.name;
+                : call.name === "get_page_outline"
+                  ? t("Read the page outline")
+                  : call.name === "get_blocks"
+                    ? t("Read blocks")
+                    : call.name === "find_blocks"
+                      ? t("Searched the page for “{{query}}”", {
+                          query: call.input?.query ?? "",
+                        })
+                      : PAGE_EDIT_TOOLS.has(call.name)
+                        ? t("Edited the page")
+                        : call.name === "undo_ai_edit"
+                          ? t("Undid an AI edit")
+                          : call.name;
   return (
     <Badge
       variant="light"
@@ -134,6 +245,15 @@ export function ChatMessage({
           ))}
         </Group>
       )}
+      {message.toolCalls
+        ?.filter((call) => call.editId && PAGE_EDIT_TOOLS.has(call.name))
+        .map((call) => (
+          <EditActions
+            key={`edit-${call.id}`}
+            call={call}
+            canViewHistory={compact}
+          />
+        ))}
       {message.content ? (
         <Typography fz="sm">
           {/* links to pages navigate inside the app */}

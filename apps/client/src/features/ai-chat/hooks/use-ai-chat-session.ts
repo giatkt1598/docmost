@@ -5,7 +5,11 @@ import {
   sendAiChatMessage,
 } from "@/features/ai-chat/services/ai-chat-service";
 import { AI_CHATS_KEY } from "@/features/ai-chat/queries/ai-chat-query";
-import { IAiChat, IChatMessage } from "@/features/ai-chat/types/ai-chat.types";
+import {
+  IAiChat,
+  IChatMessage,
+  IChatSelection,
+} from "@/features/ai-chat/types/ai-chat.types";
 
 // One conversation: loads its history and streams new replies into it.
 export function useAiChatSession(opts: {
@@ -13,6 +17,8 @@ export function useAiChatSession(opts: {
   pageId?: string;
   // called once the server created the chat for the first message
   onChatCreated?: (chat: IAiChat) => void;
+  // the text selected on the page when a message is sent
+  getSelection?: () => IChatSelection | null;
 }) {
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<IChatMessage[]>([]);
@@ -66,12 +72,17 @@ export function useAiChatSession(opts: {
       setStreaming(true);
       const abort = new AbortController();
       abortRef.current = abort;
+      const selection = opts.getSelection?.();
       try {
         await sendAiChatMessage(
           {
             chatId: chatIdRef.current,
             message,
             ...(opts.pageId && { pageId: opts.pageId }),
+            ...(selection?.text && {
+              selectionText: selection.text.slice(0, 4000),
+              selectionBlockIds: selection.blockIds.slice(0, 50),
+            }),
           },
           (event) => {
             switch (event.type) {
@@ -97,7 +108,13 @@ export function useAiChatSession(opts: {
                 updateReply((r) => ({
                   ...r,
                   toolCalls: (r.toolCalls ?? []).map((c) =>
-                    c.id === event.id ? { ...c, ok: event.ok } : c,
+                    c.id === event.id
+                      ? {
+                          ...c,
+                          ok: event.ok,
+                          ...(event.editId && { editId: event.editId }),
+                        }
+                      : c,
                   ),
                 }));
                 break;
@@ -120,7 +137,13 @@ export function useAiChatSession(opts: {
         queryClient.invalidateQueries({ queryKey: [AI_CHATS_KEY] });
       }
     },
-    [streaming, opts.pageId, opts.onChatCreated, queryClient],
+    [
+      streaming,
+      opts.pageId,
+      opts.onChatCreated,
+      opts.getSelection,
+      queryClient,
+    ],
   );
 
   const stop = useCallback(() => abortRef.current?.abort(), []);

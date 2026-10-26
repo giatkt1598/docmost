@@ -1,4 +1,5 @@
 import {
+  Badge,
   Text,
   Group,
   UnstyledButton,
@@ -90,7 +91,23 @@ const HistoryItem = memo(function HistoryItem({
         onClick={handleClick}
         className={classes.historyButton}
       >
-        <Text size="sm">{date}</Text>
+        <Group gap={6} wrap="nowrap">
+          <Text size="sm">{date}</Text>
+          {(historyItem.source === "ai" || historyItem.source === "undo") && (
+            <Badge
+              size="xs"
+              variant="light"
+              color={historyItem.source === "ai" ? "violet" : "gray"}
+            >
+              {historyItem.source === "ai" ? t("AI") : t("Undo")}
+            </Badge>
+          )}
+        </Group>
+        {historyItem.aiEdit?.summary && (
+          <Text size="xs" c="dimmed" lineClamp={2} mt={2}>
+            {historyItem.aiEdit.summary}
+          </Text>
+        )}
 
         <Group gap={6} wrap="nowrap" mt={4}>
           {hasContributors ? (

@@ -14,7 +14,10 @@ import { useTranslation } from "react-i18next";
 import { useAiChatSession } from "@/features/ai-chat/hooks/use-ai-chat-session";
 import { ChatMessage } from "@/features/ai-chat/components/chat-message";
 import { ChatInput } from "@/features/ai-chat/components/chat-input";
-import { IAiChat } from "@/features/ai-chat/types/ai-chat.types";
+import {
+  IAiChat,
+  IChatSelection,
+} from "@/features/ai-chat/types/ai-chat.types";
 
 interface AiChatViewProps {
   chatId?: string;
@@ -24,6 +27,7 @@ interface AiChatViewProps {
   // sent once when a new chat opens, e.g. from the home prompt
   initialMessage?: string;
   compact?: boolean;
+  getSelection?: () => IChatSelection | null;
 }
 
 export function AiChatView({
@@ -32,9 +36,15 @@ export function AiChatView({
   onChatCreated,
   initialMessage,
   compact,
+  getSelection,
 }: AiChatViewProps) {
   const { t } = useTranslation();
-  const session = useAiChatSession({ chatId, pageId, onChatCreated });
+  const session = useAiChatSession({
+    chatId,
+    pageId,
+    onChatCreated,
+    getSelection,
+  });
   const viewportRef = useRef<HTMLDivElement>(null);
   const sentInitial = useRef(false);
 

@@ -35,9 +35,20 @@ export async function deleteAiChat(chatId: string): Promise<void> {
   await api.post("/ai-chat/delete", { chatId });
 }
 
+// Undoes one AI page edit; refused (409) when its blocks changed since.
+export async function undoAiPageEdit(editId: string): Promise<void> {
+  await api.post("/ai-page-edits/undo", { editId });
+}
+
 // POST /ai-chat/send streams newline-delimited JSON events.
 export async function sendAiChatMessage(
-  body: { chatId?: string; message: string; pageId?: string },
+  body: {
+    chatId?: string;
+    message: string;
+    pageId?: string;
+    selectionText?: string;
+    selectionBlockIds?: string[];
+  },
   onEvent: (event: ChatStreamEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {

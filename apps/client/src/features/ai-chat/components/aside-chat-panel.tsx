@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActionIcon,
   Center,
@@ -18,7 +18,8 @@ import {
   IconPlus,
   IconX,
 } from "@tabler/icons-react";
-import { useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
+import { pageEditorAtom } from "@/features/editor/atoms/editor-atoms.ts";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { asideStateAtom } from "@/components/layouts/global/hooks/atoms/sidebar-atom.ts";
@@ -27,7 +28,10 @@ import { timeAgo } from "@/lib/time.ts";
 import { usePageQuery } from "@/features/page/queries/page-query.ts";
 import { AiChatView } from "@/features/ai-chat/components/ai-chat-view";
 import { useAiChatsQuery } from "@/features/ai-chat/queries/ai-chat-query";
-import { IAiChat } from "@/features/ai-chat/types/ai-chat.types";
+import {
+  IAiChat,
+  IChatSelection,
+} from "@/features/ai-chat/types/ai-chat.types";
 
 // The user's earlier chats beside this page.
 function ChatHistory({
@@ -109,6 +113,7 @@ function ChatHistory({
 export function AsideChatPanel() {
   const { t } = useTranslation();
   const setAside = useSetAtom(asideStateAtom);
+  const editor = useAtomValue(pageEditorAtom);
   const { pageSlug } = useParams();
   const { data: page } = usePageQuery({ pageId: extractPageSlugId(pageSlug) });
   const pageId = page?.id;
@@ -133,6 +138,21 @@ export function AsideChatPanel() {
   };
 
   const ready = !!pageId && openedFor.current === pageId;
+
+  // the selection in the page editor and the blocks it spans, read when a
+  // message is sent (the editor keeps it while focus is in the chat)
+  const getSelection = useCallback((): IChatSelection | null => {
+    if (!editor || editor.isDestroyed) return null;
+    const { from, to, empty } = editor.state.selection;
+    if (empty) return null;
+    const text = editor.state.doc.textBetween(from, to, "\n").trim();
+    if (!text) return null;
+    const blockIds = new Set<string>();
+    editor.state.doc.nodesBetween(from, to, (node) => {
+      if (node.isBlock && node.attrs?.id) blockIds.add(node.attrs.id);
+    });
+    return { text, blockIds: [...blockIds] };
+  }, [editor]);
 
   return (
     <Stack gap={0} h="100%" style={{ minHeight: 0 }}>
@@ -194,6 +214,7 @@ export function AsideChatPanel() {
             chatId={chatId}
             pageId={pageId}
             onChatCreated={(chat) => setChatId(chat.id)}
+            getSelection={getSelection}
             compact
           />
         ) : (
