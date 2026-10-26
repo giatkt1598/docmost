@@ -4,6 +4,8 @@ import { Page, User, Workspace } from '@docmost/db/types/entity.types';
 import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { PageAccessService } from '../page/page-access/page-access.service';
 import { PageService } from '../page/services/page.service';
+import { PageHistoryRepo } from '@docmost/db/repos/page/page-history.repo';
+import { assignBlockIds } from './blocks/doc-blocks';
 import { AiPageEditService, ApplyOutcome } from './ai-page-edit.service';
 import { findBlocks, outline, sliceBlocks } from './blocks/navigation';
 import { Operation } from './operations/engine';
@@ -26,6 +28,7 @@ export class AiPageToolsService {
     private readonly pageAccess: PageAccessService,
     private readonly edits: AiPageEditService,
     private readonly references: ReferenceResolver,
+    private readonly pageHistoryRepo: PageHistoryRepo,
   ) {}
 
   private async findPage(actor: ToolActor, pageId: string): Promise<Page> {
@@ -216,6 +219,51 @@ export class AiPageToolsService {
       },
       ctx,
     );
+  }
+
+  async listPageHistory(actor: ToolActor, args: Args<'list_page_history'>) {
+    const { page } = await this.readable(actor, args.page_id);
+    const result = await this.pageHistoryRepo.findPageHistoryByPageId(page.id, {
+      limit: args.limit ?? 20,
+    } as any);
+    return {
+      versions: result.items.map((v: any) => ({
+        history_id: v.id,
+        created_at: v.createdAt,
+        title: v.title,
+        source: v.source ?? 'user',
+        summary: v.aiEdit?.summary ?? null,
+        author: v.lastUpdatedBy?.name ?? null,
+      })),
+    };
+  }
+
+  // Puts an earlier version back as one AI edit, so it can be undone too.
+  async restorePageVersion(
+    actor: ToolActor,
+    args: Args<'restore_page_version'>,
+    ctx: { aiChatId?: string } = {},
+  ) {
+    const page = await this.editable(actor, args.page_id);
+    const version = await this.pageHistoryRepo.findById(args.history_id, {
+      includeContent: true,
+    });
+    if (!version || version.pageId !== page.id || !version.content) {
+      throw new NotFoundException('Version not found for this page');
+    }
+    const outcome = await this.edits.apply(page, actor.user, {
+      summary: args.summary,
+      operations: [
+        {
+          op: 'replace_document',
+          node: assignBlockIds(version.content as any).doc,
+        },
+      ],
+      aiChatId: ctx.aiChatId,
+    });
+    return outcome.ok === false
+      ? { error: outcome.error }
+      : { edit_id: outcome.edit_id, restored: args.history_id };
   }
 
   async undoAiEdit(actor: ToolActor, args: Args<'undo_ai_edit'>) {

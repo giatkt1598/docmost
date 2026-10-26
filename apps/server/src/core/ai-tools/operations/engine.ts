@@ -47,6 +47,7 @@ export type BlockPatch = {
   caption?: string | null;
   align?: string | null;
   url?: string;
+  latex?: string;
 };
 
 export type Operation =
@@ -72,7 +73,10 @@ export type Operation =
       parent_id: string | null;
       after_id: string | null;
       node: PmNode;
-    };
+    }
+  // the whole content at once: restoring an earlier version (built by the
+  // server from page history, never sent by a model) and its undo
+  | { op: 'replace_document'; node: PmNode; rev?: string };
 
 export type EditErrorCode = 'CONFLICT' | 'VALIDATION' | 'NOT_FOUND';
 
@@ -386,6 +390,30 @@ export function applyOperations(
 
   operations.forEach((op, i) => {
     switch (op.op) {
+      case 'replace_document': {
+        if (undo && blockRev(doc) !== op.rev) {
+          fail(
+            'CONFLICT',
+            i,
+            undefined,
+            'The page was changed after the version was restored',
+          );
+        }
+        const before = clone(doc);
+        doc.content = clone(op.node.content ?? []);
+        for (const node of doc.content) {
+          if (node.attrs?.id) {
+            touched.add(node.attrs.id);
+            changed.add(node.attrs.id);
+          }
+        }
+        inverse.unshift({
+          op: 'replace_document',
+          node: before,
+          rev: blockRev(doc),
+        });
+        break;
+      }
       case 'insert':
       case 'reinsert': {
         const { holder, kind } = resolveParent(op.parent_id, i);
@@ -567,6 +595,8 @@ const PATCH_KEYS: Record<string, (keyof BlockPatch)[]> = {
   column: ['width'],
   image: ['caption', 'width', 'align'],
   embed: ['url'],
+  math: ['latex'],
+  video: ['width', 'align'],
 };
 
 function patchNode(
@@ -671,6 +701,18 @@ function patchNode(
         next.attrs.align = patch.align;
       }
       break;
+    case 'math':
+      next.attrs.text = patch.latex ?? '';
+      break;
+    case 'video':
+      if (patch.width !== undefined) next.attrs.width = patch.width;
+      if (patch.align !== undefined) {
+        if (!(IMAGE_ALIGNS as readonly string[]).includes(patch.align)) {
+          fail('VALIDATION', i, id, 'align must be left, center or right');
+        }
+        next.attrs.align = patch.align;
+      }
+      break;
     case 'embed': {
       const { provider } = getEmbedUrlAndProvider(patch.url ?? '');
       if (!patch.url || provider === 'iframe') {
@@ -766,9 +808,12 @@ const INSERTABLE = new Set([
   'image',
   'attachment',
   'embed',
+  'mathBlock',
+  'video',
   'text',
   'hardBreak',
   'mathInline',
+  'status',
 ]);
 
 const PASSTHROUGH_MARKS = new Set([
@@ -788,7 +833,6 @@ const PASSTHROUGH_MARKS = new Set([
 // inline nodes that may be kept as they were but not made up
 const KEEP_ONLY_INLINE = new Set([
   'mention',
-  'status',
   'footnoteReference',
   'integrationMention',
 ]);

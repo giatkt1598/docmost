@@ -92,6 +92,8 @@ export function applyToLiveDoc(
     index(after);
     const seen = new Set<string>();
     const inverse = result.inverse.map((op) => {
+      // a whole-page restore is undone only if the page is as it left it
+      if (op.op === 'replace_document') return { ...op, rev: blockRev(after) };
       if (!('block_id' in op) || !('rev' in op)) return op;
       if (seen.has(op.block_id)) return op;
       seen.add(op.block_id);

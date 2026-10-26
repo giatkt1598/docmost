@@ -59,6 +59,8 @@ const TOOL_ICONS: Record<string, React.ReactNode> = {
   add_comment: <IconPencil size={12} />,
   move_page: <IconListTree size={12} />,
   duplicate_page: <IconFilePlus size={12} />,
+  list_page_history: <IconHistory size={12} />,
+  restore_page_version: <IconHistory size={12} />,
 };
 
 const OTHER_TOOL_LABELS: Record<
@@ -72,9 +74,12 @@ const OTHER_TOOL_LABELS: Record<
   add_comment: (t) => t("Added a comment"),
   move_page: (t) => t("Moved a page"),
   duplicate_page: (t) => t("Copied a page"),
+  list_page_history: (t) => t("Read the page history"),
+  restore_page_version: (t) => t("Restored an earlier version"),
 };
 
 const PAGE_EDIT_TOOLS = new Set([
+  "restore_page_version",
   "apply_operations",
   "insert_blocks",
   "update_block",
@@ -180,7 +185,7 @@ function ToolChip({ call }: { call: IChatToolCall }) {
                       ? t("Searched the page for “{{query}}”", {
                           query: call.input?.query ?? "",
                         })
-                      : PAGE_EDIT_TOOLS.has(call.name)
+                      : PAGE_EDIT_TOOLS.has(call.name) && !OTHER_TOOL_LABELS[call.name]
                         ? t("Edited the page")
                         : call.name === "undo_ai_edit"
                           ? t("Undid an AI edit")

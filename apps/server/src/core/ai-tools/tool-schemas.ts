@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { CALLOUT_VARIANTS, IMAGE_ALIGNS } from './blocks/doc-blocks';
-import { isSafeLink } from './blocks/rich-text';
+import { isSafeLink, STATUS_COLORS } from './blocks/rich-text';
 
 // Input schemas of the AI page tools, shared by AI chat and the MCP server.
 
@@ -44,6 +44,15 @@ export const spanSchema = z.union([
     inline: z.any().describe('Copy as is from what you read'),
     preview: z.string().optional(),
   }),
+  z.object({ math: z.string().max(2000).describe('inline LaTeX formula') }),
+  z.object({
+    status: z
+      .object({
+        text: z.string().min(1).max(60),
+        color: z.enum(STATUS_COLORS).optional(),
+      })
+      .describe('coloured status label'),
+  }),
   z.object({
     mention: z
       .object({
@@ -80,6 +89,8 @@ const BLOCK_TYPES = [
   'image',
   'file',
   'embed',
+  'math',
+  'video',
   'markdown',
 ] as const;
 
@@ -126,6 +137,7 @@ export const blockInputSchema: z.ZodType<any> = z.lazy(() =>
       .optional()
       .describe('image/file: a file already uploaded to the workspace'),
     caption: z.string().max(500).nullable().optional().describe('image'),
+    latex: z.string().max(5000).optional().describe('math: LaTeX'),
     align: z.enum(IMAGE_ALIGNS).nullable().optional().describe('image'),
     children: z
       .array(blockInputSchema)
@@ -176,6 +188,7 @@ const patchSchema = z.object({
     .optional(),
   caption: z.string().max(500).nullable().optional(),
   align: z.enum(IMAGE_ALIGNS).nullable().optional(),
+  latex: z.string().max(5000).optional(),
   url: z
     .string()
     .max(2000)
@@ -268,6 +281,15 @@ export const pageToolSchemas = {
       .min(1)
       .max(50),
   }),
+  list_page_history: z.object({
+    page_id: PAGE_ID,
+    limit: z.number().int().min(1).max(50).optional(),
+  }),
+  restore_page_version: z.object({
+    page_id: PAGE_ID,
+    history_id: z.uuid().describe('A version from list_page_history'),
+    summary: SUMMARY,
+  }),
   undo_ai_edit: z.object({
     edit_id: z.uuid().describe('The edit_id a write returned'),
   }),
@@ -292,6 +314,10 @@ export const PAGE_TOOL_DESCRIPTIONS: Record<
   move_block:
     'Move a block (with its children) to another position or container.',
   delete_blocks: 'Delete blocks (with their children).',
+  list_page_history:
+    'List earlier versions of a page, newest first: when, by whom, and for AI edits what they changed.',
+  restore_page_version:
+    'Put the whole content of a page back to an earlier version. Only when the user asks for it. It is recorded as an AI edit and can be undone while nobody changes the page.',
   undo_ai_edit:
     'Undo one earlier AI edit. Refused when someone changed the same blocks afterwards.',
 };
@@ -300,6 +326,7 @@ export const BLOCK_GUIDE = [
   'Blocks: paragraph, heading (level 1-3), quote, callout (variant default|info|note|success|warning|danger), code (language, text), divider,',
   'bulleted_list / numbered_list (items or list_item children), todo_list (todo_item with checked), table (header_row, rows of cells; update single cells with patch.cells),',
   'toggle (rich_text summary, open, children), columns (2-5 column children, each with children), image (url or attachment_id, caption, align), file (attachment_id), embed (url of YouTube, Vimeo, Loom, Figma, Miro, Airtable, Typeform, Framer, Google Drive/Sheets),',
-  'and type "markdown" to insert longer Markdown at once. Text is rich_text spans or plain "text"; a span { mention: { page_id } } or { mention: { user_id } } links a page or a person.',
+  'math (latex), video (url or attachment_id),',
+  'and type "markdown" to insert longer Markdown at once. Text is rich_text spans or plain "text"; a span { mention: { page_id } } or { mention: { user_id } } links a page or a person, { math: "E=mc^2" } is an inline formula and { status: { text, color: gray|blue|green|yellow|red } } a status label.',
   'Blocks of type "unsupported" (drawings, complex tables...) can be moved or deleted but not edited.',
 ].join(' ');

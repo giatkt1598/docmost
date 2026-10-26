@@ -115,4 +115,27 @@ describe('live document', () => {
     expect(undo.ok).toBe(true);
     expect(json(ydoc)).toEqual(before);
   });
+
+  it('restores a whole version and undoes it on the live document', () => {
+    const ydoc = ydocOf([para('p1', 'one'), para('p2', 'two')]);
+    const before = readDocWithIds(ydoc);
+    const result = applyToLiveDoc(
+      ydoc,
+      [
+        {
+          op: 'replace_document',
+          node: { type: 'doc', content: [para('old', 'old text')] },
+        },
+      ],
+      { markdown: new Map() },
+    );
+    if (result.ok === false) throw new Error(result.message);
+    expect(texts(ydoc)).toEqual(['old text']);
+    const undo = applyToLiveDoc(ydoc, result.inverse, {
+      markdown: new Map(),
+      mode: 'undo',
+    });
+    expect(undo.ok).toBe(true);
+    expect(json(ydoc)).toEqual(before);
+  });
 });

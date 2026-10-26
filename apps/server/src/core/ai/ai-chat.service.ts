@@ -277,6 +277,9 @@ export function buildChatTools(
     tools.find_blocks = pageTool('find_blocks', (a) =>
       pageTools.findBlocks(actor, a),
     );
+    tools.list_page_history = pageTool('list_page_history', (a) =>
+      pageTools.listPageHistory(actor, a),
+    );
     if (!readOnly) {
       tools.apply_operations = pageTool(
         'apply_operations',
@@ -301,6 +304,9 @@ export function buildChatTools(
       );
       tools.undo_ai_edit = pageTool('undo_ai_edit', (a) =>
         pageTools.undoAiEdit(actor, a),
+      );
+      tools.restore_page_version = pageTool('restore_page_version', (a) =>
+        pageTools.restorePageVersion(actor, a, ctx),
       );
     }
   }

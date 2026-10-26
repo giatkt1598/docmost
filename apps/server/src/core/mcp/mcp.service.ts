@@ -1170,6 +1170,7 @@ export class McpService {
       get_page_outline: (a: any) => tools.getPageOutline(actor, a),
       get_blocks: (a: any) => tools.getBlocks(actor, a),
       find_blocks: (a: any) => tools.findBlocks(actor, a),
+      list_page_history: (a: any) => tools.listPageHistory(actor, a),
     };
     const writes = {
       apply_operations: (a: any) => tools.applyOperations(actor, a),
@@ -1178,6 +1179,7 @@ export class McpService {
       move_block: (a: any) => tools.moveBlock(actor, a),
       delete_blocks: (a: any) => tools.deleteBlocks(actor, a),
       undo_ai_edit: (a: any) => tools.undoAiEdit(actor, a),
+      restore_page_version: (a: any) => tools.restorePageVersion(actor, a),
     };
     for (const [name, handler] of Object.entries({ ...reads, ...writes })) {
       const readOnly = name in reads;
@@ -1187,7 +1189,11 @@ export class McpService {
           title: name.replace(/_/g, ' '),
           description:
             PAGE_TOOL_DESCRIPTIONS[name] +
-            (readOnly || name === 'undo_ai_edit' ? '' : ` ${BLOCK_GUIDE}`),
+            (readOnly ||
+            name === 'undo_ai_edit' ||
+            name === 'restore_page_version'
+              ? ''
+              : ` ${BLOCK_GUIDE}`),
           inputSchema: (pageToolSchemas as any)[name],
           annotations: { readOnlyHint: readOnly },
         },

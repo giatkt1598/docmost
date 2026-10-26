@@ -27,7 +27,19 @@ export type TextSpan = {
 };
 export type BreakSpan = { hard_break: true };
 export type InlineSpan = { inline: PmNode; preview: string };
-export type Span = TextSpan | BreakSpan | InlineSpan;
+// inline formula (LaTeX)
+export type MathSpan = { math: string };
+// coloured status label
+export type StatusSpan = { status: { text: string; color?: string } };
+export type Span = TextSpan | BreakSpan | InlineSpan | MathSpan | StatusSpan;
+
+export const STATUS_COLORS = [
+  'gray',
+  'blue',
+  'green',
+  'yellow',
+  'red',
+] as const;
 
 const FLAG_MARKS = ['bold', 'italic', 'underline', 'strike', 'code'] as const;
 
@@ -73,6 +85,15 @@ export function spansFromInline(content: PmNode[] = []): Span[] {
       spans.push(span);
     } else if (node.type === 'hardBreak') {
       spans.push({ hard_break: true });
+    } else if (node.type === 'mathInline') {
+      spans.push({ math: node.attrs?.text ?? '' });
+    } else if (node.type === 'status') {
+      spans.push({
+        status: {
+          text: node.attrs?.text ?? '',
+          color: node.attrs?.color ?? 'gray',
+        },
+      });
     } else {
       spans.push({ inline: node, preview: inlinePreview(node) });
     }
@@ -85,6 +106,21 @@ export function inlineFromSpans(spans: Span[] = []): PmNode[] {
   for (const span of spans) {
     if ('hard_break' in span) {
       nodes.push({ type: 'hardBreak' });
+    } else if ('math' in span) {
+      if (span.math)
+        nodes.push({ type: 'mathInline', attrs: { text: span.math } });
+    } else if ('status' in span) {
+      const color = (STATUS_COLORS as readonly string[]).includes(
+        span.status?.color ?? '',
+      )
+        ? span.status.color
+        : 'gray';
+      if (span.status?.text) {
+        nodes.push({
+          type: 'status',
+          attrs: { text: span.status.text, color },
+        });
+      }
     } else if ('inline' in span) {
       nodes.push(span.inline);
     } else {
@@ -107,6 +143,16 @@ export function inlineFromSpans(spans: Span[] = []): PmNode[] {
 
 export function plainText(spans: Span[] = []): string {
   return spans
-    .map((s) => ('hard_break' in s ? '\n' : 'inline' in s ? s.preview : s.text))
+    .map((s) =>
+      'hard_break' in s
+        ? '\n'
+        : 'inline' in s
+          ? s.preview
+          : 'math' in s
+            ? `$${s.math}$`
+            : 'status' in s
+              ? `[${s.status.text}]`
+              : s.text,
+    )
     .join('');
 }

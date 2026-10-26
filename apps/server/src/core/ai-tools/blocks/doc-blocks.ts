@@ -30,6 +30,8 @@ export type DocBlockType =
   | 'image'
   | 'file'
   | 'embed'
+  | 'math'
+  | 'video'
   | 'unsupported';
 
 export type DocBlock = {
@@ -58,6 +60,8 @@ export type DocBlock = {
   align?: string | null;
   name?: string;
   provider?: string;
+  // math block
+  latex?: string;
   children?: DocBlock[];
   has_children?: boolean;
   child_count?: number;
@@ -101,6 +105,8 @@ const TEXT_BLOCKS: DocBlockType[] = [
   'image',
   'file',
   'embed',
+  'math',
+  'video',
   'unsupported',
 ];
 
@@ -283,6 +289,10 @@ export function docTypeOf(node: PmNode): DocBlockType {
       return 'file';
     case 'embed':
       return 'embed';
+    case 'mathBlock':
+      return 'math';
+    case 'video':
+      return 'video';
     default:
       return 'unsupported';
   }
@@ -380,6 +390,15 @@ export function toDocBlock(node: PmNode, depth = 1): DocBlock {
       block.url = a.src;
       block.provider = a.provider;
       break;
+    case 'math':
+      block.latex = a.text ?? '';
+      break;
+    case 'video':
+      block.url = a.src;
+      if (a.attachmentId) block.attachment_id = a.attachmentId;
+      if (a.width) block.width = a.width;
+      if (a.align) block.align = a.align;
+      break;
     case 'unsupported':
       block.docmost_type = node.type;
       block.preview = nodeText(node).slice(0, 300);
@@ -420,6 +439,7 @@ export type BlockInput = {
   attachment_id?: string;
   caption?: string | null;
   align?: string | null;
+  latex?: string;
   items?: (string | Span[] | BlockInput)[];
   children?: BlockInput[];
   markdown?: string;
@@ -651,6 +671,26 @@ export function fromBlockInput(
             src,
             align: input.align ?? 'center',
             ...(input.caption && { alt: input.caption }),
+            ...(input.width && { width: input.width }),
+            ...(ref && { attachmentId: ref.id, size: ref.fileSize }),
+          },
+        },
+      ];
+    }
+    case 'math':
+      return [{ type: 'mathBlock', attrs: { id, text: input.latex ?? '' } }];
+    case 'video': {
+      const ref = input.attachment_id ? attachmentOf(input, ctx) : null;
+      const src = ref ? attachmentUrl(ref) : input.url;
+      if (!src)
+        throw new BlockInputError('A video needs a url or attachment_id');
+      return [
+        {
+          type: 'video',
+          attrs: {
+            id,
+            src,
+            align: input.align ?? 'center',
             ...(input.width && { width: input.width }),
             ...(ref && { attachmentId: ref.id, size: ref.fileSize }),
           },

@@ -12,7 +12,9 @@ const run = (t: any, args: any) =>
 describe('buildChatTools', () => {
   it('only offers reading tools in read-only mode', () => {
     expect(
-      Object.keys(buildChatTools({} as any, actor, true, undefined, {} as any)).sort(),
+      Object.keys(
+        buildChatTools({} as any, actor, true, undefined, {} as any),
+      ).sort(),
     ).toEqual([
       'find_blocks',
       'get_blocks',
@@ -20,13 +22,16 @@ describe('buildChatTools', () => {
       'get_page_outline',
       'list_child_pages',
       'list_comments',
+      'list_page_history',
       'list_spaces',
       'list_workspace_members',
       'search_file_contents',
       'search_pages',
     ]);
     expect(
-      Object.keys(buildChatTools({} as any, actor, false, undefined, {} as any)),
+      Object.keys(
+        buildChatTools({} as any, actor, false, undefined, {} as any),
+      ),
     ).toEqual(
       expect.arrayContaining([
         'create_page',
