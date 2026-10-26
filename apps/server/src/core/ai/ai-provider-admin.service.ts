@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { generateText } from 'ai';
+import { embed, generateText } from 'ai';
 import { AiProviderConfigRepo } from '@docmost/db/repos/ai/ai-provider-config.repo';
 import {
   EncryptionPurpose,
@@ -8,13 +8,16 @@ import {
 import {
   AiDriver,
   AiProviderService,
+  buildEmbeddingModel,
   buildModel,
+  embeddingProviderOptions,
   DEFAULT_OLLAMA_URL,
 } from './ai-provider.service';
 import {
   AiProviderConnectionDto,
   SaveAiProviderDto,
   TestAiProviderDto,
+  TestEmbeddingDto,
 } from './dto/ai-provider.dto';
 
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -87,6 +90,10 @@ export class AiProviderAdminService {
       apiKey: apiKey ?? null,
       completionModel: dto.completionModel,
       chatModel: dto.chatModel || null,
+      embeddingModel: dto.embeddingModel || null,
+      embeddingDimensions: dto.embeddingModel
+        ? dto.embeddingDimensions || null
+        : null,
       updatedById: userId,
     });
     return this.aiProvider.describe(workspaceId);
@@ -181,6 +188,35 @@ export class AiProviderAdminService {
       };
     } catch (err) {
       this.logger.warn(`AI provider test failed: ${errorMessage(err)}`);
+      return {
+        ok: false,
+        latencyMs: Date.now() - started,
+        error: errorMessage(err),
+      };
+    }
+  }
+
+  // Embeds a sample to check the model works and to learn its vector size.
+  async testEmbedding(workspaceId: string, dto: TestEmbeddingDto) {
+    const connection = await this.connection(workspaceId, dto);
+    const started = Date.now();
+    try {
+      const { embedding } = await embed({
+        model: buildEmbeddingModel(
+          { driver: dto.driver, ...connection },
+          dto.model,
+        ),
+        value: 'Embedding check',
+        abortSignal: AbortSignal.timeout(TEST_TIMEOUT_MS),
+        providerOptions: embeddingProviderOptions(dto.driver, dto.dimensions),
+      });
+      return {
+        ok: true,
+        latencyMs: Date.now() - started,
+        dimensions: embedding.length,
+      };
+    } catch (err) {
+      this.logger.warn(`Embedding test failed: ${errorMessage(err)}`);
       return {
         ok: false,
         latencyMs: Date.now() - started,

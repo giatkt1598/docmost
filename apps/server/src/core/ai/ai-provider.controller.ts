@@ -23,6 +23,7 @@ import {
   AiProviderConnectionDto,
   SaveAiProviderDto,
   TestAiProviderDto,
+  TestEmbeddingDto,
 } from './dto/ai-provider.dto';
 
 // The workspace's AI provider, managed by admins from AI settings.
@@ -81,6 +82,17 @@ export class AiProviderController {
   ) {
     this.assertAdmin(user, workspace);
     return this.admin.test(workspace.id, dto);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('test-embedding')
+  testEmbedding(
+    @Body() dto: TestEmbeddingDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    this.assertAdmin(user, workspace);
+    return this.admin.testEmbedding(workspace.id, dto);
   }
 
   private assertAdmin(user: User, workspace: Workspace) {

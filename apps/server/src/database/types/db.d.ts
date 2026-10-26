@@ -580,9 +580,26 @@ export interface AiProviderConfigs {
   apiKey: string | null;
   completionModel: string;
   chatModel: string | null;
+  embeddingModel: string | null;
+  embeddingDimensions: number | null;
   updatedById: string | null;
   createdAt: Generated<Timestamp>;
   updatedAt: Generated<Timestamp>;
+}
+
+export interface SearchEmbeddings {
+  id: Generated<string>;
+  workspaceId: string;
+  pageId: string | null;
+  attachmentId: string | null;
+  chunkIndex: number;
+  content: string;
+  contentHash: string;
+  model: string;
+  dimensions: number;
+  // pgvector value; read and written through casts
+  embedding: string;
+  createdAt: Generated<Timestamp>;
 }
 
 export interface McpTokens {
@@ -807,6 +824,7 @@ export interface DB {
   labels: Labels;
   mcpTokens: McpTokens;
   aiProviderConfigs: AiProviderConfigs;
+  searchEmbeddings: SearchEmbeddings;
   notifications: Notifications;
   pageAccess: PageAccess;
   pageTransclusionReferences: PageTransclusionReferences;

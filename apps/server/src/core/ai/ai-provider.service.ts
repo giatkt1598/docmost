@@ -1,5 +1,5 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
-import type { LanguageModel } from 'ai';
+import type { EmbeddingModel, LanguageModel } from 'ai';
 import { createOllama } from 'ai-sdk-ollama';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
@@ -27,6 +27,8 @@ export type AiConfig = {
   apiKey: string | null;
   completionModel: string;
   chatModel: string | null;
+  embeddingModel: string | null;
+  embeddingDimensions: number | null;
 };
 
 export const DEFAULT_OLLAMA_URL = 'http://localhost:11434';
@@ -59,6 +61,55 @@ export function buildModel(
       throw new ServiceUnavailableException(
         `Unsupported AI driver: ${config.driver}`,
       );
+  }
+}
+
+// Builds an embedding model for a provider configuration.
+export function buildEmbeddingModel(
+  config: Pick<AiConfig, 'driver' | 'baseUrl' | 'apiKey'>,
+  modelId: string,
+): EmbeddingModel {
+  const baseURL = config.baseUrl || undefined;
+  const apiKey = config.apiKey || undefined;
+  switch (config.driver) {
+    case 'ollama':
+      return createOllama({
+        baseURL: baseURL ?? DEFAULT_OLLAMA_URL,
+        ...(apiKey && { apiKey }),
+      }).embedding(modelId);
+    case 'openai':
+      return createOpenAI({ apiKey, ...(baseURL && { baseURL }) }).embedding(
+        modelId,
+      );
+    case 'openai-compatible':
+      return createOpenAICompatible({
+        name: 'openai-compatible',
+        baseURL,
+        apiKey,
+      }).embeddingModel(modelId);
+    case 'gemini':
+      return createGoogleGenerativeAI({ apiKey }).embedding(modelId);
+    default:
+      throw new ServiceUnavailableException(
+        `Unsupported AI driver: ${config.driver}`,
+      );
+  }
+}
+
+// Provider options that shorten embeddings (Matryoshka models).
+export function embeddingProviderOptions(
+  driver: AiDriver,
+  dimensions: number | null | undefined,
+) {
+  if (!dimensions) return undefined;
+  switch (driver) {
+    case 'openai':
+    case 'openai-compatible':
+      return { openai: { dimensions } };
+    case 'gemini':
+      return { google: { outputDimensionality: dimensions } };
+    default:
+      return undefined;
   }
 }
 
@@ -97,6 +148,8 @@ export class AiProviderService {
           : null,
         completionModel: row.completionModel,
         chatModel: row.chatModel,
+        embeddingModel: row.embeddingModel,
+        embeddingDimensions: row.embeddingDimensions,
       };
     } else {
       config = this.fromEnvironment();
@@ -120,6 +173,8 @@ export class AiProviderService {
       hasApiKey: !!config?.apiKey,
       completionModel: config?.completionModel ?? null,
       chatModel: config?.chatModel ?? null,
+      embeddingModel: config?.embeddingModel ?? null,
+      embeddingDimensions: config?.embeddingDimensions ?? null,
     };
   }
 
@@ -138,6 +193,21 @@ export class AiProviderService {
         ? config.chatModel || config.completionModel
         : config.completionModel;
     return buildModel(config, modelId);
+  }
+
+  // The embedding model of a workspace, or null when none is configured.
+  async embeddingModel(workspaceId: string): Promise<{
+    model: EmbeddingModel;
+    modelId: string;
+    config: AiConfig;
+  } | null> {
+    const config = await this.resolve(workspaceId);
+    if (!config?.embeddingModel) return null;
+    return {
+      model: buildEmbeddingModel(config, config.embeddingModel),
+      modelId: config.embeddingModel,
+      config,
+    };
   }
 
   // Provider-specific options: answers come faster without a reasoning pass.
@@ -171,6 +241,8 @@ export class AiProviderService {
       apiKey,
       completionModel,
       chatModel: env.getAiChatModel() || null,
+      embeddingModel: env.getAiEmbeddingModel() || null,
+      embeddingDimensions: env.getAiEmbeddingDimension() || null,
     };
   }
 }

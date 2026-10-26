@@ -1,6 +1,9 @@
 import {
   IsBoolean,
   IsIn,
+  IsInt,
+  Max,
+  Min,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -43,9 +46,37 @@ export class SaveAiProviderDto extends AiProviderConnectionDto {
   @MaxLength(200)
   chatModel?: string;
 
+  // model that turns pages into vectors for semantic search
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(200)
+  embeddingModel?: string;
+
+  // shortened size for models that support it; empty keeps the native size
+  @IsOptional()
+  @IsInt()
+  @Min(64)
+  @Max(4000)
+  embeddingDimensions?: number;
+
   @IsOptional()
   @IsBoolean()
   clearApiKey?: boolean;
+}
+
+export class TestEmbeddingDto extends AiProviderConnectionDto {
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  model: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(64)
+  @Max(4000)
+  dimensions?: number;
 }
 
 export class TestAiProviderDto extends AiProviderConnectionDto {
