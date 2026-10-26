@@ -34,6 +34,7 @@ import { BasePropertyRepo } from '@docmost/db/repos/base/base-property.repo';
 import { BaseRowRepo } from '@docmost/db/repos/base/base-row.repo';
 import { BaseViewRepo } from '@docmost/db/repos/base/base-view.repo';
 import { AiProviderConfigRepo } from '@docmost/db/repos/ai/ai-provider-config.repo';
+import { SearchEmbeddingRepo } from '@docmost/db/repos/search/search-embedding.repo';
 import { AiChatRepo } from '@docmost/db/repos/ai/ai-chat.repo';
 import { UserMfaRepo } from '@docmost/db/repos/user-mfa/user-mfa.repo';
 import { AuthProviderRepo } from '@docmost/db/repos/auth-provider/auth-provider.repo';
@@ -110,6 +111,7 @@ import { normalizePostgresUrl } from '../common/helpers';
     BaseRowRepo,
     BaseViewRepo,
     AiProviderConfigRepo,
+    SearchEmbeddingRepo,
     AiChatRepo,
     UserMfaRepo,
     AuthProviderRepo,
@@ -146,6 +148,7 @@ import { normalizePostgresUrl } from '../common/helpers';
     BaseRowRepo,
     BaseViewRepo,
     AiProviderConfigRepo,
+    SearchEmbeddingRepo,
     AiChatRepo,
     UserMfaRepo,
     AuthProviderRepo,

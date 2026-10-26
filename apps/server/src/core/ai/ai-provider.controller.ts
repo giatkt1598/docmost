@@ -19,6 +19,7 @@ import {
 } from '../casl/interfaces/workspace-ability.type';
 import { AiProviderService } from './ai-provider.service';
 import { AiProviderAdminService } from './ai-provider-admin.service';
+import { EmbeddingIndexService } from '../embedding/embedding-index.service';
 import {
   AiProviderConnectionDto,
   SaveAiProviderDto,
@@ -35,6 +36,7 @@ export class AiProviderController {
     private readonly aiProvider: AiProviderService,
     private readonly admin: AiProviderAdminService,
     private readonly workspaceAbility: WorkspaceAbilityFactory,
+    private readonly embeddings: EmbeddingIndexService,
   ) {}
 
   @HttpCode(HttpStatus.OK)
@@ -93,6 +95,25 @@ export class AiProviderController {
   ) {
     this.assertAdmin(user, workspace);
     return this.admin.testEmbedding(workspace.id, dto);
+  }
+
+  // State of the semantic search index.
+  @HttpCode(HttpStatus.OK)
+  @Post('search-index')
+  searchIndex(@AuthUser() user: User, @AuthWorkspace() workspace: Workspace) {
+    this.assertAdmin(user, workspace);
+    return this.embeddings.status(workspace.id);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('search-index/rebuild')
+  async rebuildSearchIndex(
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    this.assertAdmin(user, workspace);
+    await this.embeddings.queueRebuild(workspace.id, true);
+    return this.embeddings.status(workspace.id);
   }
 
   private assertAdmin(user: User, workspace: Workspace) {

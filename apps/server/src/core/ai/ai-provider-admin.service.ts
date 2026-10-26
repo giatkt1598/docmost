@@ -13,6 +13,7 @@ import {
   embeddingProviderOptions,
   DEFAULT_OLLAMA_URL,
 } from './ai-provider.service';
+import { EmbeddingIndexService } from '../embedding/embedding-index.service';
 import {
   AiProviderConnectionDto,
   SaveAiProviderDto,
@@ -62,6 +63,7 @@ export class AiProviderAdminService {
     private readonly configRepo: AiProviderConfigRepo,
     private readonly aiProvider: AiProviderService,
     private readonly encryptionService: EncryptionService,
+    private readonly embeddings: EmbeddingIndexService,
   ) {}
 
   async save(workspaceId: string, userId: string, dto: SaveAiProviderDto) {
@@ -96,10 +98,42 @@ export class AiProviderAdminService {
         : null,
       updatedById: userId,
     });
+    await this.syncEmbeddings(workspaceId, existing, dto, apiKey);
     return this.aiProvider.describe(workspaceId);
   }
 
+  // Embeddings of another model or size are useless; rebuild them when the
+  // embedding setup changes and drop them when it is turned off.
+  private async syncEmbeddings(
+    workspaceId: string,
+    before:
+      | {
+          driver: string;
+          baseUrl: string | null;
+          embeddingModel: string | null;
+          embeddingDimensions: number | null;
+        }
+      | undefined,
+    dto: SaveAiProviderDto,
+    apiKey: string | null,
+  ) {
+    if (!dto.embeddingModel) {
+      if (before?.embeddingModel)
+        await this.embeddings.removeWorkspace(workspaceId);
+      return;
+    }
+    const changed =
+      !before ||
+      before.embeddingModel !== dto.embeddingModel ||
+      (before.embeddingDimensions ?? null) !==
+        (dto.embeddingDimensions ?? null) ||
+      before.driver !== dto.driver ||
+      (before.baseUrl ?? null) !== (dto.baseUrl ?? null);
+    if (changed) await this.embeddings.queueRebuild(workspaceId, true);
+  }
+
   async remove(workspaceId: string) {
+    await this.embeddings.removeWorkspace(workspaceId);
     await this.configRepo.delete(workspaceId);
     return this.aiProvider.describe(workspaceId);
   }

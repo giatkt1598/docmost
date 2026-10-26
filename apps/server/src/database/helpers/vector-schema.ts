@@ -80,3 +80,8 @@ export async function ensureVectorIndex(
     )
     .execute(db);
 }
+
+// A pgvector text literal such as '[0.1,0.2]'.
+export function toVectorLiteral(vector: number[]): string {
+  return `[${vector.join(',')}]`;
+}

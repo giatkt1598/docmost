@@ -52,6 +52,9 @@ export enum QueueJob {
   SEARCH_REMOVE_ASSET = 'search-remove-attachment',
   SEARCH_REMOVE_FACE = 'search-remove-comment',
   TYPESENSE_FLUSH = 'typesense-flush',
+  EMBED_PAGE = 'embed-page',
+  EMBED_ATTACHMENT = 'embed-attachment',
+  EMBED_REBUILD = 'embed-rebuild',
 
   PAGE_CREATED = 'page-created',
   PAGE_CONTENT_UPDATED = 'page-content-updated',
