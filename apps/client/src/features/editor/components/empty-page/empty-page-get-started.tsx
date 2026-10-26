@@ -93,6 +93,7 @@ export function EmptyPageGetStarted({
       key: "base",
       label: t("Base"),
       icon: IconTable,
+      color: "blue",
       onClick: () => convertMutation.mutate({ pageId }),
       disabled: convertMutation.isPending,
     },
@@ -100,6 +101,7 @@ export function EmptyPageGetStarted({
       key: "kanban",
       label: t("Kanban"),
       icon: IconLayoutKanban,
+      color: "violet",
       onClick: () => convertMutation.mutate({ pageId, template: "kanban" }),
       disabled: convertMutation.isPending,
     },
@@ -107,6 +109,7 @@ export function EmptyPageGetStarted({
       key: "template",
       label: t("Template"),
       icon: IconTemplate,
+      color: "pink",
       onClick: openTemplatePicker,
       disabled: false,
     },
@@ -124,10 +127,17 @@ export function EmptyPageGetStarted({
             {chips.map((chip) => (
               <Button
                 key={chip.key}
-                variant="default"
-                size="xs"
-                radius="xl"
-                leftSection={<chip.icon size={16} />}
+                variant="subtle"
+                color="gray"
+                size="sm"
+                radius="md"
+                className={classes.chip}
+                leftSection={
+                  <chip.icon
+                    size={18}
+                    color={`var(--mantine-color-${chip.color}-6)`}
+                  />
+                }
                 onClick={chip.onClick}
                 disabled={chip.disabled}
               >
