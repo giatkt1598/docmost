@@ -38,6 +38,7 @@ import {
   Highlight,
   Indent,
   UniqueID,
+  BLOCK_ID_TYPES,
   Columns,
   Column,
   Status,
@@ -86,7 +87,7 @@ export const tiptapExtensions = [
   }),
   Heading,
   UniqueID.configure({
-    types: ['heading', 'paragraph', 'transclusionSource'],
+    types: BLOCK_ID_TYPES,
   }),
   Comment,
   TextAlign.configure({ types: ['heading', 'paragraph'] }),
