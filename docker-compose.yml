@@ -16,7 +16,8 @@ services:
       - docmost:/app/data/storage
 
   db:
-    image: postgres:18
+    # pgvector adds semantic search; it is the plain postgres:18 image otherwise
+    image: pgvector/pgvector:pg18
     environment:
       POSTGRES_DB: docmost
       POSTGRES_USER: docmost
