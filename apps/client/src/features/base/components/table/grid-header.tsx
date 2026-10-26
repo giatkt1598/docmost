@@ -22,7 +22,7 @@ type Props = {
   onSelectAll: (select: boolean) => void;
   properties: BaseProperty[];
   onRename: (propertyId: string, name: string) => void;
-  onPropertyAction: (propertyId: string, action: PropertyMenuAction) => void;
+  onPropertyAction: (propertyId: string, action: PropertyMenuAction, anchor: HTMLElement | null) => void;
   onHide: (propertyId: string) => void;
   onDelete: (propertyId: string) => void;
   onMove: (movedId: string, targetId: string, edge: "left" | "right") => void;
@@ -34,7 +34,7 @@ export function GridHeader(props: Props) {
   const { columns, editable, selectAll } = props;
   return (
     <div className={classes.header} style={{ width: props.width }} role="row">
-      <div className={`${classes.gutter} ${classes.pinned}`} style={{ width: GUTTER_WIDTH, left: 0 }}>
+      <div className={`${classes.gutter} ${classes.pinned}`} style={{ width: GUTTER_WIDTH }}>
         {editable && (
           <Checkbox
             size="xs"
@@ -52,7 +52,7 @@ export function GridHeader(props: Props) {
           instanceId={props.instanceId}
           editable={editable}
           onRename={(name) => props.onRename(column.property.id, name)}
-          onAction={(action) => props.onPropertyAction(column.property.id, action)}
+          onAction={(action, anchor) => props.onPropertyAction(column.property.id, action, anchor)}
           onHide={() => props.onHide(column.property.id)}
           onDelete={() => props.onDelete(column.property.id)}
           onMove={(movedId, edge) => props.onMove(movedId, column.property.id, edge)}

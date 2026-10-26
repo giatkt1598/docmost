@@ -1,5 +1,5 @@
 import { ReactNode, useCallback, useState } from "react";
-import { Alert, Button, Group, Modal, Select, Stack, Text } from "@mantine/core";
+import { Alert, Button, Group, Select, Stack, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -9,26 +9,36 @@ import { useUpdatePropertyMutation } from "@/features/base/queries/base-property
 import { useUpdateViewMutation } from "@/features/base/queries/base-view-query";
 import { apiErrorMessage } from "@/features/base/utils/errors";
 import { conversionOptions, orderWithInserted } from "@/features/base/utils/property-edits";
-import { PropertyOptionsModal } from "./property-options-modal";
+import { PropertyOptionsPopover } from "./property-options-popover";
 import { NewPropertyForm } from "./new-property-form";
 import { registerOptionsEditors } from "./register-options";
+import {
+  AnchoredPopover,
+  NESTED_COMBOBOX_PROPS,
+} from "@/features/base/components/common/anchored-popover";
 
 registerOptionsEditors();
 
 export type PropertyMenuAction = "options" | "changeType" | "insertLeft" | "insertRight";
 
-type Dialog =
+type Dialog = (
   | { kind: "options"; propertyId: string }
   | { kind: "changeType"; propertyId: string }
-  | { kind: "insert"; propertyId: string; side: "left" | "right" };
+  | { kind: "insert"; propertyId: string; side: "left" | "right" }
+) & {
+  // element the popover opens at (the column header)
+  anchor: HTMLElement | null;
+};
 
-function ChangeTypeModal({
+function ChangeTypePopover({
   pageId,
+  anchor,
   property,
   rows,
   onClose,
 }: {
   pageId: string;
+  anchor: HTMLElement | null;
   property: BaseProperty;
   rows: BaseRow[];
   onClose: () => void;
@@ -58,15 +68,18 @@ function ChangeTypeModal({
   };
 
   return (
-    <Modal opened onClose={onClose} title={t("Change type of {{name}}", { name: property.name })}>
-      <Stack gap="sm">
+    <AnchoredPopover anchor={anchor} onClose={onClose}>
+      <Stack gap="sm" w={320} maw="calc(100vw - 32px)">
+        <Text size="sm" fw={600} truncate>
+          {t("Change type of {{name}}", { name: property.name })}
+        </Text>
         <Text size="sm">
           {t("Current type: {{type}}", { type: t(getPropertyType(property.type).label) })}
         </Text>
         <Select
           label={t("New type")}
           allowDeselect={false}
-          comboboxProps={{ withinPortal: false }}
+          comboboxProps={NESTED_COMBOBOX_PROPS}
           data={targets.map((d) => ({ value: d.type, label: t(d.label) }))}
           value={type}
           onChange={(v) => setType(v as PropertyType)}
@@ -88,7 +101,7 @@ function ChangeTypeModal({
           </Button>
         </Group>
       </Stack>
-    </Modal>
+    </AnchoredPopover>
   );
 }
 
@@ -99,31 +112,62 @@ export function usePropertyDialogs(opts: {
   properties: BaseProperty[];
   // loaded rows, used to build choices when converting to a choice type
   rows: BaseRow[];
-}): { open: (propertyId: string, action: PropertyMenuAction) => void; element: ReactNode } {
+}): {
+  // anchor: the element to open at (column header, toolbar button)
+  open: (propertyId: string, action: PropertyMenuAction, anchor: HTMLElement | null) => void;
+  element: ReactNode;
+} {
   const { t } = useTranslation();
   const { pageId, view, properties, rows } = opts;
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const updateView = useUpdateViewMutation(pageId);
   const close = () => setDialog(null);
 
-  const open = useCallback((propertyId: string, action: PropertyMenuAction) => {
-    if (action === "options") setDialog({ kind: "options", propertyId });
-    else if (action === "changeType") setDialog({ kind: "changeType", propertyId });
-    else setDialog({ kind: "insert", propertyId, side: action === "insertLeft" ? "left" : "right" });
-  }, []);
+  const open = useCallback(
+    (propertyId: string, action: PropertyMenuAction, anchor: HTMLElement | null) => {
+      if (action === "options") setDialog({ kind: "options", propertyId, anchor });
+      else if (action === "changeType") setDialog({ kind: "changeType", propertyId, anchor });
+      else {
+        setDialog({
+          kind: "insert",
+          propertyId,
+          side: action === "insertLeft" ? "left" : "right",
+          anchor,
+        });
+      }
+    },
+    [],
+  );
 
   const property = dialog ? properties.find((p) => p.id === dialog.propertyId) ?? null : null;
   let element: ReactNode = null;
   if (dialog && property) {
     if (dialog.kind === "options") {
       element = (
-        <PropertyOptionsModal pageId={pageId} property={property} properties={properties} onClose={close} />
+        <PropertyOptionsPopover
+          pageId={pageId}
+          anchor={dialog.anchor}
+          property={property}
+          properties={properties}
+          onClose={close}
+        />
       );
     } else if (dialog.kind === "changeType") {
-      element = <ChangeTypeModal pageId={pageId} property={property} rows={rows} onClose={close} />;
+      element = (
+        <ChangeTypePopover
+          pageId={pageId}
+          anchor={dialog.anchor}
+          property={property}
+          rows={rows}
+          onClose={close}
+        />
+      );
     } else {
       element = (
-        <Modal opened onClose={close} title={t("New property")} size="auto">
+        <AnchoredPopover anchor={dialog.anchor} onClose={close}>
+          <Text size="sm" fw={600} mb="xs">
+            {t("New property")}
+          </Text>
           <NewPropertyForm
             pageId={pageId}
             properties={properties}
@@ -145,7 +189,7 @@ export function usePropertyDialogs(opts: {
               });
             }}
           />
-        </Modal>
+        </AnchoredPopover>
       );
     }
   }

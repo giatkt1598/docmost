@@ -28,13 +28,23 @@
 }
 
 .row:hover,
-.row:hover .pinned {
+.row:hover .pinned,
+.row:hover .frozen {
   background-color: var(--grid-hover);
 }
 
 .row[data-selected],
-.row[data-selected] .pinned {
+.row[data-selected] .pinned,
+.row[data-selected] .frozen {
   background-color: var(--grid-selected);
+}
+
+/* The selection colour is translucent: lay it over the body colour so
+   columns sliding underneath a sticky cell do not show through. */
+.row[data-selected] .pinned,
+.row[data-selected] .frozen {
+  background-image: linear-gradient(var(--grid-selected), var(--grid-selected));
+  background-color: var(--mantine-color-body);
 }
 
 .row[data-dragging] {
@@ -102,10 +112,35 @@
   cursor: default;
 }
 
+/* Row-number gutter: always on the left edge. */
 .pinned {
   position: sticky;
+  left: 0;
+  z-index: 3;
+  background-color: var(--mantine-color-body);
+}
+
+/* Frozen column (the primary property). It keeps its natural place in the
+   row and scrolls with the others until it would leave the visible area:
+   then it sticks right after the gutter on the left (left: gutter width) or
+   to the right edge (right: 0), and the other columns slide under it. The
+   scroller is the sticky ancestor, so the embed padding does not shift the
+   offsets: the gutter sticks at the same scroller edge. */
+.frozen {
+  position: sticky;
+  left: var(--grid-gutter-width);
+  right: 0;
   z-index: 2;
   background-color: var(--mantine-color-body);
+}
+
+/* A shadow only on the edge where it is stuck. */
+.scroller[data-stuck="left"] .frozen:not([data-active]) {
+  box-shadow: 1px 0 0 var(--grid-line), 6px 0 8px -4px rgba(0, 0, 0, 0.18);
+}
+
+.scroller[data-stuck="right"] .frozen:not([data-active]) {
+  box-shadow: -1px 0 0 var(--grid-line), -6px 0 8px -4px rgba(0, 0, 0, 0.18);
 }
 
 .headerCell {
@@ -212,6 +247,7 @@
 }
 
 .root {
+  --grid-gutter-width: 64px;
   --grid-row-height: 34px;
   --grid-header-height: 34px;
   --grid-line: light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));

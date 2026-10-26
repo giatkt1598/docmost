@@ -4,7 +4,10 @@ import { useDebouncedValue } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
 import { RowQuery } from "@/features/base/types/base.types";
 import { useBaseInfoQuery } from "@/features/base/queries/base-query";
-import { useCreateRowMutation, useExportCsvMutation } from "@/features/base/queries/base-row-query";
+import {
+  useCreateRowMutation,
+  useExportCsvMutation,
+} from "@/features/base/queries/base-row-query";
 import { useUpdateViewMutation } from "@/features/base/queries/base-view-query";
 import { useBaseRealtime } from "@/features/base/hooks/use-base-realtime";
 import { useActiveView } from "@/features/base/hooks/use-active-view";
@@ -36,11 +39,20 @@ type Props = {
 };
 
 // A base with its view tabs, toolbar and the active view.
-export function BaseWorkspace({ pageId, editable, title, embedded = false, fill = false }: Props) {
+export function BaseWorkspace({
+  pageId,
+  editable,
+  title,
+  embedded = false,
+  fill = false,
+}: Props) {
   const { t } = useTranslation();
   useBaseRealtime(pageId);
   const { data: base, isLoading, isError } = useBaseInfoQuery(pageId);
-  const properties = useMemo(() => sortByPosition(base?.properties ?? []), [base?.properties]);
+  const properties = useMemo(
+    () => sortByPosition(base?.properties ?? []),
+    [base?.properties],
+  );
   const views = useMemo(() => sortByPosition(base?.views ?? []), [base?.views]);
   const [view, selectView] = useActiveView(views, embedded);
   const canEdit = editable && base?.permissions?.canEdit !== false;
@@ -91,8 +103,12 @@ export function BaseWorkspace({ pageId, editable, title, embedded = false, fill 
       {
         viewId: view.id,
         config: {
-          filter: patch.filter ? pruneFilter(patch.filter, properties) ?? null : null,
-          sorts: patch.sorts ? pruneSorts(patch.sorts, properties) ?? null : null,
+          filter: patch.filter
+            ? (pruneFilter(patch.filter, properties) ?? null)
+            : null,
+          sorts: patch.sorts
+            ? (pruneSorts(patch.sorts, properties) ?? null)
+            : null,
         },
       },
       { onSuccess: () => draft.reset() },
@@ -102,12 +118,16 @@ export function BaseWorkspace({ pageId, editable, title, embedded = false, fill 
   return (
     <Stack
       gap={0}
-      style={fill ? { flex: 1, height: "100%", minHeight: 0 } : undefined}
+      style={{
+        minWidth: 0,
+        maxWidth: "100%",
+        ...(fill ? { flex: 1, height: "100%", minHeight: 0 } : {}),
+      }}
       onKeyDown={embedded ? (e) => e.stopPropagation() : undefined}
     >
       {title}
       <Group justify="space-between" wrap="nowrap" gap="sm" py={6}>
-        <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}>
+        <Group gap="sm" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
           <ViewTabs
             pageId={pageId}
             views={views}
@@ -118,22 +138,24 @@ export function BaseWorkspace({ pageId, editable, title, embedded = false, fill 
           />
         </Group>
         {view && (
-          <BaseToolbar
-            pageId={pageId}
-            view={view}
-            properties={properties}
-            editable={canEdit}
-            filter={draft.filter}
-            sorts={draft.sorts}
-            onFilterChange={draft.setFilter}
-            onSortsChange={draft.setSorts}
-            search={search}
-            onSearchChange={setSearch}
-            onExport={() => exportCsv.mutate(query.filter)}
-            exporting={exportCsv.isPending}
-            onNewRow={newRow}
-            creatingRow={createRow.isPending}
-          />
+          <div style={{ flexShrink: 0 }}>
+            <BaseToolbar
+              pageId={pageId}
+              view={view}
+              properties={properties}
+              editable={canEdit}
+              filter={draft.filter}
+              sorts={draft.sorts}
+              onFilterChange={draft.setFilter}
+              onSortsChange={draft.setSorts}
+              search={search}
+              onSearchChange={setSearch}
+              onExport={() => exportCsv.mutate(query.filter)}
+              exporting={exportCsv.isPending}
+              onNewRow={newRow}
+              creatingRow={createRow.isPending}
+            />
+          </div>
         )}
       </Group>
       {draft.hasDraft && (

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Divider, Group, Modal, Stack, Text } from "@mantine/core";
+import { Alert, Button, Divider, Group, Stack, Text } from "@mantine/core";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -15,18 +15,21 @@ import { apiErrorMessage } from "@/features/base/utils/errors";
 import { choiceListIssues } from "@/features/base/utils/choice-edits";
 import { cleanDateOptions, dateFormatIssue } from "@/features/base/utils/options-preview";
 import { DATE_TYPES, optionsToSave } from "@/features/base/utils/property-edits";
+import { AnchoredPopover } from "@/features/base/components/common/anchored-popover";
 import { FormulaEditor } from "./formula-editor";
 import { NumberOptionsEditor } from "./number-options";
 import { DateOptionsEditor } from "./date-options";
 
 type Props = {
   pageId: string;
+  // header cell (or button) the popover opens at
+  anchor: HTMLElement | null;
   property: BaseProperty | null;
   properties: BaseProperty[];
   onClose: () => void;
 };
 
-export function PropertyOptionsModal({ pageId, property, properties, onClose }: Props) {
+export function PropertyOptionsPopover({ pageId, anchor, property, properties, onClose }: Props) {
   const { t } = useTranslation();
   const update = useUpdatePropertyMutation(pageId);
   const [draft, setDraft] = useState<PropertyOptions>({});
@@ -66,16 +69,16 @@ export function PropertyOptionsModal({ pageId, property, properties, onClose }: 
   };
 
   return (
-    <Modal
-      opened
-      onClose={onClose}
-      size={isFormula ? "lg" : "md"}
-      title={t("{{name}} options", { name: property.name })}
-    >
-      <Stack gap="sm">
-        <Text size="xs" c="dimmed">
-          {t(def.label)}
-        </Text>
+    <AnchoredPopover anchor={anchor} onClose={onClose}>
+      <Stack gap="sm" w={isFormula ? 480 : 340} maw="calc(100vw - 32px)">
+        <div>
+          <Text size="sm" fw={600} truncate>
+            {t("{{name}} options", { name: property.name })}
+          </Text>
+          <Text size="xs" c="dimmed">
+            {t(def.label)}
+          </Text>
+        </div>
         {property.pendingType && (
           <Alert color="yellow" variant="light">
             {t("This property is being converted. Try again when it is done.")}
@@ -137,6 +140,6 @@ export function PropertyOptionsModal({ pageId, property, properties, onClose }: 
           </Button>
         </Group>
       </Stack>
-    </Modal>
+    </AnchoredPopover>
   );
 }

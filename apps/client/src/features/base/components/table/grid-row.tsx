@@ -109,7 +109,7 @@ function GridRowInner(props: Props) {
     >
       <div
         className={`${classes.gutter} ${classes.pinned}`}
-        style={{ width: GUTTER_WIDTH, left: 0 }}
+        style={{ width: GUTTER_WIDTH }}
         data-menu-open={menuOpen || undefined}
       >
         <span className={classes.rowNumber}>{index + 1}</span>

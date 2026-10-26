@@ -40,6 +40,7 @@ import {
   removeChoice,
   updateChoice,
 } from "@/features/base/utils/choice-edits";
+import { NESTED_COMBOBOX_PROPS, NESTED_LAYER_Z } from "@/features/base/components/common/anchored-popover";
 
 const CHOICE_DRAG = "base-choice-option";
 
@@ -118,7 +119,7 @@ function ChoiceRow({ choice, index, count, status, listId, onChange, onMove, onR
       <div ref={handleRef} style={{ cursor: "grab", display: "flex" }} aria-hidden>
         <IconGripVertical size={14} color="var(--mantine-color-dimmed)" />
       </div>
-      <Menu position="bottom-start" withinPortal>
+      <Menu position="bottom-start" withinPortal zIndex={NESTED_LAYER_Z}>
         <Menu.Target>
           <ActionIcon variant="subtle" size="sm" aria-label={t("Color")}>
             <span style={{ width: 12, height: 12, borderRadius: 3, ...choiceDotStyle(choice.color) }} />
@@ -154,7 +155,7 @@ function ChoiceRow({ choice, index, count, status, listId, onChange, onMove, onR
           size="xs"
           w={120}
           allowDeselect={false}
-          comboboxProps={{ withinPortal: false }}
+          comboboxProps={NESTED_COMBOBOX_PROPS}
           aria-label={t("Status group")}
           data={STATUS_GROUPS.map((g) => ({ value: g, label: t(STATUS_GROUP_LABELS[g]) }))}
           value={choice.category ?? "todo"}
@@ -241,7 +242,7 @@ export function ChoicesOptions({ property, typeOptions, onChange }: OptionsEdito
           size="xs"
           label={t("Default value")}
           clearable
-          comboboxProps={{ withinPortal: false }}
+          comboboxProps={NESTED_COMBOBOX_PROPS}
           data={defaultData}
           value={Array.isArray(opts.defaultValue) ? opts.defaultValue : []}
           onChange={(v) => onChange({ ...opts, defaultValue: v.length ? v : null })}
@@ -251,7 +252,7 @@ export function ChoicesOptions({ property, typeOptions, onChange }: OptionsEdito
           size="xs"
           label={t("Default value")}
           clearable
-          comboboxProps={{ withinPortal: false }}
+          comboboxProps={NESTED_COMBOBOX_PROPS}
           data={defaultData}
           value={typeof opts.defaultValue === "string" ? opts.defaultValue : null}
           onChange={(v) => onChange({ ...opts, defaultValue: v ?? null })}

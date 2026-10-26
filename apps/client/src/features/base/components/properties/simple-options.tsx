@@ -2,6 +2,7 @@ import { Select, Stack, Switch, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { OptionsOf } from "@/features/base/types/base.types";
 import { OptionsEditorProps } from "@/features/base/registry/property-types";
+import { NESTED_COMBOBOX_PROPS } from "@/features/base/components/common/anchored-popover";
 
 export function PersonOptionsEditor({ typeOptions, onChange }: OptionsEditorProps) {
   const { t } = useTranslation();
@@ -25,7 +26,7 @@ export function DefaultValueEditor({ property, typeOptions, onChange }: OptionsE
         size="xs"
         label={t("Default value")}
         allowDeselect={false}
-        comboboxProps={{ withinPortal: false }}
+        comboboxProps={NESTED_COMBOBOX_PROPS}
         data={[
           { value: "false", label: t("Unchecked") },
           { value: "true", label: t("Checked") },

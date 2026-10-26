@@ -32,7 +32,7 @@ type Props = {
   instanceId: string;
   editable: boolean;
   onRename: (name: string) => void;
-  onAction: (action: PropertyMenuAction) => void;
+  onAction: (action: PropertyMenuAction, anchor: HTMLElement | null) => void;
   onHide: () => void;
   onDelete: () => void;
   onMove: (movedId: string, edge: "left" | "right") => void;
@@ -51,7 +51,7 @@ export function HeaderCell({
   onResize,
 }: Props) {
   const { t } = useTranslation();
-  const { property, width, pinned, left } = column;
+  const { property, width, pinned } = column;
   const ref = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [edge, setEdge] = useState<"left" | "right" | null>(null);
@@ -129,8 +129,8 @@ export function HeaderCell({
   return (
     <div
       ref={ref}
-      className={`${classes.headerCell} ${pinned ? classes.pinned : ""}`}
-      style={{ width, ...(pinned ? { left } : {}) }}
+      className={`${classes.headerCell} ${pinned ? classes.frozen : ""}`}
+      style={{ width }}
       data-dragging={dragging || undefined}
       data-drop-edge={edge ?? undefined}
       role="columnheader"
@@ -171,7 +171,7 @@ export function HeaderCell({
               <Menu.Item
                 leftSection={<IconAdjustments size={14} />}
                 disabled={converting}
-                onClick={() => onAction("options")}
+                onClick={() => onAction("options", ref.current)}
               >
                 {property.type === "formula" ? t("Edit formula") : t("Options")}
               </Menu.Item>
@@ -179,17 +179,17 @@ export function HeaderCell({
             <Menu.Item
               leftSection={<IconReplace size={14} />}
               disabled={converting}
-              onClick={() => onAction("changeType")}
+              onClick={() => onAction("changeType", ref.current)}
             >
               {t("Change type")}
             </Menu.Item>
             <Menu.Divider />
             {!property.isPrimary && (
-              <Menu.Item leftSection={<IconArrowBarLeft size={14} />} onClick={() => onAction("insertLeft")}>
+              <Menu.Item leftSection={<IconArrowBarLeft size={14} />} onClick={() => onAction("insertLeft", ref.current)}>
                 {t("Insert left")}
               </Menu.Item>
             )}
-            <Menu.Item leftSection={<IconArrowBarRight size={14} />} onClick={() => onAction("insertRight")}>
+            <Menu.Item leftSection={<IconArrowBarRight size={14} />} onClick={() => onAction("insertRight", ref.current)}>
               {t("Insert right")}
             </Menu.Item>
             {!property.isPrimary && (

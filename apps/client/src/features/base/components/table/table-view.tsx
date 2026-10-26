@@ -23,7 +23,7 @@ import {
 import { pickedReferencesAtom } from "@/features/base/atoms/picked-references-atom";
 import { useOpenRow } from "@/features/base/hooks/use-active-view";
 import { withReferences } from "@/features/base/utils/references";
-import { buildColumns, gridWidth } from "@/features/base/utils/grid-columns";
+import { buildColumns, gridWidth, PinnedEdge, pinnedEdge } from "@/features/base/utils/grid-columns";
 import { afterCommit, CellPos, gridKeyAction } from "@/features/base/utils/grid-navigation";
 import {
   clickRow,
@@ -87,6 +87,30 @@ export function TableView({
     [properties, view.config, columnActions.widthOverrides],
   );
   const width = gridWidth(columns, editable);
+
+  // Which edge the frozen column is stuck to (drives its shadow only; the
+  // sticking itself is CSS). Recomputed on scroll and resize.
+  const [stuck, setStuck] = useState<PinnedEdge>(null);
+  const frozen = columns.find((c) => c.pinned);
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || !frozen) {
+      setStuck(null);
+      return;
+    }
+    const update = () => {
+      const padLeft = parseFloat(getComputedStyle(el).paddingLeft) || 0;
+      setStuck(pinnedEdge(frozen, el.scrollLeft, el.clientWidth, padLeft));
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro.disconnect();
+    };
+  }, [frozen?.left, frozen?.width]);
 
   const [active, setActive] = useState<CellPos | null>(null);
   const [editing, setEditing] = useState<EditState | null>(null);
@@ -332,6 +356,7 @@ export function TableView({
         ref={scrollerRef}
         className={classes.scroller}
         data-fill={fill || undefined}
+        data-stuck={stuck ?? undefined}
         tabIndex={0}
         role="grid"
         aria-rowcount={rows.length + 1}

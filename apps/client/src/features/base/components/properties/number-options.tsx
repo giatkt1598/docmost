@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { NumberOptions, NumberStyle, SeparatorStyle } from "@/features/base/types/base.types";
 import { OptionsEditorProps } from "@/features/base/registry/property-types";
 import { numberPreview } from "@/features/base/utils/options-preview";
+import { NESTED_COMBOBOX_PROPS } from "@/features/base/components/common/anchored-popover";
 
 const FORMATS: Array<{ value: NumberStyle; label: string }> = [
   { value: "plain", label: "Number" },
@@ -32,7 +33,7 @@ export function NumberOptionsEditor({ typeOptions, onChange }: OptionsEditorProp
           size="xs"
           label={t("Format")}
           allowDeselect={false}
-          comboboxProps={{ withinPortal: false }}
+          comboboxProps={NESTED_COMBOBOX_PROPS}
           data={FORMATS.map((f) => ({ value: f.value, label: t(f.label) }))}
           value={opts.format ?? "plain"}
           onChange={(v) => v && set({ format: v as NumberStyle })}
@@ -41,7 +42,7 @@ export function NumberOptionsEditor({ typeOptions, onChange }: OptionsEditorProp
           size="xs"
           label={t("Separators")}
           allowDeselect={false}
-          comboboxProps={{ withinPortal: false }}
+          comboboxProps={NESTED_COMBOBOX_PROPS}
           data={SEPARATORS.map((s) => ({ value: s.value, label: s.value === "local" ? t(s.label) : s.label }))}
           value={opts.separators ?? "comma_period"}
           onChange={(v) => v && set({ separators: v as SeparatorStyle })}

@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { ActionIcon, Button, Group, Popover, ScrollArea, Select, Stack, Switch, Text } from "@mantine/core";
 import { IconAdjustments, IconCards, IconLayoutColumns } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -22,6 +23,9 @@ export function KanbanSettings({ pageId, view, properties, editable }: Props) {
   const group = resolveGroupProperty(properties, view.config);
   const visible = view.config.visiblePropertyIds ?? [];
   const fields = orderProperties(properties, view.config.propertyOrder).filter((p) => !p.isPrimary);
+  // the options popover opens at this button: the property list it was
+  // started from closes together with its own popover
+  const cardsButton = useRef<HTMLButtonElement>(null);
   const dialogs = usePropertyDialogs({ pageId, view, properties, rows: [] });
 
   return (
@@ -52,7 +56,7 @@ export function KanbanSettings({ pageId, view, properties, editable }: Props) {
 
       <Popover position="bottom-end" withinPortal shadow="md">
         <Popover.Target>
-          <Button size="compact-sm" variant="subtle" color="gray" leftSection={<IconCards size={14} />}>
+          <Button ref={cardsButton} size="compact-sm" variant="subtle" color="gray" leftSection={<IconCards size={14} />}>
             {t("Card properties")}
           </Button>
         </Popover.Target>
@@ -78,7 +82,7 @@ export function KanbanSettings({ pageId, view, properties, editable }: Props) {
                     {editable && (hasTypeOptions(p.type) || p.type === "formula") && (
                       <ActionIcon size="sm" variant="subtle" color="gray"
                         aria-label={t("{{name}} options", { name: p.name })}
-                        onClick={() => dialogs.open(p.id, "options")}>
+                        onClick={() => dialogs.open(p.id, "options", cardsButton.current)}>
                         <IconAdjustments size={14} />
                       </ActionIcon>
                     )}

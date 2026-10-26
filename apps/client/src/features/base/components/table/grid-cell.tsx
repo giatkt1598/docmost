@@ -29,7 +29,7 @@ type Props = {
 
 function GridCellInner(props: Props) {
   const { column, row, references, active, editing, canEdit, rowIndex, colIndex } = props;
-  const { property, width, pinned, left } = column;
+  const { property, width, pinned } = column;
   const parts = getPropertyTypeComponents(property.type);
   const Cell = parts.Cell;
   const Editor = parts.Editor;
@@ -59,8 +59,8 @@ function GridCellInner(props: Props) {
 
   const cell = (
     <div
-      className={`${classes.cell} ${pinned ? classes.pinned : ""}`}
-      style={{ width, ...(pinned ? { left } : {}) }}
+      className={`${classes.cell} ${pinned ? classes.frozen : ""}`}
+      style={{ width }}
       role="gridcell"
       data-cell={`${rowIndex}:${colIndex}`}
       data-active={active || undefined}

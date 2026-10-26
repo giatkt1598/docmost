@@ -9,6 +9,7 @@ import {
   MAX_COLUMN_WIDTH,
   MIN_COLUMN_WIDTH,
   orderProperties,
+  pinnedEdge,
   PRIMARY_COLUMN_WIDTH,
   reorderColumns,
   toggleHidden,
@@ -74,6 +75,44 @@ describe("grid columns", () => {
     expect(toggleHidden(["a"], "b", true)).toEqual(["a", "b"]);
     expect(toggleHidden(["a", "b"], "a", false)).toEqual(["b"]);
     expect(toggleHidden(undefined, "a", false)).toEqual([]);
+  });
+});
+
+describe("frozen column edges", () => {
+  // primary column right after the gutter: x = 64..324
+  const col = { left: GUTTER_WIDTH, width: PRIMARY_COLUMN_WIDTH };
+
+  it("is free while it is fully visible", () => {
+    expect(pinnedEdge(col, 0, 1000)).toBeNull();
+    expect(pinnedEdge(col, 0, GUTTER_WIDTH + PRIMARY_COLUMN_WIDTH)).toBeNull();
+  });
+
+  it("sticks left once scrolling would push it past the gutter", () => {
+    expect(pinnedEdge(col, 1, 1000)).toBe("left");
+    expect(pinnedEdge(col, 400, 1000)).toBe("left");
+  });
+
+  it("sticks right when it would be beyond the right edge", () => {
+    expect(pinnedEdge(col, 0, 200)).toBe("right");
+    // a column that is not next to the gutter
+    expect(pinnedEdge({ left: 800, width: 260 }, 0, 600)).toBe("right");
+    expect(pinnedEdge({ left: 800, width: 260 }, 500, 600)).toBeNull();
+    expect(pinnedEdge({ left: 800, width: 260 }, 900, 600)).toBe("left");
+  });
+
+  it("measures from the scroller's left padding (embeds)", () => {
+    // padded grid: at scroll 0 the column sits padLeft further right
+    expect(pinnedEdge(col, 0, 1000, 300)).toBeNull();
+    expect(pinnedEdge(col, 300, 1000, 300)).toBeNull();
+    expect(pinnedEdge(col, 301, 1000, 300)).toBe("left");
+    expect(pinnedEdge(col, 0, 500, 300)).toBe("right");
+  });
+
+  it("lays columns out by flow: the natural offset follows the widths", () => {
+    const cols = buildColumns(props, {});
+    const frozen = cols.find((c) => c.pinned)!;
+    expect(frozen.left).toBe(GUTTER_WIDTH);
+    expect(cols.filter((c) => c.pinned)).toHaveLength(1);
   });
 });
 

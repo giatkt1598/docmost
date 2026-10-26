@@ -9,6 +9,7 @@ import {
   RELATIVE_DATE_FORMAT,
 } from "@/features/base/utils/date-format";
 import { dateFormatIssue, datePreview } from "@/features/base/utils/options-preview";
+import { NESTED_COMBOBOX_PROPS } from "@/features/base/components/common/anchored-popover";
 
 // Date display options of date, created time and last edited time.
 export function DateOptionsEditor({ typeOptions, onChange }: OptionsEditorProps) {
@@ -25,7 +26,7 @@ export function DateOptionsEditor({ typeOptions, onChange }: OptionsEditorProps)
         description={t("Tokens: YYYY YY MMMM MMM MM M DD D dddd ddd HH H hh h mm ss A a. Text in [brackets] is kept.")}
         placeholder={DEFAULT_DATE_FORMAT}
         maxLength={MAX_DATE_FORMAT_LENGTH}
-        comboboxProps={{ withinPortal: false }}
+        comboboxProps={NESTED_COMBOBOX_PROPS}
         data={DATE_FORMAT_PRESETS.map((p) => ({
           value: p,
           label: p === RELATIVE_DATE_FORMAT ? t("Relative (3 days ago)") : p,

@@ -6,6 +6,7 @@ import { PROPERTY_TYPE_LIST, PROPERTY_TYPES } from "@/features/base/registry/pro
 import { useCreatePropertyMutation } from "@/features/base/queries/base-property-query";
 import { apiErrorMessage } from "@/features/base/utils/errors";
 import { FormulaEditor } from "./formula-editor";
+import { NESTED_COMBOBOX_PROPS } from "@/features/base/components/common/anchored-popover";
 
 type Props = {
   pageId: string;
@@ -58,7 +59,7 @@ export function NewPropertyForm({ pageId, properties, onCreated, onCancel }: Pro
         size="xs"
         label={t("Type")}
         allowDeselect={false}
-        comboboxProps={{ withinPortal: false }}
+        comboboxProps={NESTED_COMBOBOX_PROPS}
         data={PROPERTY_TYPE_LIST.map((d) => ({ value: d.type, label: t(d.label) }))}
         value={type}
         onChange={(v) => v && setType(v as PropertyType)}
