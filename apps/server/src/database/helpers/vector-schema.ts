@@ -61,7 +61,7 @@ export async function ensureVectorSchema(db: Kysely<any>): Promise<boolean> {
 export function halfvecExpression(dimensions: number) {
   const n = Math.trunc(dimensions);
   return sql.raw(
-    `(CASE WHEN dimensions = ${n} THEN embedding::halfvec(${n}) END)`,
+    `((CASE WHEN dimensions = ${n} THEN embedding::halfvec(${n}) END)::halfvec(${n}))`,
   );
 }
 
@@ -76,7 +76,7 @@ export async function ensureVectorIndex(
   await sql
     .raw(
       `CREATE INDEX IF NOT EXISTS search_embeddings_hnsw_${n}
-         ON search_embeddings USING hnsw ((CASE WHEN dimensions = ${n} THEN embedding::halfvec(${n}) END) halfvec_cosine_ops)`,
+         ON search_embeddings USING hnsw (((CASE WHEN dimensions = ${n} THEN embedding::halfvec(${n}) END)::halfvec(${n})) halfvec_cosine_ops)`,
     )
     .execute(db);
 }

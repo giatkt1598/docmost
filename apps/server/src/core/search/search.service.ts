@@ -242,12 +242,12 @@ export class SearchService {
       const fuzzyBase = await this.scopedPages(searchParams, opts);
       const fuzzy: any[] = await fuzzyBase
         .select(
-          sql<number>`word_similarity(lower(${titleQuery}), lower(pages.title))`.as(
+          sql<number>`word_similarity(f_unaccent(lower(${titleQuery})), f_unaccent(lower(pages.title)))`.as(
             'rank',
           ),
         )
         .where(
-          sql<boolean>`word_similarity(lower(${titleQuery}), lower(pages.title)) > 0.45`,
+          sql<boolean>`word_similarity(f_unaccent(lower(${titleQuery})), f_unaccent(lower(pages.title))) > 0.45`,
         )
         .$if(seen.size > 0, (qb) => qb.where('id', 'not in', [...seen]))
         .orderBy('rank', 'desc')
