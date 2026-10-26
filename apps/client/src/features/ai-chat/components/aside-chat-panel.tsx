@@ -1,39 +1,156 @@
-import { useState } from "react";
-import { ActionIcon, Group, Stack, Title, Tooltip } from "@mantine/core";
-import { IconArrowsMaximize, IconPlus, IconX } from "@tabler/icons-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  ActionIcon,
+  Center,
+  Group,
+  Loader,
+  Popover,
+  ScrollArea,
+  Stack,
+  Text,
+  Title,
+  Tooltip,
+  UnstyledButton,
+} from "@mantine/core";
+import {
+  IconArrowsMaximize,
+  IconHistory,
+  IconPlus,
+  IconX,
+} from "@tabler/icons-react";
 import { useSetAtom } from "jotai";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { asideStateAtom } from "@/components/layouts/global/hooks/atoms/sidebar-atom.ts";
 import { extractPageSlugId } from "@/lib";
+import { timeAgo } from "@/lib/time.ts";
 import { usePageQuery } from "@/features/page/queries/page-query.ts";
 import { AiChatView } from "@/features/ai-chat/components/ai-chat-view";
+import { useAiChatsQuery } from "@/features/ai-chat/queries/ai-chat-query";
+import { IAiChat } from "@/features/ai-chat/types/ai-chat.types";
 
-// AI chat beside a page; the assistant knows which page is open.
+// The user's earlier chats beside this page.
+function ChatHistory({
+  chats,
+  activeId,
+  onPick,
+}: {
+  chats: IAiChat[];
+  activeId?: string;
+  onPick: (chat: IAiChat) => void;
+}) {
+  const { t } = useTranslation();
+  const [opened, setOpened] = useState(false);
+
+  return (
+    <Popover
+      opened={opened}
+      onChange={setOpened}
+      position="bottom-end"
+      width={280}
+      shadow="md"
+      withinPortal
+    >
+      <Popover.Target>
+        <Tooltip label={t("Chat history")} disabled={opened}>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            onClick={() => setOpened((o) => !o)}
+            aria-label={t("Chat history")}
+          >
+            <IconHistory size={18} />
+          </ActionIcon>
+        </Tooltip>
+      </Popover.Target>
+      <Popover.Dropdown p={4}>
+        {chats.length === 0 ? (
+          <Text size="sm" c="dimmed" ta="center" py="sm">
+            {t("No chats yet")}
+          </Text>
+        ) : (
+          <ScrollArea.Autosize mah={320} type="auto">
+            <Stack gap={2}>
+              {chats.map((chat) => (
+                <UnstyledButton
+                  key={chat.id}
+                  onClick={() => {
+                    setOpened(false);
+                    onPick(chat);
+                  }}
+                  px="xs"
+                  py={6}
+                  style={{
+                    borderRadius: "var(--mantine-radius-sm)",
+                    background:
+                      chat.id === activeId
+                        ? "light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5))"
+                        : undefined,
+                  }}
+                >
+                  <Text size="sm" lineClamp={1}>
+                    {chat.title || t("New chat")}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {timeAgo(new Date(chat.updatedAt))}
+                  </Text>
+                </UnstyledButton>
+              ))}
+            </Stack>
+          </ScrollArea.Autosize>
+        )}
+      </Popover.Dropdown>
+    </Popover>
+  );
+}
+
+// AI chat beside a page; the assistant knows which page is open. Opens on
+// the user's latest chat about this page, with the earlier ones in History.
 export function AsideChatPanel() {
   const { t } = useTranslation();
   const setAside = useSetAtom(asideStateAtom);
   const { pageSlug } = useParams();
   const { data: page } = usePageQuery({ pageId: extractPageSlugId(pageSlug) });
+  const pageId = page?.id;
+  const { data: chats } = useAiChatsQuery("", pageId, !!pageId);
+
   const [chatId, setChatId] = useState<string | undefined>();
-  // a new key resets the view for a fresh chat
+  // a new key resets the view for another chat
   const [session, setSession] = useState(0);
+  // the page whose latest chat was opened
+  const openedFor = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!pageId || !chats || openedFor.current === pageId) return;
+    openedFor.current = pageId;
+    setChatId(chats[0]?.id);
+    setSession((s) => s + 1);
+  }, [pageId, chats]);
+
+  const open = (id?: string) => {
+    setChatId(id);
+    setSession((s) => s + 1);
+  };
+
+  const ready = !!pageId && openedFor.current === pageId;
 
   return (
-    <Stack gap="xs" h="100%" style={{ minHeight: 0 }}>
-      <Group justify="space-between" wrap="nowrap">
+    <Stack gap={0} h="100%" style={{ minHeight: 0 }}>
+      <Group justify="space-between" wrap="nowrap" px="sm" py="xs">
         <Title order={2} size="h6" fw={500}>
           {t("AI Chat")}
         </Title>
         <Group gap={4} wrap="nowrap">
+          <ChatHistory
+            chats={chats ?? []}
+            activeId={chatId}
+            onPick={(chat) => open(chat.id)}
+          />
           <Tooltip label={t("New chat")}>
             <ActionIcon
               variant="subtle"
               color="gray"
-              onClick={() => {
-                setChatId(undefined);
-                setSession((s) => s + 1);
-              }}
+              onClick={() => open(undefined)}
               aria-label={t("New chat")}
             >
               <IconPlus size={18} />
@@ -64,14 +181,26 @@ export function AsideChatPanel() {
           </Tooltip>
         </Group>
       </Group>
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <AiChatView
-          key={session}
-          chatId={chatId}
-          pageId={page?.id}
-          onChatCreated={(chat) => setChatId(chat.id)}
-          compact
-        />
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          padding: "0 var(--mantine-spacing-sm) var(--mantine-spacing-sm)",
+        }}
+      >
+        {ready ? (
+          <AiChatView
+            key={session}
+            chatId={chatId}
+            pageId={pageId}
+            onChatCreated={(chat) => setChatId(chat.id)}
+            compact
+          />
+        ) : (
+          <Center h="100%">
+            <Loader size="sm" />
+          </Center>
+        )}
       </div>
     </Stack>
   );

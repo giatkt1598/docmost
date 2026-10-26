@@ -5,8 +5,14 @@ import {
   IChatMessage,
 } from "@/features/ai-chat/types/ai-chat.types";
 
-export async function getAiChats(query?: string): Promise<IAiChat[]> {
-  const req = await api.post<IAiChat[]>("/ai-chat", query ? { query } : {});
+export async function getAiChats(
+  query?: string,
+  pageId?: string,
+): Promise<IAiChat[]> {
+  const req = await api.post<IAiChat[]>("/ai-chat", {
+    ...(query && { query }),
+    ...(pageId && { pageId }),
+  });
   return req.data;
 }
 

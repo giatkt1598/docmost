@@ -8,10 +8,16 @@ import {
 
 export const AI_CHATS_KEY = "ai-chats";
 
-export function useAiChatsQuery(query?: string) {
+// pageId: only the chats started beside that page
+export function useAiChatsQuery(
+  query?: string,
+  pageId?: string,
+  enabled = true,
+) {
   return useQuery({
-    queryKey: [AI_CHATS_KEY, query ?? ""],
-    queryFn: () => getAiChats(query),
+    queryKey: [AI_CHATS_KEY, query ?? "", pageId ?? null],
+    queryFn: () => getAiChats(query, pageId),
+    enabled,
   });
 }
 

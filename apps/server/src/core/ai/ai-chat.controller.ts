@@ -39,6 +39,11 @@ class ListChatsDto {
   @IsString()
   @MaxLength(100)
   query?: string;
+
+  // only the chats started beside this page
+  @IsOptional()
+  @IsUUID()
+  pageId?: string;
 }
 
 class RenameChatDto extends ChatIdDto {
@@ -91,7 +96,7 @@ export class AiChatController {
     @AuthWorkspace() workspace: Workspace,
   ) {
     this.assertEnabled(workspace);
-    return this.chatService.list(user, workspace, dto.query);
+    return this.chatService.list(user, workspace, dto.query, dto.pageId);
   }
 
   @HttpCode(HttpStatus.OK)

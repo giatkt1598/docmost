@@ -709,6 +709,7 @@ export interface AiChats {
   workspaceId: string;
   creatorId: string;
   title: string | null;
+  pageId: string | null;
   createdAt: Generated<Timestamp>;
   updatedAt: Generated<Timestamp>;
   deletedAt: Timestamp | null;

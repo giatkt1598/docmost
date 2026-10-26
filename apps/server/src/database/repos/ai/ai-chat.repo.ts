@@ -31,7 +31,7 @@ export class AiChatRepo {
   async listChats(
     creatorId: string,
     workspaceId: string,
-    opts: { query?: string; limit?: number } = {},
+    opts: { query?: string; pageId?: string; limit?: number } = {},
   ): Promise<AiChat[]> {
     return this.db
       .selectFrom('aiChats')
@@ -39,6 +39,7 @@ export class AiChatRepo {
       .where('creatorId', '=', creatorId)
       .where('workspaceId', '=', workspaceId)
       .where('deletedAt', 'is', null)
+      .$if(!!opts.pageId, (qb) => qb.where('pageId', '=', opts.pageId))
       .$if(!!opts.query?.trim(), (qb) =>
         qb.where(
           sql`f_unaccent(title)`,
@@ -70,10 +71,11 @@ export class AiChatRepo {
     creatorId: string,
     workspaceId: string,
     title: string,
+    pageId?: string,
   ): Promise<AiChat> {
     return this.db
       .insertInto('aiChats')
-      .values({ creatorId, workspaceId, title })
+      .values({ creatorId, workspaceId, title, pageId: pageId ?? null })
       .returningAll()
       .executeTakeFirst();
   }

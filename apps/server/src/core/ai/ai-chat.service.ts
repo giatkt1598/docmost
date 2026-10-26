@@ -218,8 +218,8 @@ export class AiChatService {
     };
   }
 
-  list(user: User, workspace: Workspace, query?: string) {
-    return this.chatRepo.listChats(user.id, workspace.id, { query });
+  list(user: User, workspace: Workspace, query?: string, pageId?: string) {
+    return this.chatRepo.listChats(user.id, workspace.id, { query, pageId });
   }
 
   async info(user: User, workspace: Workspace, chatId: string) {
@@ -256,22 +256,6 @@ export class AiChatService {
   }): AsyncGenerator<ChatEvent> {
     const { user, workspace } = opts;
     const model = await this.aiProvider.model(workspace.id, 'chat');
-    const chat = opts.chatId
-      ? await this.find(user, workspace, opts.chatId)
-      : await this.chatRepo.createChat(
-          user.id,
-          workspace.id,
-          chatTitle(opts.message),
-        );
-    yield { type: 'chat', chat };
-
-    await this.chatRepo.insertMessage({
-      chatId: chat.id,
-      workspaceId: workspace.id,
-      userId: user.id,
-      role: 'user',
-      content: opts.message,
-    });
 
     const actor: McpActor = { user, workspace };
     let currentPage: { id: string; title: string } | null = null;
@@ -282,6 +266,25 @@ export class AiChatService {
         .catch(() => null);
       if (page) currentPage = { id: page.id, title: page.title || 'Untitled' };
     }
+
+    const chat = opts.chatId
+      ? await this.find(user, workspace, opts.chatId)
+      : await this.chatRepo.createChat(
+          user.id,
+          workspace.id,
+          chatTitle(opts.message),
+          // a chat started beside a page belongs to that page
+          currentPage?.id,
+        );
+    yield { type: 'chat', chat };
+
+    await this.chatRepo.insertMessage({
+      chatId: chat.id,
+      workspaceId: workspace.id,
+      userId: user.id,
+      role: 'user',
+      content: opts.message,
+    });
 
     const history = await this.chatRepo.listMessages(chat.id, {
       last: HISTORY_MESSAGES,

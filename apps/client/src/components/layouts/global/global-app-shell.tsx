@@ -152,7 +152,7 @@ export default function GlobalAppShell({
           id={ASIDE_PANEL_ID}
           tabIndex={-1}
           className={classes.aside}
-          p="md"
+          p={asideTab === "chat" ? 0 : "md"}
           withBorder={false}
           aria-label={
             asideTab === "comments"
