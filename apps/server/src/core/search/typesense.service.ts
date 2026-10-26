@@ -6,6 +6,10 @@ import { KyselyDB } from '@docmost/db/types/kysely.types';
 import { EnvironmentService } from '../../integrations/environment/environment.service';
 
 export const TYPESENSE_COLLECTION = 'docmost_pages';
+// Typesense folds accents and splits words well for Latin scripts without a
+// locale (Vietnamese included; setting 'vi' makes it worse). A locale only
+// helps scripts that need their own tokenizer.
+const SPECIAL_LOCALES = ['ja', 'zh', 'ko', 'th', 'el', 'ru', 'sr', 'uk', 'be'];
 const MAX_CONTENT_CHARS = 100_000;
 const IMPORT_BATCH = 200;
 // markers that cannot occur in page text; swapped for <b> after escaping
@@ -79,7 +83,7 @@ export class TypesenseService implements OnModuleInit {
   private async prepare() {
     const client = this.getClient();
     const locale = this.environmentService.getTypesenseLocale();
-    const localized = locale && locale !== 'en' ? { locale } : {};
+    const localized = SPECIAL_LOCALES.includes(locale) ? { locale } : {};
 
     let documents = 0;
     try {
