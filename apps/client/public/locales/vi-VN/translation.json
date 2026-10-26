@@ -2093,5 +2093,6 @@
   "Choose an embedding model above to let search find related content by meaning.": "Chọn model embedding ở trên để tìm kiếm ra nội dung liên quan theo ý nghĩa.",
   "{{indexed}} of {{total}} pages and files indexed with {{model}}": "Đã lập chỉ mục {{indexed}}/{{total}} trang và tệp bằng {{model}}",
   "Rebuild index": "Xây dựng lại chỉ mục",
-  "Rebuilding the search index": "Đang xây dựng lại chỉ mục tìm kiếm"
+  "Rebuilding the search index": "Đang xây dựng lại chỉ mục tìm kiếm",
+  "Export the space from Confluence as HTML (Space settings > Export space > HTML), then upload the zip file.": "Xuất space từ Confluence dạng HTML (Space settings > Export space > HTML), rồi tải file zip lên."
 }

@@ -17,7 +17,7 @@ export const EDITION_FEATURES: { label: string; available: boolean }[] = [
   { label: "Audit Logs", available: false },
   { label: "Advanced Search Engine Support", available: true },
   { label: "Full-text Search in Attachments (PDF, DOCX)", available: true },
-  { label: "Confluence Import", available: false },
+  { label: "Confluence Import", available: true },
   { label: "PDF & DOCX Import", available: true },
   { label: "Bases", available: true },
   { label: "Kanban", available: true },

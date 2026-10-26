@@ -2278,5 +2278,6 @@
   "Choose an embedding model above to let search find related content by meaning.": "Choose an embedding model above to let search find related content by meaning.",
   "{{indexed}} of {{total}} pages and files indexed with {{model}}": "{{indexed}} of {{total}} pages and files indexed with {{model}}",
   "Rebuild index": "Rebuild index",
-  "Rebuilding the search index": "Rebuilding the search index"
+  "Rebuilding the search index": "Rebuilding the search index",
+  "Export the space from Confluence as HTML (Space settings > Export space > HTML), then upload the zip file.": "Export the space from Confluence as HTML (Space settings > Export space > HTML), then upload the zip file."
 }

@@ -8,6 +8,7 @@ import { ImportAttachmentService } from './services/import-attachment.service';
 import { ImportImageService } from './services/import-image.service';
 import { DocxImportService } from './services/docx-import.service';
 import { PdfImportService } from './services/pdf-import.service';
+import { ConfluenceImportService } from './services/confluence-import.service';
 import { FileTaskController } from './file-task.controller';
 import { PageModule } from '../../core/page/page.module';
 import { BaseTransferService } from '../../core/base/base-transfer.service';
@@ -20,6 +21,7 @@ import { BaseReferenceService } from '../../core/base/base-reference.service';
     FileTaskProcessor,
     ImportAttachmentService,
     ImportImageService,
+    ConfluenceImportService,
     DocxImportService,
     PdfImportService,
     BaseTransferService,

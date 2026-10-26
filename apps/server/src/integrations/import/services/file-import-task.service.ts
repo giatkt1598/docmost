@@ -31,8 +31,11 @@ import {
 } from '../utils/import.utils';
 import { executeTx } from '@docmost/db/utils';
 import { BacklinkRepo } from '@docmost/db/repos/backlink/backlink.repo';
-import { ImportAttachmentService } from './import-attachment.service';
-import { ModuleRef } from '@nestjs/core';
+import {
+  ImportAttachmentService,
+  PageAttachmentInfo,
+} from './import-attachment.service';
+import { ConfluenceImportService } from './confluence-import.service';
 import { PageService } from '../../../core/page/services/page.service';
 import { ImportPageNode } from '../dto/file-task-dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -61,7 +64,7 @@ export class FileImportTaskService {
     private readonly backlinkRepo: BacklinkRepo,
     @InjectKysely() private readonly db: KyselyDB,
     private readonly importAttachmentService: ImportAttachmentService,
-    private moduleRef: ModuleRef,
+    private readonly confluenceImport: ConfluenceImportService,
     private eventEmitter: EventEmitter2,
     @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
   ) {}
@@ -123,24 +126,12 @@ export class FileImportTaskService {
       }
 
       if (fileTask.source === FileImportSource.Confluence) {
-        let ConfluenceModule: any;
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          ConfluenceModule = require('./../../../ee/confluence-import/confluence-import.service');
-        } catch (err) {
-          this.logger.error(
-            'Confluence import requested but EE module not bundled in this build',
-          );
-          return;
-        }
-        const confluenceImportService = this.moduleRef.get(
-          ConfluenceModule.ConfluenceImportService,
-          { strict: false },
-        );
-
-        await confluenceImportService.processConfluenceImport({
+        const prepared = await this.confluenceImport.prepare(tmpExtractDir);
+        await this.persistPageTree({
           extractDir: tmpExtractDir,
           fileTask,
+          isConfluenceImport: true,
+          ...prepared,
         });
       }
       try {
@@ -172,12 +163,6 @@ export class FileImportTaskService {
     const allFiles = await collectMarkdownAndHtmlFiles(extractDir);
     const attachmentCandidates = await buildAttachmentCandidates(extractDir);
     const docmostMetadata = await readDocmostMetadata(extractDir);
-
-    const space = await this.db
-      .selectFrom('spaces')
-      .select(['slug'])
-      .where('id', '=', fileTask.spaceId)
-      .executeTakeFirst();
 
     const pagesMap = new Map<string, ImportPageNode>();
 
@@ -271,7 +256,8 @@ export class FileImportTaskService {
           const partialId = extractNotionPartialId(folderName);
           const strippedFolderName = stripNotionID(folderName);
           const isSameDir = (fileDir: string) =>
-            fileDir === parentDir || (parentDir === '.' && !fileDir.includes('/'));
+            fileDir === parentDir ||
+            (parentDir === '.' && !fileDir.includes('/'));
 
           for (const [filePath, page] of pagesMap.entries()) {
             if (!isSameDir(path.dirname(filePath))) continue;
@@ -283,7 +269,10 @@ export class FileImportTaskService {
               const fullIdMatch = fileBase.match(/[a-f0-9]{32}$/i);
               if (!fullIdMatch) continue;
               const fullId = fullIdMatch[0].toLowerCase();
-              if (!fullId.startsWith(partialId.prefix) || !fullId.endsWith(partialId.suffix)) {
+              if (
+                !fullId.startsWith(partialId.prefix) ||
+                !fullId.endsWith(partialId.suffix)
+              ) {
                 continue;
               }
             }
@@ -334,6 +323,50 @@ export class FileImportTaskService {
       if (parentPage) page.parentPageId = parentPage.id;
     });
 
+    await this.persistPageTree({
+      extractDir,
+      fileTask,
+      pagesMap,
+      attachmentCandidates,
+      docmostMetadata,
+    });
+  }
+
+  // Positions, creates and links a tree of pages whose files were found in an
+  // extracted archive. Shared by the generic, Notion and Confluence imports;
+  // `transform` lets a source rewrite each page's HTML and report the
+  // attachments it references before they are uploaded.
+  async persistPageTree(opts: {
+    extractDir: string;
+    fileTask: FileTask;
+    pagesMap: Map<string, ImportPageNode>;
+    attachmentCandidates: Map<string, string>;
+    docmostMetadata?: Awaited<ReturnType<typeof readDocmostMetadata>>;
+    isConfluenceImport?: boolean;
+    // sibling order by file path, when the source defines one
+    order?: Map<string, number>;
+    transform?: (
+      html: string,
+      page: ImportPageNode,
+    ) => { html: string; attachments: PageAttachmentInfo[] };
+  }): Promise<void> {
+    const {
+      extractDir,
+      fileTask,
+      pagesMap,
+      attachmentCandidates,
+      docmostMetadata,
+      transform,
+      isConfluenceImport,
+      order,
+    } = opts;
+
+    const space = await this.db
+      .selectFrom('spaces')
+      .select(['slug'])
+      .where('id', '=', fileTask.spaceId)
+      .executeTakeFirst();
+
     // generate position keys
     const siblingsMap = new Map<string | null, ImportPageNode[]>();
 
@@ -352,6 +385,14 @@ export class FileImportTaskService {
 
     // Sort siblings by metadata position if available, otherwise alphabetically
     const sortSiblings = (siblings: ImportPageNode[]) => {
+      if (order) {
+        siblings.sort(
+          (a, b) =>
+            (order.get(a.filePath) ?? Infinity) -
+            (order.get(b.filePath) ?? Infinity),
+        );
+        return;
+      }
       if (docmostMetadata) {
         siblings.sort((a, b) => {
           const posA =
@@ -526,6 +567,13 @@ export class FileImportTaskService {
             }
             content = remapBaseEmbeds(content, importedPageIds);
 
+            let pageAttachments: PageAttachmentInfo[] | undefined;
+            if (transform) {
+              const converted = transform(content, page);
+              content = converted.html;
+              pageAttachments = converted.attachments;
+            }
+
             const htmlContent =
               await this.importAttachmentService.processAttachments({
                 html: content,
@@ -534,6 +582,8 @@ export class FileImportTaskService {
                 pageId: page.id,
                 fileTask,
                 attachmentCandidates,
+                pageAttachments,
+                isConfluenceImport,
               });
 
             const { html, backlinks, pageIcon } = await formatImportHtml({

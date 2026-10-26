@@ -21,11 +21,13 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { QueueJob, QueueName } from '../../queue/constants';
 
-interface AttachmentInfo {
+export interface AttachmentInfo {
   href: string;
   fileName: string;
   mimeType: string;
 }
+
+export type PageAttachmentInfo = AttachmentInfo;
 
 interface DrawioPair {
   drawioFile?: AttachmentInfo;

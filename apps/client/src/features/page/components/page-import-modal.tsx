@@ -31,9 +31,6 @@ import { useTranslation } from "react-i18next";
 import { ConfluenceIcon } from "@/components/icons/confluence-icon.tsx";
 import { getFileImportSizeLimit } from "@/lib/config.ts";
 import { formatBytes } from "@/lib";
-import { useHasFeature } from "@/ee/hooks/use-feature";
-import { Feature } from "@/ee/features";
-import { useUpgradeLabel } from "@/ee/hooks/use-upgrade-label";
 import { getFileTaskById } from "@/features/file-task/services/file-task-service.ts";
 import { queryClient } from "@/main.tsx";
 import { useQueryEmit } from "@/features/websocket/use-query-emit.ts";
@@ -96,8 +93,6 @@ function ImportFormatSelection({ spaceId, onClose }: ImportFormatSelection) {
   const confluenceFileRef = useRef<() => void>(null);
   const zipFileRef = useRef<() => void>(null);
 
-  const canUseConfluence = useHasFeature(Feature.CONFLUENCE_IMPORT);
-  const upgradeLabel = useUpgradeLabel();
 
   const handleZipUpload = async (selectedFile: File, source: string) => {
     if (!selectedFile) {
@@ -443,11 +438,14 @@ function ImportFormatSelection({ spaceId, onClose }: ImportFormatSelection) {
         >
           {(props) => (
             <Tooltip
-              label={upgradeLabel}
-              disabled={canUseConfluence}
+              label={t(
+                "Export the space from Confluence as HTML (Space settings > Export space > HTML), then upload the zip file.",
+              )}
+              multiline
+              w={260}
+              withArrow
             >
               <Button
-                disabled={!canUseConfluence}
                 justify="start"
                 variant="default"
                 leftSection={<ConfluenceIcon size={18} />}
