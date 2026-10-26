@@ -7,13 +7,16 @@ import {
   fromBlockInput,
   MarkdownToNodes,
   newBlockId,
+  withFreshIds,
 } from '../blocks/doc-blocks';
 import {
   inlineFromSpans,
+  isSafeLink,
   PmNode,
   Span,
   spansFromInline,
 } from '../blocks/rich-text';
+import { isDeepStrictEqual } from 'node:util';
 
 // Applies block operations to a page's ProseMirror JSON, all or nothing.
 // Pure and synchronous, so the caller can run it inside one Yjs
@@ -265,6 +268,66 @@ export function applyOperations(
     (node.content ?? []).forEach((c) => checkTables(c, i));
   };
 
+  // New content may only use what the tools model, and safe links.
+  const checkNewContent = (node: PmNode, i: number) => {
+    if (!INSERTABLE.has(node.type)) {
+      fail(
+        'VALIDATION',
+        i,
+        node.attrs?.id,
+        `${node.type} blocks cannot be created by the AI tools`,
+      );
+    }
+    checkMarks(node, null, i);
+    (node.content ?? []).forEach((c) => checkNewContent(c, i));
+  };
+
+  // Marks on text: links must be safe; comments and inline nodes such as
+  // mentions may only be kept, never made up.
+  const checkMarks = (node: PmNode, original: PmNode | null, i: number) => {
+    for (const mark of node.marks ?? []) {
+      if (mark.type === 'link' && !isSafeLink(String(mark.attrs?.href ?? ''))) {
+        fail('VALIDATION', i, undefined, `Unsafe link: ${mark.attrs?.href}`);
+      }
+      if (!PASSTHROUGH_MARKS.has(mark.type)) {
+        fail('VALIDATION', i, undefined, `Unknown text mark ${mark.type}`);
+      }
+      if (
+        mark.type === 'comment' &&
+        !(original && containsMark(original, mark))
+      ) {
+        fail(
+          'VALIDATION',
+          i,
+          undefined,
+          'Comments cannot be added by the AI tools',
+        );
+      }
+    }
+  };
+
+  const checkPatchedInline = (next: PmNode, original: PmNode, i: number) => {
+    const walk = (node: PmNode) => {
+      if (node.type === 'text' || node.type === 'hardBreak') {
+        checkMarks(node, original, i);
+        return;
+      }
+      if (INLINE_TYPES.has(node.type)) {
+        if (!containsNode(original, node)) {
+          fail(
+            'VALIDATION',
+            i,
+            original.attrs?.id,
+            `${node.type} can only be kept as it was, not added`,
+          );
+        }
+        return;
+      }
+      (node.content ?? []).forEach(walk);
+    };
+    (next.content ?? []).forEach(walk);
+  };
+
   const checkPlacement = (
     node: PmNode,
     parent: PmNode,
@@ -305,12 +368,13 @@ export function applyOperations(
         const { parent, isRoot } = resolveParent(op.parent_id, i);
         let nodes: PmNode[];
         if (op.op === 'insert') {
-          nodes = op.blocks.flatMap((b) =>
-            fromBlockInput(b, opts.markdownToNodes),
-          );
+          nodes = op.blocks
+            .flatMap((b) => fromBlockInput(b, opts.markdownToNodes))
+            .map((n) => withFreshIds(n));
           if (nodes.length === 0) {
             fail('VALIDATION', i, undefined, 'Nothing to insert');
           }
+          nodes.forEach((n) => checkNewContent(n, i));
         } else {
           if (!undo) {
             fail('VALIDATION', i, undefined, 'reinsert is only used by Undo');
@@ -356,6 +420,7 @@ export function applyOperations(
             ? clone(op.node)
             : patchNode(loc.node, op.patch, i, fail);
         checkTables(next, i);
+        if (op.op === 'update') checkPatchedInline(next, loc.node, i);
         loc.parent.content[loc.index] = next;
         touched.add(op.block_id);
         changed.add(op.block_id);
@@ -571,4 +636,61 @@ function currentRows(table: PmNode): Span[][][] {
       spansFromInline(cell.content?.[0]?.content),
     ),
   );
+}
+
+// node types the tools create (blocks, table parts and inline content)
+const INSERTABLE = new Set([
+  'paragraph',
+  'heading',
+  'blockquote',
+  'callout',
+  'codeBlock',
+  'horizontalRule',
+  'bulletList',
+  'orderedList',
+  'listItem',
+  'taskList',
+  'taskItem',
+  'table',
+  'tableRow',
+  'tableCell',
+  'tableHeader',
+  'text',
+  'hardBreak',
+  'mathInline',
+]);
+
+const PASSTHROUGH_MARKS = new Set([
+  'bold',
+  'italic',
+  'underline',
+  'strike',
+  'code',
+  'link',
+  'highlight',
+  'textStyle',
+  'superscript',
+  'subscript',
+  'comment',
+]);
+
+const INLINE_TYPES = new Set([
+  'mention',
+  'mathInline',
+  'status',
+  'footnoteReference',
+  'integrationMention',
+]);
+
+function containsNode(root: PmNode, target: PmNode): boolean {
+  if (isDeepStrictEqual(root, target)) return true;
+  return (root.content ?? []).some((c) => containsNode(c, target));
+}
+
+function containsMark(
+  root: PmNode,
+  target: { type: string; attrs?: any },
+): boolean {
+  if ((root.marks ?? []).some((m) => isDeepStrictEqual(m, target))) return true;
+  return (root.content ?? []).some((c) => containsMark(c, target));
 }

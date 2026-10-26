@@ -8,6 +8,9 @@ import {
 import { setYjsMark, updateYjsMarkAttribute, YjsSelection } from './yjs.util';
 import * as Y from 'yjs';
 import { User } from '@docmost/db/types/entity.types';
+import { applyToLiveDoc, readDocWithIds } from '../core/ai-tools/live-doc';
+import { PmNode } from '../core/ai-tools/blocks/rich-text';
+import { Operation } from '../core/ai-tools/operations/engine';
 
 export type MediaReplacement = {
   url: string;
@@ -140,6 +143,84 @@ export class CollaborationHandler {
             }
           },
         );
+      },
+      // AI page tools: the live document with ids on every block.
+      // Results are plain objects (never thrown) so they survive the Redis
+      // round trip when another instance owns the document.
+      aiReadPage: async (documentName: string, payload: { user: User }) => {
+        let doc: PmNode = null;
+        try {
+          await this.withYdocConnection(
+            hocuspocus,
+            documentName,
+            { user: payload.user },
+            (ydoc) => {
+              doc = readDocWithIds(ydoc);
+            },
+          );
+          return { ok: true as const, doc };
+        } catch (err) {
+          this.logger.error(`AI read of ${documentName} failed`, err);
+          return {
+            ok: false as const,
+            code: 'INTERNAL',
+            message: (err as Error).message,
+          };
+        }
+      },
+      // Checks and writes block operations in one Yjs transaction.
+      aiApplyOperations: async (
+        documentName: string,
+        payload: {
+          user: User;
+          operations: Operation[];
+          markdown: [string, PmNode[]][];
+          mode?: 'edit' | 'undo';
+        },
+      ) => {
+        let result: any = null;
+        try {
+          await this.withYdocConnection(
+            hocuspocus,
+            documentName,
+            { user: payload.user },
+            (ydoc) => {
+              result = applyToLiveDoc(ydoc, payload.operations, {
+                markdown: new Map(payload.markdown ?? []),
+                mode: payload.mode,
+              });
+            },
+          );
+          if (result?.ok) {
+            result = {
+              ...result,
+              liveRevs: Object.fromEntries(result.liveRevs),
+            };
+          }
+          return result as
+            | {
+                ok: true;
+                before: PmNode;
+                doc: PmNode;
+                inverse: Operation[];
+                changedIds: string[];
+                deletedIds: string[];
+                liveRevs: Record<string, string>;
+              }
+            | {
+                ok: false;
+                code: string;
+                message: string;
+                details?: any[];
+              };
+        } catch (err) {
+          this.logger.error(`AI edit of ${documentName} failed`, err);
+          return {
+            ok: false as const,
+            code: 'INTERNAL',
+            message: (err as Error).message,
+          };
+        }
       },
       // Points media nodes still using an external URL at our own copy.
       // Returns how many nodes each URL replaced.

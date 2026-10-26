@@ -180,6 +180,16 @@ export function assignBlockIds(doc: PmNode): { doc: PmNode; changed: boolean } {
   return { doc: result, changed };
 }
 
+// A copy with a new id on every block node, e.g. for content inserted twice.
+export function withFreshIds(node: PmNode): PmNode {
+  const copy: PmNode = { ...node };
+  if (ID_TYPES.has(node.type)) {
+    copy.attrs = { ...(node.attrs ?? {}), id: newBlockId() };
+  }
+  if (node.content) copy.content = node.content.map(withFreshIds);
+  return copy;
+}
+
 export function nodeText(node: PmNode): string {
   if (node.type === 'text') return node.text ?? '';
   if (node.type === 'hardBreak') return '\n';

@@ -314,4 +314,120 @@ describe('applyOperations', () => {
       ),
     ).toThrow(/callout block has no text/);
   });
+
+  it('refuses unsafe links and content the tools do not create', () => {
+    expect(() =>
+      applyOperations(
+        fixture(),
+        [
+          {
+            op: 'insert',
+            blocks: [
+              {
+                type: 'paragraph',
+                rich_text: [{ text: 'x', link: 'javascript:alert(1)' }],
+              },
+            ],
+          },
+        ],
+        opts,
+      ),
+    ).toThrow(/Unsafe link/);
+    expect(() =>
+      applyOperations(
+        fixture(),
+        [{ op: 'insert', blocks: [{ type: 'markdown', markdown: 'img' }] }],
+        {
+          ...opts,
+          markdownToNodes: () => [
+            { type: 'image', attrs: { src: 'https://x.io/a.png' } },
+          ],
+        },
+      ),
+    ).toThrow(/image blocks cannot be created/);
+  });
+
+  it('keeps a mention and a comment that are echoed back, refuses new ones', () => {
+    const mention = {
+      type: 'mention',
+      attrs: { id: 'm1', label: 'Ann', entityType: 'user', entityId: 'u1' },
+    };
+    const comment = {
+      type: 'comment',
+      attrs: { commentId: 'c9', resolved: false },
+    };
+    const doc: any = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          attrs: { id: 'p1' },
+          content: [{ type: 'text', text: 'Hi ', marks: [comment] }, mention],
+        },
+      ],
+    };
+    const kept = applyOperations(
+      doc,
+      [
+        {
+          op: 'update',
+          block_id: 'p1',
+          patch: {
+            rich_text: [
+              { text: 'Hello ', extra_marks: [comment] },
+              { inline: mention, preview: '@Ann' },
+            ],
+          },
+        },
+      ],
+      opts,
+    );
+    expect(kept.doc.content[0].content[1]).toEqual(mention);
+
+    expect(() =>
+      applyOperations(
+        doc,
+        [
+          {
+            op: 'update',
+            block_id: 'p1',
+            patch: {
+              rich_text: [
+                {
+                  inline: {
+                    ...mention,
+                    attrs: { ...mention.attrs, entityId: 'u2' },
+                  },
+                  preview: '@Bob',
+                },
+              ],
+            },
+          },
+        ],
+        opts,
+      ),
+    ).toThrow(/mention can only be kept/);
+    expect(() =>
+      applyOperations(
+        doc,
+        [
+          {
+            op: 'update',
+            block_id: 'p1',
+            patch: {
+              rich_text: [
+                {
+                  text: 'x',
+                  extra_marks: [
+                    { type: 'comment', attrs: { commentId: 'new' } },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+        opts,
+      ),
+    ).toThrow(/Comments cannot be added/);
+  });
 });
