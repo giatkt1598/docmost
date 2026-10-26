@@ -65,3 +65,12 @@ pnpm build                      # tsc && vite build (type errors fail the build)
 - The editor (`features/editor`) uses Tiptap with extensions from `@docmost/editor-ext`; collaborative documents sync over Hocuspocus to `/collab` (or `COLLAB_URL`). When adding a new node/mark, define the schema in `packages/editor-ext` so the server can parse it too, and add the React node view in the client.
 - Env values are injected at build time through `vite.config.ts` `define` (`process.env.*` read from the root `.env`) and at runtime via config helpers in `src/lib/config.ts`.
 - i18n: react-i18next with JSON files in `apps/client/public/locales/<lang>/translation.json`. Add new strings to `en-US`; other locales are synced via Crowdin (`crowdin.yml`), so don't hand-edit them.
+
+## Fork-specific rules
+
+This checkout is a fork that runs Bases/Kanban/Templates without an Enterprise subscription.
+
+- **Never edit** `apps/client/src/ee`, `apps/server/src/ee`, or `packages/ee`. If a fix seems to need it, work from outside first: server logic in `apps/server/src/core/base`, client workarounds in `apps/client/src/features/base-tools` (e.g. query-cache guards, global CSS overrides), or props the EE components already expose. Ask before touching `ee/` as a last resort.
+- **Bases/Kanban are a clean-room rewrite** in `apps/client/src/features/base` and `apps/server/src/core/base` (own formula engine in `core/base/engine/formula/`). Never import from `@/ee/base` or `@docmost/base-formula`, and never copy code from them — `packages/base-formula` and `ee/base` are under the Enterprise license.
+- **Upstream sync**: merge release tags into `main` with `git merge --no-ff <tag>` (fetch by upstream URL; `origin` is the fork). Conflicts appear only where upstream edits core files the fork changed. Add vi-VN translations for new en-US keys.
+- On Windows here, `pnpm.exe` may be blocked; use `corepack pnpm`. Verify merges/installs in a throwaway `git worktree` with a short path, not the main checkout (dev servers may be running on it).
