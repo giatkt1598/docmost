@@ -21,7 +21,7 @@ export default function BasePage() {
       style={{ display: "flex", flexDirection: "column" }}
     >
       <DocumentTitle title={`${base?.icon || ""} ${name}`.trim()} withAppName={false} />
-      <PageWidthContainer fill>
+      <PageWidthContainer pageId={pageId} fill>
         <BaseWorkspace
           pageId={pageId}
           editable

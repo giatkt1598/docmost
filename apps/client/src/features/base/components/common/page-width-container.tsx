@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Container } from "@mantine/core";
 import { useAtomValue } from "jotai";
 import { userAtom } from "@/features/user/atoms/current-user-atom";
+import { useFullWidth } from "@/features/base/hooks/use-full-width";
 
 // Content width of a regular page: 900px, or the full width when the user
 // turned on "full page width" (the same rule as the page editor's Container,
@@ -14,15 +15,18 @@ export function pageContentSize(fullPageWidth: boolean | undefined) {
 
 type Props = {
   children: ReactNode;
+  // the base shown: its personal "Full width" switch makes the container fluid
+  pageId?: string;
   // take the height of the parent (a base page with its own scrolling)
   fill?: boolean;
 };
 
 // Centers its children at the page content width. A table or board inside
 // scrolls horizontally within this box instead of widening the page.
-export function PageWidthContainer({ children, fill = false }: Props) {
+export function PageWidthContainer({ children, pageId, fill = false }: Props) {
   const user = useAtomValue(userAtom);
-  const full = !!user?.settings?.preferences?.fullPageWidth;
+  const [baseFullWidth] = useFullWidth(pageId);
+  const full = !!user?.settings?.preferences?.fullPageWidth || baseFullWidth;
   return (
     <Container
       fluid={full}

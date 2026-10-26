@@ -2,6 +2,7 @@ import { DateOptions, NumberOptions } from "@/features/base/types/base.types";
 import {
   formatCellDate,
   MAX_DATE_FORMAT_LENGTH,
+  normalizeDateFormat,
   RELATIVE_DATE_FORMAT,
 } from "@/features/base/utils/date-format";
 import { formatNumberValue } from "@/features/base/utils/number-format";
@@ -33,7 +34,7 @@ export function datePreview(
   locale: string | undefined,
   now: Date = new Date(),
 ): string {
-  if (opts.dateFormat === RELATIVE_DATE_FORMAT) {
+  if (normalizeDateFormat(opts.dateFormat) === RELATIVE_DATE_FORMAT) {
     const past = new Date(now.getTime() - 3 * 86400000);
     return formatCellDate(past.toISOString(), { ...opts, locale, now, utc: false });
   }
@@ -44,7 +45,9 @@ export function datePreview(
 // the key is left out instead of storing "".
 export function cleanDateOptions<T extends DateOptions>(opts: T): T {
   const out = { ...opts };
-  if (!out.dateFormat?.trim()) delete out.dateFormat;
+  const format = normalizeDateFormat(out.dateFormat);
+  if (!format?.trim()) delete out.dateFormat;
+  else out.dateFormat = format;
   if (!out.includeTime) delete out.timeFormat;
   return out;
 }

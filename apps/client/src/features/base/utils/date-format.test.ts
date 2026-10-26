@@ -6,6 +6,9 @@ import {
   formatCellDate,
   formatDateTokens,
   formatRelativeDate,
+  dateFormatSuggestions,
+  normalizeDateFormat,
+  resolveDateFormatInput,
   hasHourToken,
   isDateOnlyValue,
   parseCellDate,
@@ -163,5 +166,48 @@ describe("formatRelativeDate", () => {
 
   it("follows the locale", () => {
     expect(formatRelativeDate(at(-3 * 86400000), now, "fr-FR")).toBe("il y a 3 jours");
+  });
+});
+
+describe("relative format spellings", () => {
+  const now = new Date("2026-10-05T12:00:00Z");
+  const date = new Date(now.getTime() - 3 * 86400000).toISOString();
+  const show = (dateFormat: string) =>
+    formatCellDate(date, { dateFormat, locale: "en-US", now, utc: false });
+
+  it.each(["relative", "Relative", " relative ", "RELATIVE", "Relative (3 days ago)", "relative (x)"])(
+    "%j shows a relative date",
+    (format) => {
+      expect(show(format)).toBe("3 days ago");
+      expect(normalizeDateFormat(format)).toBe(RELATIVE_DATE_FORMAT);
+    },
+  );
+
+  it("leaves token formats and other text alone", () => {
+    expect(normalizeDateFormat("DD/MM/YYYY")).toBe("DD/MM/YYYY");
+    expect(normalizeDateFormat(" D ")).toBe(" D ");
+    expect(normalizeDateFormat("[Relatively] D")).toBe("[Relatively] D");
+    expect(normalizeDateFormat(undefined)).toBeUndefined();
+    expect(show("[Relative] D")).toBe("Relative 2");
+  });
+
+  it("maps a chosen suggestion label back to its value", () => {
+    const options = dateFormatSuggestions("Relative (3 days ago)");
+    expect(options.map((o) => o.value)).toEqual([...DATE_FORMAT_PRESETS]);
+    expect(options.find((o) => o.value === "relative")!.label).toBe("Relative (3 days ago)");
+    expect(options.find((o) => o.value === "YYYY-MM-DD")!.label).toBe("YYYY-MM-DD");
+    expect(resolveDateFormatInput("Relative (3 days ago)", options)).toBe("relative");
+    expect(resolveDateFormatInput("relative (3 DAYS ago)", options)).toBe("relative");
+    expect(resolveDateFormatInput("relative", options)).toBe("relative");
+    expect(resolveDateFormatInput(" Relative ", options)).toBe("relative");
+    expect(resolveDateFormatInput("DD/MM/YYYY", options)).toBe("DD/MM/YYYY");
+    expect(resolveDateFormatInput("D MMM", options)).toBe("D MMM");
+    expect(resolveDateFormatInput("", options)).toBe("");
+  });
+
+  it("does not append the time to relative formats", () => {
+    expect(effectiveDateFormat({ dateFormat: "Relative (3 days ago)", includeTime: true })).toBe(
+      RELATIVE_DATE_FORMAT,
+    );
   });
 });

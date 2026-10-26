@@ -20,6 +20,45 @@ export const DATE_FORMAT_PRESETS = [
 
 export const MAX_DATE_FORMAT_LENGTH = 64;
 
+// The label the editor once stored by mistake (picking the suggestion wrote
+// its text instead of "relative"). Such values are read as "relative".
+const LEGACY_RELATIVE_LABEL_RE = /^relative\s*\(/i;
+
+// A stored format as it should be used: "relative" in any case or with
+// spaces, and the old broken label, become exactly "relative". Other
+// strings are returned as they are (untrimmed, spaces can be meant).
+export function normalizeDateFormat(format: string | null | undefined): string | undefined {
+  if (format === null || format === undefined) return undefined;
+  const trimmed = format.trim();
+  if (trimmed.toLowerCase() === RELATIVE_DATE_FORMAT) return RELATIVE_DATE_FORMAT;
+  if (LEGACY_RELATIVE_LABEL_RE.test(trimmed)) return RELATIVE_DATE_FORMAT;
+  return format;
+}
+
+export type DateFormatOption = { value: string; label: string };
+
+// Suggestions of the "Date format" input: tokens show as themselves, the
+// relative preset with a readable label.
+export function dateFormatSuggestions(relativeLabel: string): DateFormatOption[] {
+  return DATE_FORMAT_PRESETS.map((value) => ({
+    value,
+    label: value === RELATIVE_DATE_FORMAT ? relativeLabel : value,
+  }));
+}
+
+// What to store for the text in the input: when it is the label of a
+// suggestion, that suggestion's value; otherwise what was typed (checked
+// for the relative spellings).
+export function resolveDateFormatInput(
+  input: string,
+  options: DateFormatOption[],
+): string {
+  const key = input.trim().toLowerCase();
+  const hit = options.find((o) => o.label.toLowerCase() === key);
+  if (hit) return hit.value;
+  return normalizeDateFormat(input) ?? "";
+}
+
 const TOKEN_RE =
   /\[([^\]]*)\]|YYYY|YY|MMMM|MMM|MM|M|dddd|ddd|DD|D|HH|H|hh|h|mm|ss|A|a/g;
 
@@ -62,7 +101,8 @@ export function hasHourToken(format: string): boolean {
 
 // The format actually used: default when empty, time appended when needed.
 export function effectiveDateFormat(opts: DateOptions = {}): string {
-  const base = opts.dateFormat?.trim() ? opts.dateFormat : DEFAULT_DATE_FORMAT;
+  const stored = normalizeDateFormat(opts.dateFormat);
+  const base = stored?.trim() ? stored : DEFAULT_DATE_FORMAT;
   if (base === RELATIVE_DATE_FORMAT) return base;
   if (!opts.includeTime || hasHourToken(base)) return base;
   return `${base} ${opts.timeFormat === "12h" ? "h:mm A" : "HH:mm"}`;

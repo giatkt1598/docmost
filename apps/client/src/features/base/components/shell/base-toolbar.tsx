@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActionIcon, Button, Group, Menu, Popover, TextInput } from "@mantine/core";
+import { ActionIcon, Button, Group, Menu, Popover, Switch, TextInput } from "@mantine/core";
 import {
   IconArrowsSort,
   IconDots,
@@ -17,6 +17,7 @@ import { FilterEditor } from "./filter-editor";
 import { SortEditor } from "./sort-editor";
 import { ColumnsMenu } from "./columns-menu";
 import { CsvImportModal } from "./csv-import-modal";
+import { useFullWidth } from "@/features/base/hooks/use-full-width";
 import { KanbanSettings } from "@/features/base/components/kanban/kanban-settings";
 
 type Props = {
@@ -40,6 +41,7 @@ export function BaseToolbar(props: Props) {
   const { t } = useTranslation();
   const { pageId, view, properties, editable, filter, sorts } = props;
   const [importOpen, setImportOpen] = useState(false);
+  const [fullWidth, setFullWidth] = useFullWidth(pageId);
   const [searchOpen, setSearchOpen] = useState(!!props.search);
   const filterCount = countConditions(filter);
   const sortCount = sorts?.length ?? 0;
@@ -125,6 +127,25 @@ export function BaseToolbar(props: Props) {
               {t("Import CSV")}
             </Menu.Item>
           )}
+          <Menu.Divider />
+          {/* a personal display preference (kept in this browser), so it is
+              there for viewers too */}
+          <Menu.Item
+            closeMenuOnClick={false}
+            onClick={() => setFullWidth(!fullWidth)}
+            rightSection={
+              <Switch
+                size="xs"
+                checked={fullWidth}
+                readOnly
+                tabIndex={-1}
+                aria-label={t("Full width")}
+                style={{ pointerEvents: "none" }}
+              />
+            }
+          >
+            {t("Full width")}
+          </Menu.Item>
         </Menu.Dropdown>
       </Menu>
 

@@ -113,6 +113,19 @@ describe("option previews", () => {
     });
   });
 
+  it("normalises the stored date format when the editor opens or saves", () => {
+    expect(cleanDateOptions({ dateFormat: "Relative (3 days ago)" })).toEqual({ dateFormat: "relative" });
+    expect(cleanDateOptions({ dateFormat: " Relative " })).toEqual({ dateFormat: "relative" });
+    expect(optionsToSave("date", { dateFormat: "Relative (3 days ago)", includeTime: true, timeFormat: "24h" })).toEqual({
+      dateFormat: "relative",
+      includeTime: true,
+      timeFormat: "24h",
+    });
+    const now = new Date(2026, 9, 5, 14, 7);
+    expect(datePreview({ dateFormat: "Relative (3 days ago)" }, "en-US", now)).toBe("3 days ago");
+    expect(datePreview({ dateFormat: "relative" }, "en-US", now)).toBe("3 days ago");
+  });
+
   it("sends only source and format options for formulas", () => {
     expect(
       optionsToSave("formula", { source: "1+1", resultType: "number", dependencies: [], ast: {} }),

@@ -124,7 +124,7 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
           withAppName={false}
         />
         <MemoizedPageHeader readOnly={!canEdit} />
-        <PageWidthContainer fill>
+        <PageWidthContainer pageId={page.id} fill>
           <BaseWorkspace
             pageId={page.id}
             editable={canEdit}

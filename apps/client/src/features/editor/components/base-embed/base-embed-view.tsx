@@ -1,6 +1,8 @@
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { ActionIcon, Box, Menu, Text } from "@mantine/core";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useBreakout } from "@/features/base/hooks/use-breakout";
+import { useFullWidth } from "@/features/base/hooks/use-full-width";
 import { useTranslation } from "react-i18next";
 import { BaseWorkspace } from "@/features/base/components/shell/base-workspace";
 import { useBaseInfoQuery } from "@/features/base/queries/base-query";
@@ -33,6 +35,9 @@ function AppBaseEmbedView({ node, editor, deleteNode }: NodeViewProps) {
   const pageId = node.attrs.pageId as string | null;
   const pendingKey = node.attrs.pendingKey as string | null;
   const [menuOpen, setMenuOpen] = useState(false);
+  const columnRef = useRef<HTMLDivElement | null>(null);
+  const [fullWidth] = useFullWidth(pageId ?? undefined);
+  const breakout = useBreakout(columnRef, fullWidth && !pendingKey && !!pageId);
   // Suppress the query while the slash command awaits the server-assigned
   // pageId.
   const {
@@ -137,17 +142,27 @@ function AppBaseEmbedView({ node, editor, deleteNode }: NodeViewProps) {
         <IconTable size={16} />
         <span>{page?.title?.trim() || "Untitled base"}</span>
       </div>
-      {/* exactly the editor's text column; the table and the board scroll
-          inside it instead of widening it */}
+      {/* The editor's text column. By default the table and the board
+          scroll inside it. With the base's "Full width" switch on, the inner
+          box breaks out to the page's content area (see useBreakout). */}
       <div
+        ref={columnRef}
         style={{
           minHeight: isCompact ? undefined : 200,
           minWidth: 0,
           maxWidth: "100%",
-          overflow: "hidden",
+          overflow: breakout ? "visible" : "hidden",
         }}
       >
-        {content}
+        <div
+          style={
+            breakout
+              ? { marginLeft: breakout.marginLeft, width: breakout.width, minWidth: 0 }
+              : undefined
+          }
+        >
+          {content}
+        </div>
       </div>
     </NodeViewWrapper>
   );
