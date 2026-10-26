@@ -2077,5 +2077,21 @@
   "Answer only from pages": "Chỉ trả lời từ các trang",
   "The assistant answers only from content found in pages, not from general knowledge.": "Trợ lý chỉ trả lời dựa trên nội dung tìm thấy trong các trang, không dùng kiến thức chung.",
   "Toggle answers only from pages": "Bật/tắt chỉ trả lời từ các trang",
-  "Setup guide": "Hướng dẫn cài đặt"
+  "Setup guide": "Hướng dẫn cài đặt",
+  "Related": "Liên quan",
+  "Embedding model": "Model embedding",
+  "Optional. Turns pages and files into vectors so search finds related content by meaning, e.g. bge-m3 (Ollama) or text-embedding-3-small (OpenAI). Changing it rebuilds the search index.": "Tùy chọn. Chuyển trang và tệp thành vector để tìm kiếm ra nội dung liên quan theo ý nghĩa, ví dụ bge-m3 (Ollama) hoặc text-embedding-3-small (OpenAI). Đổi model sẽ xây dựng lại chỉ mục tìm kiếm.",
+  "Embedding size": "Kích thước embedding",
+  "Optional. Shortens the vectors for models that allow it. Leave empty for the model's own size.": "Tùy chọn. Rút ngắn vector với các model cho phép. Để trống để dùng kích thước gốc của model.",
+  "Test embedding": "Kiểm tra embedding",
+  "Works. Vectors of {{count}} dimensions.": "Hoạt động tốt. Vector {{count}} chiều.",
+  "Search index": "Chỉ mục tìm kiếm",
+  "Indexing": "Đang lập chỉ mục",
+  "Semantic search on": "Đã bật tìm kiếm theo ngữ nghĩa",
+  "Keyword search only": "Chỉ tìm theo từ khóa",
+  "pgvector is not installed in the database, so semantic search is off. Keyword search keeps working.": "Cơ sở dữ liệu chưa cài pgvector nên tìm kiếm theo ngữ nghĩa đang tắt. Tìm theo từ khóa vẫn hoạt động.",
+  "Choose an embedding model above to let search find related content by meaning.": "Chọn model embedding ở trên để tìm kiếm ra nội dung liên quan theo ý nghĩa.",
+  "{{indexed}} of {{total}} pages and files indexed with {{model}}": "Đã lập chỉ mục {{indexed}}/{{total}} trang và tệp bằng {{model}}",
+  "Rebuild index": "Xây dựng lại chỉ mục",
+  "Rebuilding the search index": "Đang xây dựng lại chỉ mục tìm kiếm"
 }

@@ -6,6 +6,7 @@ import {
   Badge,
   Button,
   Group,
+  NumberInput,
   Paper,
   PasswordInput,
   Select,
@@ -28,11 +29,13 @@ import {
   AiDriver,
   deleteAiProvider,
   getAiProvider,
+  IAiEmbeddingTestResult,
   IAiModel,
   IAiProviderInfo,
   IAiTestResult,
   listAiModels,
   saveAiProvider,
+  testAiEmbedding,
   testAiProvider,
 } from "@/features/ai/services/ai-provider-service";
 
@@ -74,8 +77,14 @@ export function AiProviderForm() {
   const [apiKey, setApiKey] = useState("");
   const [completionModel, setCompletionModel] = useState("");
   const [chatModel, setChatModel] = useState("");
+  const [embeddingModel, setEmbeddingModel] = useState("");
+  const [embeddingDimensions, setEmbeddingDimensions] = useState<
+    number | string
+  >("");
   const [models, setModels] = useState<IAiModel[]>([]);
   const [testResult, setTestResult] = useState<IAiTestResult | null>(null);
+  const [embeddingResult, setEmbeddingResult] =
+    useState<IAiEmbeddingTestResult | null>(null);
 
   // start from the saved configuration
   useEffect(() => {
@@ -85,6 +94,8 @@ export function AiProviderForm() {
     setApiKey("");
     setCompletionModel(info.completionModel ?? "");
     setChatModel(info.chatModel ?? "");
+    setEmbeddingModel(info.embeddingModel ?? "");
+    setEmbeddingDimensions(info.embeddingDimensions ?? "");
   }, [info]);
 
   const savedKeyApplies =
@@ -125,12 +136,31 @@ export function AiProviderForm() {
       setTestResult({ ok: false, latencyMs: 0, error: errorText(err) }),
   });
 
+  const dimensions =
+    typeof embeddingDimensions === "number" ? embeddingDimensions : undefined;
+
+  const testEmbedding = useMutation({
+    mutationFn: () =>
+      testAiEmbedding({
+        ...connection,
+        model: embeddingModel.trim(),
+        ...(dimensions && { dimensions }),
+      }),
+    onSuccess: setEmbeddingResult,
+    onError: (err) =>
+      setEmbeddingResult({ ok: false, latencyMs: 0, error: errorText(err) }),
+  });
+
   const save = useMutation({
     mutationFn: () =>
       saveAiProvider({
         ...connection,
         completionModel: completionModel.trim(),
         ...(chatModel.trim() && { chatModel: chatModel.trim() }),
+        ...(embeddingModel.trim() && {
+          embeddingModel: embeddingModel.trim(),
+          ...(dimensions && { embeddingDimensions: dimensions }),
+        }),
       }),
     onSuccess: (updated) => {
       onSaved(updated);
@@ -146,6 +176,7 @@ export function AiProviderForm() {
       onSaved(updated);
       setModels([]);
       setTestResult(null);
+      setEmbeddingResult(null);
       notifications.show({ message: t("AI provider removed") });
     },
   });
@@ -174,14 +205,19 @@ export function AiProviderForm() {
     setDriver(value);
     setModels([]);
     setTestResult(null);
+    setEmbeddingResult(null);
     if (value !== info?.driver) {
       setBaseUrl("");
       setCompletionModel("");
       setChatModel("");
+      setEmbeddingModel("");
+      setEmbeddingDimensions("");
     } else {
       setBaseUrl(info.baseUrl ?? "");
       setCompletionModel(info.completionModel ?? "");
       setChatModel(info.chatModel ?? "");
+      setEmbeddingModel(info.embeddingModel ?? "");
+      setEmbeddingDimensions(info.embeddingDimensions ?? "");
     }
   };
 
@@ -304,6 +340,61 @@ export function AiProviderForm() {
           renderOption={renderModel}
           limit={50}
         />
+
+        <Autocomplete
+          label={t("Embedding model")}
+          description={t(
+            "Optional. Turns pages and files into vectors so search finds related content by meaning, e.g. bge-m3 (Ollama) or text-embedding-3-small (OpenAI). Changing it rebuilds the search index.",
+          )}
+          placeholder={t("Choose or type a model name")}
+          data={modelIds}
+          value={embeddingModel}
+          onChange={(value) => {
+            setEmbeddingModel(value);
+            setEmbeddingResult(null);
+          }}
+          renderOption={renderModel}
+          limit={50}
+        />
+
+        {embeddingModel.trim() && driver !== "ollama" && (
+          <NumberInput
+            label={t("Embedding size")}
+            description={t(
+              "Optional. Shortens the vectors for models that allow it. Leave empty for the model's own size.",
+            )}
+            value={embeddingDimensions}
+            onChange={(value) =>
+              setEmbeddingDimensions(typeof value === "bigint" ? Number(value) : value)
+            }
+            min={64}
+            max={4000}
+            allowDecimal={false}
+          />
+        )}
+
+        {embeddingModel.trim() && (
+          <Group gap="xs">
+            <Button
+              variant="default"
+              size="xs"
+              onClick={() => testEmbedding.mutate()}
+              loading={testEmbedding.isPending}
+              disabled={!connectionReady}
+            >
+              {t("Test embedding")}
+            </Button>
+            {embeddingResult && (
+              <Text size="xs" c={embeddingResult.ok ? "green" : "red"}>
+                {embeddingResult.ok
+                  ? t("Works. Vectors of {{count}} dimensions.", {
+                      count: embeddingResult.dimensions,
+                    })
+                  : embeddingResult.error}
+              </Text>
+            )}
+          </Group>
+        )}
 
         {testResult && (
           <Alert

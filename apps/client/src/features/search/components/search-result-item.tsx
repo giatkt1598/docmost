@@ -134,10 +134,19 @@ export function SearchResultItem({
               </Text>
             </Group>
 
-            {showSpace && pageResult.space && (
-              <Badge variant="light" size="xs" color="gray">
-                {pageResult.space.name}
-              </Badge>
+            {((showSpace && pageResult.space) || pageResult.semantic) && (
+              <Group gap={6}>
+                {showSpace && pageResult.space && (
+                  <Badge variant="light" size="xs" color="gray">
+                    {pageResult.space.name}
+                  </Badge>
+                )}
+                {pageResult.semantic && (
+                  <Badge variant="light" size="xs" color="violet">
+                    {t("Related")}
+                  </Badge>
+                )}
+              </Group>
             )}
 
             {pageResult?.highlight && (

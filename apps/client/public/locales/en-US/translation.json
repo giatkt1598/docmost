@@ -2262,5 +2262,21 @@
   "Day of the month of a date": "Day of the month of a date",
   "Progress bar": "Progress bar",
   "Language default": "Language default",
-  "To do": "To do"
+  "To do": "To do",
+  "Related": "Related",
+  "Embedding model": "Embedding model",
+  "Optional. Turns pages and files into vectors so search finds related content by meaning, e.g. bge-m3 (Ollama) or text-embedding-3-small (OpenAI). Changing it rebuilds the search index.": "Optional. Turns pages and files into vectors so search finds related content by meaning, e.g. bge-m3 (Ollama) or text-embedding-3-small (OpenAI). Changing it rebuilds the search index.",
+  "Embedding size": "Embedding size",
+  "Optional. Shortens the vectors for models that allow it. Leave empty for the model's own size.": "Optional. Shortens the vectors for models that allow it. Leave empty for the model's own size.",
+  "Test embedding": "Test embedding",
+  "Works. Vectors of {{count}} dimensions.": "Works. Vectors of {{count}} dimensions.",
+  "Search index": "Search index",
+  "Indexing": "Indexing",
+  "Semantic search on": "Semantic search on",
+  "Keyword search only": "Keyword search only",
+  "pgvector is not installed in the database, so semantic search is off. Keyword search keeps working.": "pgvector is not installed in the database, so semantic search is off. Keyword search keeps working.",
+  "Choose an embedding model above to let search find related content by meaning.": "Choose an embedding model above to let search find related content by meaning.",
+  "{{indexed}} of {{total}} pages and files indexed with {{model}}": "{{indexed}} of {{total}} pages and files indexed with {{model}}",
+  "Rebuild index": "Rebuild index",
+  "Rebuilding the search index": "Rebuilding the search index"
 }

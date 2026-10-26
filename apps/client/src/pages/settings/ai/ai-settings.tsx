@@ -13,6 +13,7 @@ import {
   AI_PROVIDER_KEY,
   AiProviderForm,
 } from "@/features/ai/components/ai-provider-form";
+import { SearchIndexPanel } from "@/features/ai/components/search-index-panel";
 import { getAiProvider } from "@/features/ai/services/ai-provider-service";
 
 // One AI feature switch; locked until a provider is configured.
@@ -96,6 +97,7 @@ export default function AiSettings() {
         <Tabs.Panel value="ai" pt="md">
           <Stack gap="lg">
             <AiProviderForm />
+            <SearchIndexPanel />
             <Title order={5}>{t("Features")}</Title>
             <AiFeatureToggle
               providerReady={!!provider?.configured}

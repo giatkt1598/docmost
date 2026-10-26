@@ -16,6 +16,8 @@ export interface IPageSearch {
   highlight: string;
   matchedText: string[];
   wholeWord: boolean;
+  // found by meaning rather than by the words of the query
+  semantic?: boolean;
   space: Partial<ISpace>;
 }
 

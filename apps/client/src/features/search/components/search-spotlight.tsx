@@ -10,15 +10,12 @@ import { useUnifiedSearch } from "../hooks/use-unified-search.ts";
 import { useAiAnswer } from "@/features/ai/hooks/use-ai-answer";
 import { SearchResultItem } from "./search-result-item.tsx";
 import { AiAnswerResult } from "@/features/ai/components/ai-answer-result";
-import { useHasFeature } from "@/ee/hooks/use-feature";
-import { Feature } from "@/ee/features";
 
 interface SearchSpotlightProps {
   spaceId?: string;
 }
 export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
   const { t } = useTranslation();
-  const hasAttachmentIndexing = useHasFeature(Feature.ATTACHMENT_INDEXING);
   const [query, setQuery] = useState("");
   const [debouncedSearchQuery] = useDebouncedValue(query, 300);
   const [filters, setFilters] = useState<{
@@ -86,8 +83,7 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
   const isQuerySettled = query === debouncedSearchQuery;
 
   // Determine result type for rendering
-  const isAttachmentSearch =
-    filters.contentType === "attachment" && hasAttachmentIndexing;
+  const isAttachmentSearch = filters.contentType === "attachment";
 
   const resultItems = (searchResults || []).map((result) => (
     <SearchResultItem
