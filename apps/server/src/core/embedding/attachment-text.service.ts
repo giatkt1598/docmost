@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@docmost/db/types/kysely.types';
 import { StorageService } from '../../integrations/storage/storage.service';
@@ -26,7 +26,7 @@ export function isIndexableExtension(fileExt: string): boolean {
 // full-text and semantic search. The text lands in attachments.text_content;
 // the tsvector is derived from it by a trigger.
 @Injectable()
-export class AttachmentTextService {
+export class AttachmentTextService implements OnApplicationBootstrap {
   private readonly logger = new Logger(AttachmentTextService.name);
 
   constructor(
@@ -34,6 +34,34 @@ export class AttachmentTextService {
     private readonly storage: StorageService,
     private readonly embeddings: EmbeddingIndexService,
   ) {}
+
+  // Files uploaded before indexing existed get their text once the server is
+  // up, without anyone having to ask.
+  onApplicationBootstrap() {
+    void this.indexAllMissing().catch((err) =>
+      this.logger.warn(`Attachment backfill failed: ${err.message}`),
+    );
+  }
+
+  private async indexAllMissing() {
+    const workspaces = await this.db
+      .selectFrom('attachments')
+      .select('workspaceId')
+      .distinct()
+      .where('deletedAt', 'is', null)
+      .where('textContent', 'is', null)
+      .where('pageId', 'is not', null)
+      .where((eb) =>
+        eb(eb.fn('lower', ['fileExt']), 'in', INDEXABLE_EXTENSIONS),
+      )
+      .execute();
+    for (const { workspaceId } of workspaces) {
+      const done = await this.indexMissing(workspaceId);
+      if (done > 0) {
+        this.logger.log(`Extracted text of ${done} attachments`);
+      }
+    }
+  }
 
   async extract(buffer: Buffer, fileExt: string): Promise<string> {
     switch (fileExt.toLowerCase()) {
@@ -74,7 +102,15 @@ export class AttachmentTextService {
     }
 
     const buffer = await this.storage.read(attachment.filePath);
-    const text = await this.extract(buffer, attachment.fileExt);
+    let text = '';
+    try {
+      text = await this.extract(buffer, attachment.fileExt);
+    } catch (err) {
+      // unreadable file: record it as empty so it is not retried on every start
+      this.logger.warn(
+        `Could not read the text of attachment ${attachmentId}: ${(err as Error).message}`,
+      );
+    }
 
     await this.db
       .updateTable('attachments')
