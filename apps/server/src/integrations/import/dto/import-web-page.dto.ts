@@ -1,4 +1,11 @@
-import { IsIn, IsOptional, IsUrl, IsUUID } from 'class-validator';
+import {
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUrl,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 import { WebPageMode } from '../utils/web-page-html';
 
 export class ImportWebPageDto {
@@ -11,4 +18,10 @@ export class ImportWebPageDto {
   @IsOptional()
   @IsIn(['article', 'full'])
   mode?: WebPageMode;
+
+  // id or slug id of the page to import under; the space root when absent
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  parentPageId?: string;
 }

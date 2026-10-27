@@ -23,6 +23,7 @@ function createService(opts: { canEdit?: boolean } = {}) {
         .fn()
         .mockResolvedValue({ id: 'task_1', status: 'processing' }),
       findFileTask: jest.fn(),
+      resolveParentPage: jest.fn().mockResolvedValue('parent_1'),
     },
     fetcher: { fetch: jest.fn() },
     spaceAbility: {
@@ -61,14 +62,58 @@ describe('ImportToolsService', () => {
       'user_1',
       SPACE,
       'ws_1',
+      undefined,
     );
     expect(result).toEqual({
       page_id: 'page_1',
       slug_id: 'abc',
       title: 'Hello',
       space_id: SPACE,
+      parent_page_id: undefined,
     });
     expect(deps.auditService.log).toHaveBeenCalled();
+  });
+
+  it('imports under a parent page it resolved', async () => {
+    const { service, deps } = createService();
+
+    await service.importPage(actor, {
+      space_id: SPACE,
+      parent_page_id: 'https://docs.example.com/s/x/p/guide-abc123',
+      file_base64: b64('# Hi'),
+      file_name: 'notes.md',
+    });
+    await service.importZip(actor, {
+      space_id: SPACE,
+      parent_page_id: 'abc123',
+      source: 'generic',
+      file_base64: b64('PK'),
+      file_name: 'pages.zip',
+    });
+
+    expect(deps.importService.resolveParentPage).toHaveBeenCalledWith(
+      'https://docs.example.com/s/x/p/guide-abc123',
+      SPACE,
+      actor.user,
+    );
+    expect(deps.importService.importPageFile.mock.calls[0][5]).toBe('parent_1');
+    expect(deps.importService.importZipFile.mock.calls[0][6]).toBe('parent_1');
+  });
+
+  it('does not import when the parent page is refused', async () => {
+    const { service, deps } = createService();
+    deps.importService.resolveParentPage.mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await expect(
+      service.importPage(actor, {
+        space_id: SPACE,
+        parent_page_id: 'abc123',
+        web_url: 'https://example.com/a',
+      }),
+    ).rejects.toThrow(ForbiddenException);
+    expect(deps.importService.importWebPage).not.toHaveBeenCalled();
   });
 
   it('imports a web page', async () => {
@@ -86,6 +131,7 @@ describe('ImportToolsService', () => {
       'user_1',
       SPACE,
       'ws_1',
+      undefined,
     );
   });
 
@@ -108,6 +154,7 @@ describe('ImportToolsService', () => {
       'user_1',
       SPACE,
       'ws_1',
+      undefined,
     );
   });
 
@@ -190,6 +237,7 @@ describe('ImportToolsService', () => {
       'user_1',
       SPACE,
       'ws_1',
+      undefined,
     );
     expect(result).toEqual({ task_id: 'task_1', status: 'processing' });
   });

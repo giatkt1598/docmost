@@ -367,6 +367,25 @@ export class FileImportTaskService {
       .where('id', '=', fileTask.spaceId)
       .executeTakeFirst();
 
+    // the zip's top-level pages go under the task's page, if it still exists
+    let importParentId: string | null = null;
+    if (fileTask.pageId) {
+      const parent = await this.db
+        .selectFrom('pages')
+        .select(['id'])
+        .where('id', '=', fileTask.pageId)
+        .where('spaceId', '=', fileTask.spaceId)
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+      if (parent) {
+        importParentId = parent.id;
+      } else {
+        this.logger.warn(
+          `Import parent ${fileTask.pageId} is gone; importing at the space root`,
+        );
+      }
+    }
+
     // generate position keys
     const siblingsMap = new Map<string | null, ImportPageNode[]>();
 
@@ -421,6 +440,7 @@ export class FileImportTaskService {
       // get first position key from the server
       const nextPosition = await this.pageService.nextPagePosition(
         fileTask.spaceId,
+        importParentId ?? undefined,
       );
 
       let prevPos: string | null = null;
@@ -616,7 +636,7 @@ export class FileImportTaskService {
               workspaceId: fileTask.workspaceId,
               creatorId: fileTask.creatorId,
               lastUpdatedById: fileTask.creatorId,
-              parentPageId: page.parentPageId,
+              parentPageId: page.parentPageId ?? importParentId,
             };
             const baseData = baseDataByPath.get(filePath);
             if (baseData) insertablePage.isBase = true;

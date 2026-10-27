@@ -60,7 +60,7 @@ export class ImportController {
   @Post('pages/import')
   @OAuthScope('write')
   @ApiDescription(
-    'Creates a page at the root of the space from one Markdown, HTML, Word or PDF file. The first heading becomes the title. Returns the new page. Send spaceId before the file part.',
+    'Creates a page from one Markdown, HTML, Word or PDF file, at the root of the space or under parentPageId. The first heading becomes the title. Returns the new page. Send spaceId and parentPageId before the file part.',
   )
   @ApiMultipartBody({
     type: 'object',
@@ -71,6 +71,11 @@ export class ImportController {
         description: `${PAGE_IMPORT_EXTENSIONS.join(', ')}; max ${PAGE_IMPORT_MAX_SIZE}`,
       },
       spaceId: { type: 'string', format: 'uuid' },
+      parentPageId: {
+        type: 'string',
+        description:
+          'Page id or slug id to import under; the space root when absent',
+      },
     },
     required: ['file', 'spaceId'],
   })
@@ -118,11 +123,17 @@ export class ImportController {
       throw new ForbiddenException();
     }
 
+    const parentRef = file.fields?.parentPageId?.value;
+    const parentPageId = parentRef
+      ? await this.importService.resolveParentPage(parentRef, spaceId, user)
+      : undefined;
+
     const createdPage = await this.importService.importPage(
       file,
       user.id,
       spaceId,
       workspace.id,
+      parentPageId,
     );
 
     const ext = path.extname(file.filename).toLowerCase();
@@ -154,7 +165,7 @@ export class ImportController {
   @Post('pages/import-url')
   @OAuthScope('write')
   @ApiDescription(
-    'Reads a public web page and creates a page at the root of the space. mode "article" (default) keeps the main content; "full" keeps the whole page without menus and footers. Images are copied into Docmost shortly after. Returns the new page.',
+    'Reads a public web page and creates a page at the root of the space or under parentPageId. mode "article" (default) keeps the main content; "full" keeps the whole page without menus and footers. Images are copied into Docmost shortly after. Returns the new page.',
   )
   async importWebPage(
     @Body() dto: ImportWebPageDto,
@@ -166,12 +177,21 @@ export class ImportController {
       throw new ForbiddenException();
     }
 
+    const parentPageId = dto.parentPageId
+      ? await this.importService.resolveParentPage(
+          dto.parentPageId,
+          dto.spaceId,
+          user,
+        )
+      : undefined;
+
     const createdPage = await this.importService.importWebPage(
       dto.url,
       dto.mode ?? 'article',
       user.id,
       dto.spaceId,
       workspace.id,
+      parentPageId,
     );
 
     this.auditService.log({
@@ -194,7 +214,7 @@ export class ImportController {
   @Post('pages/import-zip')
   @OAuthScope('write')
   @ApiDescription(
-    'Imports a zip of pages in the background: a folder of Markdown/HTML files (generic), a Notion export, or a Confluence HTML space export. Returns a file task; poll /api/file-tasks/info with its id until status is "success" or "failed". Send spaceId and source before the file part.',
+    'Imports a zip of pages in the background: a folder of Markdown/HTML files (generic), a Notion export, or a Confluence HTML space export. Its top-level pages go to the space root or under parentPageId. Returns a file task; poll /api/file-tasks/info with its id until status is "success" or "failed". Send spaceId, source and parentPageId before the file part.',
   )
   @ApiMultipartBody({
     type: 'object',
@@ -202,6 +222,11 @@ export class ImportController {
       file: { type: 'string', format: 'binary', description: '.zip' },
       spaceId: { type: 'string', format: 'uuid' },
       source: { type: 'string', enum: [...ZIP_IMPORT_SOURCES] },
+      parentPageId: {
+        type: 'string',
+        description:
+          'Page id or slug id to import under; the space root when absent',
+      },
     },
     required: ['file', 'spaceId', 'source'],
   })
@@ -217,7 +242,7 @@ export class ImportController {
     let file = null;
     try {
       file = await req.file({
-        limits: { fileSize: maxFileSize, fields: 3, files: 1 },
+        limits: { fileSize: maxFileSize, fields: 4, files: 1 },
       });
     } catch (err: any) {
       this.logger.error(err.message);
@@ -256,6 +281,11 @@ export class ImportController {
       throw new ForbiddenException();
     }
 
+    const parentRef = file.fields?.parentPageId?.value;
+    const parentPageId = parentRef
+      ? await this.importService.resolveParentPage(parentRef, spaceId, user)
+      : undefined;
+
     this.auditService.log({
       event: AuditEvent.PAGE_IMPORTED,
       resourceType: AuditResource.PAGE,
@@ -274,6 +304,7 @@ export class ImportController {
       user.id,
       spaceId,
       workspace.id,
+      parentPageId,
     );
   }
 }

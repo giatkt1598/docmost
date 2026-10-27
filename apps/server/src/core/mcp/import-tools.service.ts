@@ -53,6 +53,15 @@ const FILE_SOURCE = {
     ),
 };
 
+const PARENT_PAGE = z
+  .string()
+  .min(1)
+  .max(300)
+  .optional()
+  .describe(
+    'Page id, slug id or page URL to import under; the space root when absent',
+  );
+
 type FileArgs = { file_url?: string; file_base64?: string; file_name?: string };
 
 // The Import pages dialog over MCP: files, web pages and zip exports. MCP only;
@@ -72,11 +81,12 @@ export class ImportToolsService {
       {
         name: 'import_page',
         description:
-          `Create a page at the root of a space by importing a file or a web page. Files: Markdown, HTML, Word or PDF (${PAGE_IMPORT_EXTENSIONS.join(', ')}; max ${PAGE_IMPORT_MAX_SIZE}), given as file_url or file_base64 + file_name. ` +
+          `Create a page in a space (at the root, or under parent_page_id) by importing a file or a web page. Files: Markdown, HTML, Word or PDF (${PAGE_IMPORT_EXTENSIONS.join(', ')}; max ${PAGE_IMPORT_MAX_SIZE}), given as file_url or file_base64 + file_name. ` +
           'Web pages: web_url; web_mode "article" (default) keeps the main content, "full" the whole page without menus and footers. ' +
           'The first heading (or the web page title) becomes the page title. To write Markdown you already have, use create_page instead.',
         inputSchema: z.object({
           space_id: z.uuid(),
+          parent_page_id: PARENT_PAGE,
           web_url: z
             .string()
             .url()
@@ -92,10 +102,11 @@ export class ImportToolsService {
       {
         name: 'import_zip',
         description:
-          'Import many pages from a .zip in the background: a folder of Markdown/HTML files (source "generic"), a Notion export ("notion") or a Confluence HTML space export ("confluence"). ' +
+          'Import many pages from a .zip in the background, at the space root or under parent_page_id: a folder of Markdown/HTML files (source "generic"), a Notion export ("notion") or a Confluence HTML space export ("confluence"). ' +
           'Give the zip as file_url or file_base64 + file_name. Returns a task_id; poll get_import_task until status is "success" or "failed".',
         inputSchema: z.object({
           space_id: z.uuid(),
+          parent_page_id: PARENT_PAGE,
           source: z.enum(ZIP_IMPORT_SOURCES),
           ...FILE_SOURCE,
         }),
@@ -117,6 +128,7 @@ export class ImportToolsService {
     actor: ToolActor,
     args: FileArgs & {
       space_id: string;
+      parent_page_id?: string;
       web_url?: string;
       web_mode?: 'article' | 'full';
     },
@@ -130,6 +142,13 @@ export class ImportToolsService {
       );
     }
     await this.assertCanImport(actor, args.space_id);
+    const parentPageId = args.parent_page_id
+      ? await this.importService.resolveParentPage(
+          args.parent_page_id,
+          args.space_id,
+          actor.user,
+        )
+      : undefined;
 
     let page;
     let metadata: Record<string, string>;
@@ -140,6 +159,7 @@ export class ImportToolsService {
         actor.user.id,
         args.space_id,
         actor.workspace.id,
+        parentPageId,
       );
       metadata = { source: 'web', url: args.web_url };
     } else {
@@ -156,6 +176,7 @@ export class ImportToolsService {
         actor.user.id,
         args.space_id,
         actor.workspace.id,
+        parentPageId,
       );
       metadata = { source: ext.slice(1), fileName: file.name };
     }
@@ -173,6 +194,7 @@ export class ImportToolsService {
       slug_id: page.slugId,
       title: getPageTitle(page.title),
       space_id: page.spaceId,
+      parent_page_id: page.parentPageId ?? undefined,
     };
   }
 
@@ -180,6 +202,7 @@ export class ImportToolsService {
     actor: ToolActor,
     args: FileArgs & {
       space_id: string;
+      parent_page_id?: string;
       source: (typeof ZIP_IMPORT_SOURCES)[number];
     },
   ) {
@@ -189,6 +212,13 @@ export class ImportToolsService {
       );
     }
     await this.assertCanImport(actor, args.space_id);
+    const parentPageId = args.parent_page_id
+      ? await this.importService.resolveParentPage(
+          args.parent_page_id,
+          args.space_id,
+          actor.user,
+        )
+      : undefined;
 
     const file = await this.readFile(
       args,
@@ -217,6 +247,7 @@ export class ImportToolsService {
       actor.user.id,
       args.space_id,
       actor.workspace.id,
+      parentPageId,
     );
     return { task_id: task.id, status: task.status };
   }
@@ -240,6 +271,7 @@ export class ImportToolsService {
       file_name: task.fileName,
       source: task.source,
       space_id: task.spaceId,
+      parent_page_id: task.pageId ?? undefined,
       created_at: task.createdAt,
       updated_at: task.updatedAt,
     };

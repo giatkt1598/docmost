@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { MultipartFile } from '@fastify/multipart';
 import * as path from 'path';
@@ -41,6 +46,9 @@ import {
 import { WebPageError, WebPageFetcher } from './web-page-fetcher.service';
 import { EnvironmentService } from '../../environment/environment.service';
 import { enqueueMediaLocalize } from '../../../core/media-localize/media-localize.queue';
+import { PageAccessService } from '../../../core/page/page-access/page-access.service';
+import { normalizePageRef } from '../../../core/ai-tools/page-ref';
+import { User } from '@docmost/db/types/entity.types';
 
 function webPageErrorMessage(err: WebPageError): string {
   if (err.status === 401 || err.status === 403) {
@@ -76,6 +84,7 @@ export class ImportService {
     private readonly webPageFetcher: WebPageFetcher,
     private readonly environmentService: EnvironmentService,
     @InjectQueue(QueueName.MEDIA_QUEUE) private readonly mediaQueue: Queue,
+    private readonly pageAccessService: PageAccessService,
   ) {}
 
   async importPage(
@@ -83,6 +92,7 @@ export class ImportService {
     userId: string,
     spaceId: string,
     workspaceId: string,
+    parentPageId?: string,
   ) {
     const file = await filePromise;
     return this.importPageFile(
@@ -91,6 +101,7 @@ export class ImportService {
       userId,
       spaceId,
       workspaceId,
+      parentPageId,
     );
   }
 
@@ -101,6 +112,7 @@ export class ImportService {
     userId: string,
     spaceId: string,
     workspaceId: string,
+    parentPageId?: string,
   ) {
     const fileExtension = path.extname(originalName).toLowerCase();
     const fileName = sanitizeFileName(
@@ -167,6 +179,7 @@ export class ImportService {
         userId,
         spaceId,
         workspaceId,
+        parentPageId,
       });
 
       this.logger.debug(
@@ -183,6 +196,7 @@ export class ImportService {
     userId: string,
     spaceId: string,
     workspaceId: string,
+    parentPageId?: string,
   ) {
     let page;
     try {
@@ -258,6 +272,7 @@ export class ImportService {
       userId,
       spaceId,
       workspaceId,
+      parentPageId,
     });
 
     // copy the page's images into our storage, as pasting would
@@ -282,11 +297,19 @@ export class ImportService {
     userId: string;
     spaceId: string;
     workspaceId: string;
+    parentPageId?: string;
   }) {
-    const { pageId, title, prosemirrorJson, userId, spaceId, workspaceId } =
-      opts;
+    const {
+      pageId,
+      title,
+      prosemirrorJson,
+      userId,
+      spaceId,
+      workspaceId,
+      parentPageId,
+    } = opts;
     try {
-      const pagePosition = await this.getNewPagePosition(spaceId);
+      const pagePosition = await this.getNewPagePosition(spaceId, parentPageId);
 
       return await this.pageRepo.insertPage({
         ...(pageId ? { id: pageId } : {}),
@@ -297,6 +320,7 @@ export class ImportService {
         ydoc: await this.createYdoc(prosemirrorJson),
         position: pagePosition,
         spaceId: spaceId,
+        parentPageId: parentPageId ?? null,
         creatorId: userId,
         workspaceId: workspaceId,
         lastUpdatedById: userId,
@@ -454,6 +478,7 @@ export class ImportService {
     userId: string,
     spaceId: string,
     workspaceId: string,
+    parentPageId?: string,
   ) {
     const file = await filePromise;
     return this.importZipFile(
@@ -463,6 +488,7 @@ export class ImportService {
       userId,
       spaceId,
       workspaceId,
+      parentPageId,
     );
   }
 
@@ -474,6 +500,7 @@ export class ImportService {
     userId: string,
     spaceId: string,
     workspaceId: string,
+    parentPageId?: string,
   ) {
     const fileExtension = path.extname(originalName).toLowerCase();
     const fileName = sanitizeFileName(
@@ -507,6 +534,8 @@ export class ImportService {
         fileExt: 'zip',
         creatorId: userId,
         spaceId: spaceId,
+        // the page the import goes under; null for the space root
+        pageId: parentPageId ?? null,
         workspaceId: workspaceId,
       })
       .returningAll()
@@ -517,6 +546,23 @@ export class ImportService {
     });
 
     return fileTask;
+  }
+
+  /**
+   * The page an import goes under: given as an id, slug id or page URL, it must
+   * live in the target space and be editable by the user. Returns its id.
+   */
+  async resolveParentPage(
+    parentRef: string,
+    spaceId: string,
+    user: User,
+  ): Promise<string> {
+    const parent = await this.pageRepo.findById(normalizePageRef(parentRef));
+    if (!parent || parent.deletedAt || parent.spaceId !== spaceId) {
+      throw new NotFoundException('Parent page not found in this space');
+    }
+    await this.pageAccessService.validateCanEdit(parent, user);
+    return parent.id;
   }
 
   async findFileTask(fileTaskId: string) {
