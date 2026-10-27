@@ -539,6 +539,7 @@ describe('McpService HTTP handler', () => {
       'get_blocks',
       'get_comments',
       'get_current_user',
+      'get_diagram',
       'get_page',
       'get_page_outline',
       'get_space',

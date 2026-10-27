@@ -32,6 +32,8 @@ export type DocBlockType =
   | 'embed'
   | 'math'
   | 'video'
+  | 'mermaid'
+  | 'drawio'
   | 'unsupported';
 
 export type DocBlock = {
@@ -62,6 +64,10 @@ export type DocBlock = {
   provider?: string;
   // math block
   latex?: string;
+  // mermaid diagram
+  source?: string;
+  // draw.io diagram
+  title?: string;
   children?: DocBlock[];
   has_children?: boolean;
   child_count?: number;
@@ -107,6 +113,8 @@ const TEXT_BLOCKS: DocBlockType[] = [
   'embed',
   'math',
   'video',
+  'mermaid',
+  'drawio',
   'unsupported',
 ];
 
@@ -262,7 +270,9 @@ export function docTypeOf(node: PmNode): DocBlockType {
     case 'callout':
       return 'callout';
     case 'codeBlock':
-      return 'code';
+      return node.attrs?.language === 'mermaid' ? 'mermaid' : 'code';
+    case 'drawio':
+      return 'drawio';
     case 'horizontalRule':
       return 'divider';
     case 'bulletList':
@@ -393,6 +403,14 @@ export function toDocBlock(node: PmNode, depth = 1): DocBlock {
     case 'math':
       block.latex = a.text ?? '';
       break;
+    case 'mermaid':
+      block.source = nodeText(node);
+      break;
+    case 'drawio':
+      block.title = a.title ?? a.alt ?? '';
+      block.url = a.src;
+      if (a.attachmentId) block.attachment_id = a.attachmentId;
+      break;
     case 'video':
       block.url = a.src;
       if (a.attachmentId) block.attachment_id = a.attachmentId;
@@ -440,6 +458,10 @@ export type BlockInput = {
   caption?: string | null;
   align?: string | null;
   latex?: string;
+  source?: string;
+  // draw.io XML; turned into an attachment before the edit
+  xml?: string;
+  title?: string;
   items?: (string | Span[] | BlockInput)[];
   children?: BlockInput[];
   markdown?: string;
@@ -686,6 +708,35 @@ export function fromBlockInput(
     }
     case 'math':
       return [{ type: 'mathBlock', attrs: { id, text: input.latex ?? '' } }];
+    case 'mermaid': {
+      const source = input.source ?? input.text ?? '';
+      if (!source.trim()) {
+        throw new BlockInputError('A mermaid block needs its "source"');
+      }
+      return [
+        {
+          type: 'codeBlock',
+          attrs: { id, language: 'mermaid' },
+          content: [{ type: 'text', text: source }],
+        },
+      ];
+    }
+    case 'drawio': {
+      const ref = attachmentOf(input, ctx);
+      return [
+        {
+          type: 'drawio',
+          attrs: {
+            id,
+            src: attachmentUrl(ref),
+            title: input.title ?? ref.fileName,
+            size: ref.fileSize,
+            attachmentId: ref.id,
+            align: 'center',
+          },
+        },
+      ];
+    }
     case 'video': {
       const ref = input.attachment_id ? attachmentOf(input, ctx) : null;
       const src = ref ? attachmentUrl(ref) : input.url;

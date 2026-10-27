@@ -1172,6 +1172,7 @@ export class McpService {
       get_blocks: (a: any) => tools.getBlocks(actor, a),
       find_blocks: (a: any) => tools.findBlocks(actor, a),
       list_page_history: (a: any) => tools.listPageHistory(actor, a),
+      get_diagram: (a: any) => tools.getDiagram(actor, a),
     };
     const writes = {
       apply_operations: (a: any) => tools.applyOperations(actor, a),

@@ -340,11 +340,11 @@ describe('applyOperations', () => {
         {
           ...opts,
           markdownToNodes: () => [
-            { type: 'drawio', attrs: { src: 'https://x.io/a.svg' } },
+            { type: 'excalidraw', attrs: { src: 'https://x.io/a.svg' } },
           ],
         },
       ),
-    ).toThrow(/drawio blocks cannot be created/);
+    ).toThrow(/excalidraw blocks cannot be created/);
   });
 
   it('keeps a mention and a comment that are echoed back, refuses new ones', () => {
@@ -429,5 +429,75 @@ describe('applyOperations', () => {
         opts,
       ),
     ).toThrow(/Comments cannot be added/);
+  });
+
+  it('writes Mermaid and draw.io diagrams', () => {
+    const file = (id: string) => ({
+      id,
+      fileName: 'diagram.drawio.svg',
+      mimeType: 'image/svg+xml',
+      fileSize: 100,
+    });
+    const attachments = new Map([
+      ['f1', file('f1')],
+      ['f2', file('f2')],
+    ]);
+    const added = applyOperations(
+      fixture(),
+      [
+        {
+          op: 'insert',
+          blocks: [
+            { type: 'mermaid', source: 'flowchart LR\n  A --> B' },
+            { type: 'drawio', attachment_id: 'f1', title: 'Flow' },
+          ],
+        },
+      ],
+      { ...opts, attachments },
+    );
+    const mermaid = added.doc.content.find((n) => n.type === 'codeBlock');
+    const drawio = added.doc.content.find((n) => n.type === 'drawio');
+    expect(mermaid.type).toBe('codeBlock');
+    expect(mermaid.attrs.language).toBe('mermaid');
+    expect(toDocBlock(mermaid).type).toBe('mermaid');
+    expect(toDocBlock(mermaid).source).toBe('flowchart LR\n  A --> B');
+    expect(drawio.attrs).toMatchObject({ attachmentId: 'f1', title: 'Flow' });
+    expect(toDocBlock(drawio)).toMatchObject({
+      type: 'drawio',
+      attachment_id: 'f1',
+      title: 'Flow',
+    });
+
+    const changed = applyOperations(
+      added.doc,
+      [
+        {
+          op: 'update',
+          block_id: mermaid.attrs.id,
+          patch: { source: 'sequenceDiagram' },
+        },
+        { op: 'update', block_id: drawio.attrs.id, patch: { attachment_id: 'f2' } },
+      ],
+      { ...opts, attachments },
+    );
+    expect(find(changed.doc, mermaid.attrs.id).content[0].text).toBe(
+      'sequenceDiagram',
+    );
+    expect(find(changed.doc, drawio.attrs.id).attrs.attachmentId).toBe('f2');
+  });
+
+  it('refuses a draw.io block that points at an unchecked file', () => {
+    expect(() =>
+      applyOperations(
+        fixture(),
+        [{ op: 'insert', blocks: [{ type: 'markdown', markdown: 'x' }] }],
+        {
+          ...opts,
+          markdownToNodes: () => [
+            { type: 'drawio', attrs: { src: 'https://x.io/a.svg' } },
+          ],
+        },
+      ),
+    ).toThrow(/needs its "xml"/);
   });
 });

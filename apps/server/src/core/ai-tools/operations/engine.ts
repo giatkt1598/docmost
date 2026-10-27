@@ -10,6 +10,7 @@ import {
   docTypeOf,
   fromBlockInput,
   IMAGE_ALIGNS,
+  attachmentUrl,
   MarkdownToNodes,
   newBlockId,
   withFreshIds,
@@ -48,6 +49,11 @@ export type BlockPatch = {
   align?: string | null;
   url?: string;
   latex?: string;
+  source?: string;
+  title?: string;
+  // draw.io: the new diagram file, made from "xml" before the edit
+  attachment_id?: string;
+  xml?: string;
 };
 
 export type Operation =
@@ -311,6 +317,13 @@ export function applyOperations(
         `${node.type} blocks cannot be created by the AI tools`,
       );
     }
+    // a diagram must point at a file this edit checked, never a free URL
+    if (
+      node.type === 'drawio' &&
+      !opts.attachments?.has(String(node.attrs?.attachmentId ?? ''))
+    ) {
+      fail('VALIDATION', i, node.attrs?.id, 'A drawio block needs its "xml"');
+    }
     checkMarks(node, null, i);
     (node.content ?? []).forEach((c) => checkNewContent(c, i));
   };
@@ -481,7 +494,7 @@ export function applyOperations(
         const next =
           op.op === 'restore'
             ? clone(op.node)
-            : patchNode(loc.node, op.patch, i, fail);
+            : patchNode(loc.node, op.patch, i, fail, opts.attachments);
         checkTables(next, i);
         if (op.op === 'update') checkPatchedInline(next, loc.node, i);
         loc.parent.content[loc.index] = next;
@@ -596,6 +609,8 @@ const PATCH_KEYS: Record<string, (keyof BlockPatch)[]> = {
   image: ['caption', 'width', 'align'],
   embed: ['url'],
   math: ['latex'],
+  mermaid: ['source'],
+  drawio: ['attachment_id', 'title'],
   video: ['width', 'align'],
 };
 
@@ -609,6 +624,7 @@ function patchNode(
     id: string | undefined,
     reason: string,
   ) => never,
+  attachments?: Map<string, AttachmentRef>,
 ): PmNode {
   const type = docTypeOf(node);
   const id = node.attrs?.id;
@@ -704,6 +720,23 @@ function patchNode(
     case 'math':
       next.attrs.text = patch.latex ?? '';
       break;
+    case 'mermaid':
+      if (!patch.source?.trim()) {
+        fail('VALIDATION', i, id, 'A mermaid block needs its "source"');
+      }
+      next.content = [{ type: 'text', text: patch.source }];
+      break;
+    case 'drawio': {
+      if (patch.title !== undefined) next.attrs.title = patch.title;
+      if (patch.attachment_id) {
+        const ref = attachments?.get(patch.attachment_id);
+        if (!ref) fail('VALIDATION', i, id, 'The new diagram file is missing');
+        next.attrs.src = attachmentUrl(ref);
+        next.attrs.attachmentId = ref.id;
+        next.attrs.size = ref.fileSize;
+      }
+      break;
+    }
     case 'video':
       if (patch.width !== undefined) next.attrs.width = patch.width;
       if (patch.align !== undefined) {
@@ -810,6 +843,7 @@ const INSERTABLE = new Set([
   'embed',
   'mathBlock',
   'video',
+  'drawio',
   'text',
   'hardBreak',
   'mathInline',

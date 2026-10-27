@@ -284,6 +284,9 @@ export function buildChatTools(
     tools.find_blocks = pageTool('find_blocks', (a) =>
       pageTools.findBlocks(actor, a),
     );
+    tools.get_diagram = pageTool('get_diagram', (a) =>
+      pageTools.getDiagram(actor, a),
+    );
     tools.list_page_history = pageTool('list_page_history', (a) =>
       pageTools.listPageHistory(actor, a),
     );

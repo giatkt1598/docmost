@@ -4,7 +4,11 @@ import { isSafeLink, STATUS_COLORS } from './blocks/rich-text';
 
 // Input schemas of the AI page tools, shared by AI chat and the MCP server.
 
-const PAGE_ID = z.string().min(1).max(100).describe('Page id or slug id');
+const PAGE_ID = z
+  .string()
+  .min(1)
+  .max(300)
+  .describe('Page id, slug id or page URL');
 const BLOCK_ID = z.string().min(1).max(64);
 const REV = z
   .string()
@@ -94,6 +98,8 @@ const BLOCK_TYPES = [
   'embed',
   'math',
   'video',
+  'mermaid',
+  'drawio',
   'markdown',
 ] as const;
 
@@ -150,6 +156,17 @@ export const blockInputSchema: z.ZodType<any> = z.lazy(() =>
       .describe('image/file: a file already uploaded to the workspace'),
     caption: z.string().max(500).nullable().optional().describe('image'),
     latex: z.string().max(5000).optional().describe('math: LaTeX'),
+    source: z
+      .string()
+      .max(20_000)
+      .optional()
+      .describe('mermaid: the diagram source (flowchart, sequenceDiagram...)'),
+    xml: z
+      .string()
+      .max(500_000)
+      .optional()
+      .describe('drawio: an <mxGraphModel> (or <mxfile>) describing the diagram'),
+    title: z.string().max(200).optional().describe('drawio: name of the diagram'),
     align: z.enum(IMAGE_ALIGNS).nullable().optional().describe('image'),
     children: z
       .array(z.union([z.string().max(20_000), blockInputSchema]))
@@ -203,6 +220,9 @@ const patchSchema = z.object({
   caption: z.string().max(500).nullable().optional(),
   align: z.enum(IMAGE_ALIGNS).nullable().optional(),
   latex: z.string().max(5000).optional(),
+  source: z.string().max(20_000).optional().describe('mermaid'),
+  xml: z.string().max(500_000).optional().describe('drawio: the new diagram'),
+  title: z.string().max(200).optional().describe('drawio'),
   url: z
     .string()
     .max(2000)
@@ -295,6 +315,10 @@ export const pageToolSchemas = {
       .min(1)
       .max(50),
   }),
+  get_diagram: z.object({
+    page_id: PAGE_ID,
+    block_id: BLOCK_ID.describe('A mermaid or drawio block'),
+  }),
   list_page_history: z.object({
     page_id: PAGE_ID,
     limit: z.number().int().min(1).max(50).optional(),
@@ -328,6 +352,8 @@ export const PAGE_TOOL_DESCRIPTIONS: Record<
   move_block:
     'Move a block (with its children) to another position or container.',
   delete_blocks: 'Delete blocks (with their children).',
+  get_diagram:
+    'Read the source of a diagram block: Mermaid text or draw.io XML (to change it, update the block with a new source or xml).',
   list_page_history:
     'List earlier versions of a page, newest first: when, by whom, and for AI edits what they changed.',
   restore_page_version:
@@ -348,13 +374,15 @@ const EXAMPLES = [
   '{"type":"code","language":"ts","text":"const a = 1;"}',
   '{"type":"image","url":"https://example.com/chart.png","caption":"Chart"}',
   '{"type":"markdown","markdown":"## Notes\\n- a\\n- b"}',
+  '{"type":"mermaid","source":"flowchart LR\\n  A[Start] --> B{Ok?}\\n  B -->|yes| C[Done]"}',
+  '{"type":"drawio","title":"Flow","xml":"<mxGraphModel><root><mxCell id=\\"0\\"/><mxCell id=\\"1\\" parent=\\"0\\"/><mxCell id=\\"a\\" value=\\"Start\\" style=\\"rounded=1;\\" vertex=\\"1\\" parent=\\"1\\"><mxGeometry x=\\"20\\" y=\\"20\\" width=\\"120\\" height=\\"60\\" as=\\"geometry\\"/></mxCell><mxCell id=\\"b\\" value=\\"End\\" style=\\"ellipse;\\" vertex=\\"1\\" parent=\\"1\\"><mxGeometry x=\\"220\\" y=\\"20\\" width=\\"100\\" height=\\"60\\" as=\\"geometry\\"/></mxCell><mxCell id=\\"e\\" edge=\\"1\\" parent=\\"1\\" source=\\"a\\" target=\\"b\\"><mxGeometry relative=\\"1\\" as=\\"geometry\\"/></mxCell></root></mxGraphModel>"}',
 ];
 
 export const BLOCK_GUIDE = [
   'Blocks: paragraph, heading (level 1-3), quote, callout (variant default|info|note|success|warning|danger), code (language, text), divider,',
   'bulleted_list / numbered_list (items or list_item children), todo_list (todo_item with checked), table (header_row, rows of cells; update single cells with patch.cells),',
   'toggle (rich_text summary, open, children), columns (2-5 column children, each with children), image (url or attachment_id, caption, align), file (attachment_id), embed (url of YouTube, Vimeo, Loom, Figma, Miro, Airtable, Typeform, Framer, Google Drive/Sheets),',
-  'math (latex), video (url or attachment_id),',
+  'math (latex), video (url or attachment_id), mermaid (source: Mermaid diagram, rendered in the page), drawio (xml: draw.io mxGraphModel, editable in draw.io; read it back with get_diagram),',
   'and type "markdown" to insert longer Markdown at once. Text is rich_text spans or plain "text"; a span { mention: { page_id } } or { mention: { user_id } } links a page or a person, { math: "E=mc^2" } is an inline formula and { status: { text, color: gray|blue|green|yellow|red } } a status label.',
   'Blocks of type "unsupported" (drawings, complex tables...) can be moved or deleted but not edited.',
   'An image from an external URL is copied into the workspace, so reading it back shows a /api/files/... url.',

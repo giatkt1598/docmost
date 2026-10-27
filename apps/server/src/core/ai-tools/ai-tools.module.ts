@@ -5,11 +5,20 @@ import { AiPageEditService } from './ai-page-edit.service';
 import { AiPageToolsService } from './ai-page-tools.service';
 import { AiPageEditController } from './ai-page-edit.controller';
 import { ReferenceResolver } from './reference-resolver';
+import { AttachmentWriter } from './attachment-writer';
+import { DiagramPreparer } from './diagrams/diagram-preparer';
+import { StorageModule } from '../../integrations/storage/storage.module';
 
 @Module({
-  imports: [CollaborationModule, PageModule],
+  imports: [CollaborationModule, PageModule, StorageModule],
   controllers: [AiPageEditController],
-  providers: [AiPageEditService, AiPageToolsService, ReferenceResolver],
-  exports: [AiPageToolsService],
+  providers: [
+    AiPageEditService,
+    AiPageToolsService,
+    ReferenceResolver,
+    AttachmentWriter,
+    DiagramPreparer,
+  ],
+  exports: [AiPageToolsService, AttachmentWriter],
 })
 export class AiToolsModule {}

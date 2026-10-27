@@ -18,6 +18,7 @@ describe('buildChatTools', () => {
     ).toEqual([
       'find_blocks',
       'get_blocks',
+      'get_diagram',
       'get_page',
       'get_page_outline',
       'list_child_pages',

@@ -162,6 +162,7 @@ export class ReferenceResolver {
         });
       } else if (op.op === 'update') {
         const patch = { ...op.patch };
+        if (patch.attachment_id) await attachment(patch.attachment_id);
         if (patch.rich_text) patch.rich_text = await spans(patch.rich_text);
         if (patch.rows) patch.rows = await rows(patch.rows);
         if (patch.cells) {

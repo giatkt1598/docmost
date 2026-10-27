@@ -5,6 +5,13 @@ import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { PageAccessService } from '../page/page-access/page-access.service';
 import { PageService } from '../page/services/page.service';
 import { PageHistoryRepo } from '@docmost/db/repos/page/page-history.repo';
+import { AttachmentRepo } from '@docmost/db/repos/attachment/attachment.repo';
+import { StorageService } from '../../integrations/storage/storage.service';
+import { DiagramPreparer } from './diagrams/diagram-preparer';
+import { xmlFromDrawioSvg } from './diagrams/drawio-xml';
+import { findWithAncestors } from './blocks/navigation';
+import { nodeText } from './blocks/doc-blocks';
+import { normalizePageRef } from './page-ref';
 import { assignBlockIds } from './blocks/doc-blocks';
 import { AiPageEditService, ApplyOutcome } from './ai-page-edit.service';
 import { findBlocks, outline, sliceBlocks } from './blocks/navigation';
@@ -30,10 +37,15 @@ export class AiPageToolsService {
     private readonly edits: AiPageEditService,
     private readonly references: ReferenceResolver,
     private readonly pageHistoryRepo: PageHistoryRepo,
+    private readonly diagrams: DiagramPreparer,
+    private readonly attachmentRepo: AttachmentRepo,
+    private readonly storage: StorageService,
   ) {}
 
   private async findPage(actor: ToolActor, pageId: string): Promise<Page> {
-    const page = await this.pageRepo.findById(pageId, { includeSpace: true });
+    const page = await this.pageRepo.findById(normalizePageRef(pageId), {
+      includeSpace: true,
+    });
     if (!page || page.deletedAt || page.workspaceId !== actor.workspace.id) {
       throw new NotFoundException('Page not found');
     }
@@ -115,7 +127,11 @@ export class AiPageToolsService {
     const page = await this.editable(actor, args.page_id);
     let resolved;
     try {
-      const operations = normalizeOperations(args.operations);
+      const operations = await this.diagrams.prepare(
+        normalizeOperations(args.operations),
+        page,
+        actor.user,
+      );
       resolved = await this.references.resolve(operations, actor);
     } catch (err) {
       if (err instanceof InputShapeError) {
@@ -229,6 +245,40 @@ export class AiPageToolsService {
       },
       ctx,
     );
+  }
+
+  // The source of a diagram block: Mermaid text or draw.io XML.
+  async getDiagram(actor: ToolActor, args: Args<'get_diagram'>) {
+    const { page } = await this.readable(actor, args.page_id);
+    const doc = await this.edits.readPage(page.id, actor.user);
+    const found = findWithAncestors(doc, args.block_id);
+    if (!found) {
+      return { error: { code: 'NOT_FOUND', message: `Block ${args.block_id} not found` } };
+    }
+    const node = found.node;
+    if (node.type === 'codeBlock' && node.attrs?.language === 'mermaid') {
+      return { format: 'mermaid', source: nodeText(node) };
+    }
+    if (node.type === 'drawio') {
+      const attachment = node.attrs?.attachmentId
+        ? await this.attachmentRepo.findById(node.attrs.attachmentId)
+        : null;
+      if (!attachment || attachment.workspaceId !== actor.workspace.id) {
+        return { error: { code: 'NOT_FOUND', message: 'The diagram file is missing' } };
+      }
+      const svg = (await this.storage.read(attachment.filePath)).toString('utf8');
+      return {
+        format: 'drawio',
+        title: node.attrs?.title ?? null,
+        xml: xmlFromDrawioSvg(svg),
+      };
+    }
+    return {
+      error: {
+        code: 'VALIDATION',
+        message: `Block ${args.block_id} is a ${node.type}, not a Mermaid or draw.io diagram`,
+      },
+    };
   }
 
   async listPageHistory(actor: ToolActor, args: Args<'list_page_history'>) {
