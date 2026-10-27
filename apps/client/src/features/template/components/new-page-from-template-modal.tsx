@@ -1,7 +1,22 @@
 import { KeyboardEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ActionIcon, Button, Divider, Group, Loader, Modal, ScrollArea } from "@mantine/core";
-import { IconChevronRight, IconTemplate, IconWorld } from "@tabler/icons-react";
+import {
+  ActionIcon,
+  Button,
+  Divider,
+  Group,
+  Loader,
+  Modal,
+  ScrollArea,
+  TextInput,
+} from "@mantine/core";
+import { useDebouncedValue } from "@mantine/hooks";
+import {
+  IconChevronRight,
+  IconSearch,
+  IconTemplate,
+  IconWorld,
+} from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { CustomAvatar } from "@/components/ui/custom-avatar";
 import { AvatarIconType } from "@/features/attachments/types/attachment.types";
@@ -39,9 +54,14 @@ export function NewPageFromTemplateModal({
   const createPageMutation = useCreatePageFromTemplateMutation();
   const [selected, setSelected] = useState<ITemplate | null>(null);
   const { data: spacesData, isLoading } = useGetSpacesQuery({ limit: 100 });
+  const [search, setSearch] = useState("");
+  const [debouncedSearch] = useDebouncedValue(search.trim(), 300);
 
   useEffect(() => {
-    if (!opened) setSelected(null);
+    if (!opened) {
+      setSelected(null);
+      setSearch("");
+    }
   }, [opened]);
 
   const handleCreate = async () => {
@@ -78,8 +98,26 @@ export function NewPageFromTemplateModal({
           <Modal.CloseButton aria-label={t("Close")} />
         </Modal.Header>
         <Modal.Body>
+          <TextInput
+            leftSection={<IconSearch size={16} />}
+            placeholder={t("Search templates...")}
+            aria-label={t("Search templates...")}
+            variant="filled"
+            value={search}
+            onChange={(e) => setSearch(e.currentTarget.value)}
+            className={classes.searchInput}
+            data-autofocus
+          />
+
           <ScrollArea h="50vh" offsetScrollbars className={classes.scrollArea}>
-            {isLoading ? (
+            {debouncedSearch ? (
+              <TemplateRows
+                query={debouncedSearch}
+                selectedId={selected?.id ?? null}
+                onSelect={setSelected}
+                showSpace
+              />
+            ) : isLoading ? (
               <div className={classes.emptyState}>
                 <Loader size="xs" />
               </div>
@@ -198,17 +236,24 @@ function TemplateSpaceRow({
 
 function TemplateRows({
   spaceId,
+  query,
   selectedId,
   onSelect,
+  showSpace,
 }: {
   spaceId?: string;
+  query?: string;
   selectedId: string | null;
   onSelect: (template: ITemplate) => void;
+  // search results span spaces, so label each with its space
+  showSpace?: boolean;
 }) {
   const { t } = useTranslation();
   const { data, isLoading, hasNextPage, fetchNextPage } = useTemplatesQuery({
     spaceId,
+    query,
   });
+  const { data: spacesData } = useGetSpacesQuery({ limit: 100 });
 
   if (isLoading) {
     return (
@@ -220,7 +265,7 @@ function TemplateRows({
 
   let templates = data?.pages.flatMap((page) => page.items) ?? [];
   // without a space filter the API returns everything accessible
-  if (!spaceId) templates = templates.filter((tpl) => !tpl.spaceId);
+  if (!spaceId && !query) templates = templates.filter((tpl) => !tpl.spaceId);
 
   if (templates.length === 0 && !hasNextPage) {
     return <div className={classes.emptyState}>{t("No templates found")}</div>;
@@ -237,7 +282,7 @@ function TemplateRows({
           ]
             .filter(Boolean)
             .join(" ")}
-          style={{ paddingLeft: 32 }}
+          style={{ paddingLeft: showSpace ? 12 : 32 }}
           role="button"
           tabIndex={0}
           onClick={() => onSelect(template)}
@@ -254,6 +299,14 @@ function TemplateRows({
           <div className={classes.pageTitle}>
             {template.title || t("Untitled")}
           </div>
+          {showSpace && (
+            <div className={classes.spaceName}>
+              {template.spaceId
+                ? (spacesData?.items.find((sp) => sp.id === template.spaceId)
+                    ?.name ?? t("Space"))
+                : t("Global")}
+            </div>
+          )}
         </div>
       ))}
       {hasNextPage && (
