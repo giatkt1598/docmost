@@ -137,7 +137,7 @@ export function NodeMenu({ node, canEdit }: NodeMenuProps) {
 
   return (
     <>
-      <Menu shadow="md" width={200}>
+      <Menu shadow="md" width="13.5rem">
         <Menu.Target>
           <ActionIcon
             variant="subtle"
@@ -158,19 +158,6 @@ export function NodeMenu({ node, canEdit }: NodeMenuProps) {
         </Menu.Target>
 
         <Menu.Dropdown>
-          {canEdit && (
-            <Menu.Item
-              leftSection={<IconTemplate size={16} />}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                openTemplateModal();
-              }}
-            >
-              {t("New page from template")}
-            </Menu.Item>
-          )}
-
           <Menu.Item
             leftSection={<IconLink size={16} />}
             onClick={(e) => {
@@ -243,6 +230,17 @@ export function NodeMenu({ node, canEdit }: NodeMenuProps) {
                 }}
               >
                 {t("Copy to space")}
+              </Menu.Item>
+
+              <Menu.Item
+                leftSection={<IconTemplate size={16} />}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openTemplateModal();
+                }}
+              >
+                {t("New page from template")}
               </Menu.Item>
 
               <Menu.Divider />
