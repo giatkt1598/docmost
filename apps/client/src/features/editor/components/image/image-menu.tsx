@@ -22,7 +22,6 @@ import {
 import { useTranslation } from "react-i18next";
 import { getFileUrl } from "@/lib/config.ts";
 import { uploadImageAction } from "@/features/editor/components/image/upload-image-action.tsx";
-import { useAltTextControl } from "@/features/editor/components/common/use-alt-text-control.tsx";
 import { lightboxRequestAtom } from "@/features/editor/atoms/editor-atoms";
 import classes from "../common/toolbar-menu.module.css";
 
@@ -46,7 +45,6 @@ export function ImageMenu({ editor }: EditorMenuProps) {
         isAlignCenter: ctx.editor.isActive("image", { align: "center" }),
         isAlignRight: ctx.editor.isActive("image", { align: "right" }),
         src: imageAttrs?.src || null,
-        alt: imageAttrs?.alt || "",
       };
     },
   });
@@ -142,16 +140,6 @@ export function ImageMenu({ editor }: EditorMenuProps) {
     editor.commands.deleteSelection();
   }, [editor]);
 
-  const {
-    button: altTextButton,
-    panel: altTextPanel,
-    isEditing: isEditingAlt,
-  } = useAltTextControl({
-    editor,
-    nodeName: "image",
-    currentAlt: editorState?.alt || "",
-  });
-
   return (
     <BaseBubbleMenu
       editor={editor}
@@ -168,10 +156,7 @@ export function ImageMenu({ editor }: EditorMenuProps) {
       }}
       shouldShow={shouldShow}
     >
-      {isEditingAlt ? (
-        altTextPanel
-      ) : (
-        <div className={classes.toolbar}>
+      <div className={classes.toolbar}>
         <Tooltip position="top" label={t("Align left")} withinPortal={false}>
           <ActionIcon
             onClick={alignImageLeft}
@@ -207,10 +192,6 @@ export function ImageMenu({ editor }: EditorMenuProps) {
             <IconLayoutAlignRight size={18} />
           </ActionIcon>
         </Tooltip>
-
-        <div className={classes.divider} />
-
-        {altTextButton}
 
         <div className={classes.divider} />
 
@@ -264,7 +245,6 @@ export function ImageMenu({ editor }: EditorMenuProps) {
           </ActionIcon>
         </Tooltip>
         </div>
-      )}
 
       <input
         ref={fileInputRef}
