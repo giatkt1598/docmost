@@ -2297,5 +2297,22 @@
   "Moved a page": "Moved a page",
   "Copied a page": "Copied a page",
   "Read the page history": "Read the page history",
-  "Restored an earlier version": "Restored an earlier version"
+  "Restored an earlier version": "Restored an earlier version",
+  "Read a diagram": "Read a diagram",
+  "Moved a page to the trash": "Moved a page to the trash",
+  "Restored a page from the trash": "Restored a page from the trash",
+  "Read the labels": "Read the labels",
+  "Added labels": "Added labels",
+  "Removed a label": "Removed a label",
+  "Updated a comment thread": "Updated a comment thread",
+  "Deleted a comment": "Deleted a comment",
+  "Downloaded a file": "Downloaded a file",
+  "Listed the databases": "Listed the databases",
+  "Read a database": "Read a database",
+  "Read database rows": "Read database rows",
+  "Added database rows": "Added database rows",
+  "Updated database rows": "Updated database rows",
+  "Deleted database rows": "Deleted database rows",
+  "Created a database": "Created a database",
+  "Added a database column": "Added a database column"
 }

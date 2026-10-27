@@ -9,12 +9,15 @@ import { AttachmentRepo } from '@docmost/db/repos/attachment/attachment.repo';
 import { StorageService } from '../../integrations/storage/storage.service';
 import { DiagramPreparer } from './diagrams/diagram-preparer';
 import { xmlFromDrawioSvg } from './diagrams/drawio-xml';
-import { findWithAncestors } from './blocks/navigation';
-import { nodeText } from './blocks/doc-blocks';
 import { normalizePageRef } from './page-ref';
-import { assignBlockIds } from './blocks/doc-blocks';
+import { assignBlockIds, nodeText } from './blocks/doc-blocks';
 import { AiPageEditService, ApplyOutcome } from './ai-page-edit.service';
-import { findBlocks, outline, sliceBlocks } from './blocks/navigation';
+import {
+  findBlocks,
+  findWithAncestors,
+  outline,
+  sliceBlocks,
+} from './blocks/navigation';
 import { Operation } from './operations/engine';
 import { pageToolSchemas } from './tool-schemas';
 import { ReferenceError, ReferenceResolver } from './reference-resolver';

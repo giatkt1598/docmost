@@ -1,5 +1,14 @@
 import { ForbiddenException } from '@nestjs/common';
 import { McpService } from './mcp.service';
+import { WorkspaceToolsService } from './workspace-tools.service';
+import { BaseToolsService } from '../ai-tools/bases/base-tools.service';
+
+// the extra tools with no services behind them: enough to list them
+const workspaceTools = () =>
+  new (WorkspaceToolsService as any)(
+    ...Array(12).fill({}),
+    new (BaseToolsService as any)(...Array(7).fill({})),
+  ) as WorkspaceToolsService;
 
 jest.mock('../../collaboration/collaboration.util', () => ({
   jsonToMarkdown: jest.fn(() => '# markdown'),
@@ -122,6 +131,7 @@ function createService(
     deps.attachmentRepo as any,
     deps.pagePermissionRepo as any,
     {} as any,
+    workspaceTools(),
   );
   return { service, deps };
 }
@@ -528,14 +538,23 @@ describe('McpService HTTP handler', () => {
 
     expect(status).toBe(200);
     expect(body.result.tools.map((t: any) => t.name).sort()).toEqual([
+      'add_base_property',
+      'add_favorite',
+      'add_page_labels',
       'apply_operations',
       'copy_page_to_space',
+      'create_base',
+      'create_base_rows',
       'create_comment',
       'create_page',
       'create_space',
+      'delete_base_rows',
       'delete_blocks',
+      'delete_comment',
+      'delete_page',
       'duplicate_page',
       'find_blocks',
+      'get_base',
       'get_blocks',
       'get_comments',
       'get_current_user',
@@ -544,7 +563,9 @@ describe('McpService HTTP handler', () => {
       'get_page_outline',
       'get_space',
       'insert_blocks',
+      'list_bases',
       'list_child_pages',
+      'list_labels',
       'list_page_history',
       'list_pages',
       'list_spaces',
@@ -552,15 +573,22 @@ describe('McpService HTTP handler', () => {
       'move_block',
       'move_page',
       'move_page_to_space',
+      'query_base_rows',
+      'remove_favorite',
+      'remove_page_label',
+      'restore_page',
       'restore_page_version',
       'search_attachments',
       'search_file_contents',
       'search_pages',
+      'set_comment_resolved',
       'undo_ai_edit',
+      'update_base_rows',
       'update_block',
       'update_comment',
       'update_page',
       'update_space',
+      'upload_file_from_url',
     ]);
   });
 

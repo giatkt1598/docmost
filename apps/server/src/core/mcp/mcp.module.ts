@@ -9,11 +9,29 @@ import { McpService } from './mcp.service';
 import { McpTokenService } from './mcp-token.service';
 import { McpAuthGuard } from './mcp-auth.guard';
 import { AiToolsModule } from '../ai-tools/ai-tools.module';
+import { LabelModule } from '../label/label.module';
+import { FavoriteModule } from '../favorite/favorite.module';
+import { WorkspaceToolsService } from './workspace-tools.service';
+import { RemoteFileFetcher } from '../media-localize/remote-file-fetcher.service';
 
 @Module({
-  imports: [PageModule, SearchModule, SpaceModule, CommentModule, AiToolsModule],
+  imports: [
+    PageModule,
+    SearchModule,
+    SpaceModule,
+    CommentModule,
+    AiToolsModule,
+    LabelModule,
+    FavoriteModule,
+  ],
   controllers: [McpController, McpTokenController],
-  providers: [McpService, McpTokenService, McpAuthGuard],
+  providers: [
+    McpService,
+    McpTokenService,
+    McpAuthGuard,
+    WorkspaceToolsService,
+    RemoteFileFetcher,
+  ],
   exports: [McpService],
 })
 export class McpModule {}

@@ -320,6 +320,16 @@ export function buildChatTools(
       );
     }
   }
+
+  // pages, labels, favorites, comments, files and bases
+  for (const def of mcp.extraTools?.(actor) ?? []) {
+    if (readOnly && !def.readOnly) continue;
+    tools[def.name] = tool({
+      description: def.description,
+      inputSchema: def.inputSchema as any,
+      execute: (args: any) => runTool(() => def.run(args)),
+    });
+  }
   return tools;
 }
 
@@ -351,6 +361,7 @@ export function buildChatSystemPrompt(opts: {
       'To change part of a page, work on blocks: find the place (get_page_outline, find_blocks, get_blocks), plan the smallest set of operations, apply them in one apply_operations call with a short summary and the rev of every block you change, check the blocks it returns, then tell the user what changed.',
       'Never rewrite a whole page to change part of it. If you get CONFLICT, read the blocks again and re-plan. Keep content you were not asked to change, including extra_marks and inline spans.',
       'Every edit can be undone with undo_ai_edit and the edit_id it returned.',
+      'For diagrams add a mermaid block (source) or a drawio block (xml); read one back with get_diagram. For databases (bases) call get_base first, then use property and choice names in query_base_rows, create_base_rows and update_base_rows.',
     );
   }
   const page = opts.currentPage;

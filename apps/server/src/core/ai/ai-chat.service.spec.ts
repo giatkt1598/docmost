@@ -46,6 +46,25 @@ describe('buildChatTools', () => {
     );
   });
 
+  it('adds the extra MCP tools, only the reading ones when read-only', async () => {
+    const z = await import('zod');
+    const def = (name: string, readOnly: boolean) => ({
+      name,
+      description: name,
+      inputSchema: z.object({}),
+      readOnly,
+      run: jest.fn().mockResolvedValue({ ok: name }),
+    });
+    const mcp = {
+      extraTools: () => [def('get_base', true), def('delete_page', false)],
+    } as any;
+    const readOnly = buildChatTools(mcp, actor, true);
+    expect(readOnly.get_base).toBeDefined();
+    expect(readOnly.delete_page).toBeUndefined();
+    const all = buildChatTools(mcp, actor, false);
+    expect(await run(all.delete_page, {})).toBe('{"ok":"delete_page"}');
+  });
+
   it('runs MCP tools as the user and adds page links', async () => {
     const mcp = {
       searchPages: jest.fn().mockResolvedValue({

@@ -39,6 +39,12 @@ import { BaseNotificationService } from './base-notification.service';
     BaseQueueProcessor,
     BaseWsService,
   ],
-  exports: [BaseService, BaseFormulaService, BaseConversionService],
+  exports: [
+    BaseService,
+    BaseFormulaService,
+    BaseConversionService,
+    BaseRowService,
+    BasePropertyService,
+  ],
 })
 export class BaseModule {}

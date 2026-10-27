@@ -8,9 +8,11 @@ import { ReferenceResolver } from './reference-resolver';
 import { AttachmentWriter } from './attachment-writer';
 import { DiagramPreparer } from './diagrams/diagram-preparer';
 import { StorageModule } from '../../integrations/storage/storage.module';
+import { BaseModule } from '../base/base.module';
+import { BaseToolsService } from './bases/base-tools.service';
 
 @Module({
-  imports: [CollaborationModule, PageModule, StorageModule],
+  imports: [CollaborationModule, PageModule, StorageModule, BaseModule],
   controllers: [AiPageEditController],
   providers: [
     AiPageEditService,
@@ -18,7 +20,8 @@ import { StorageModule } from '../../integrations/storage/storage.module';
     ReferenceResolver,
     AttachmentWriter,
     DiagramPreparer,
+    BaseToolsService,
   ],
-  exports: [AiPageToolsService, AttachmentWriter],
+  exports: [AiPageToolsService, AttachmentWriter, BaseToolsService],
 })
 export class AiToolsModule {}

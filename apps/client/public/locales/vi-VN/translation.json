@@ -2112,5 +2112,22 @@
   "Moved a page": "Đã di chuyển trang",
   "Copied a page": "Đã sao chép trang",
   "Read the page history": "Đã xem lịch sử trang",
-  "Restored an earlier version": "Đã khôi phục một phiên bản cũ"
+  "Restored an earlier version": "Đã khôi phục một phiên bản cũ",
+  "Read a diagram": "Đã đọc sơ đồ",
+  "Moved a page to the trash": "Đã chuyển trang vào thùng rác",
+  "Restored a page from the trash": "Đã khôi phục trang từ thùng rác",
+  "Read the labels": "Đã xem nhãn",
+  "Added labels": "Đã thêm nhãn",
+  "Removed a label": "Đã gỡ nhãn",
+  "Updated a comment thread": "Đã cập nhật luồng bình luận",
+  "Deleted a comment": "Đã xóa bình luận",
+  "Downloaded a file": "Đã tải file về",
+  "Listed the databases": "Đã liệt kê cơ sở dữ liệu",
+  "Read a database": "Đã đọc cơ sở dữ liệu",
+  "Read database rows": "Đã đọc các dòng dữ liệu",
+  "Added database rows": "Đã thêm dòng dữ liệu",
+  "Updated database rows": "Đã cập nhật dòng dữ liệu",
+  "Deleted database rows": "Đã xóa dòng dữ liệu",
+  "Created a database": "Đã tạo cơ sở dữ liệu",
+  "Added a database column": "Đã thêm cột dữ liệu"
 }

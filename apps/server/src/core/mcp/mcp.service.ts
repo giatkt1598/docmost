@@ -60,6 +60,8 @@ import {
 import { SEARCH_QUERY_MAX_LENGTH } from '../search/dto/search.dto';
 import { UpdateSpaceDto } from '../space/dto/update-space.dto';
 import { CreateCommentDto } from '../comment/dto/create-comment.dto';
+import { WorkspaceToolsService } from './workspace-tools.service';
+import { ToolDefinition } from '../ai-tools/tool-definition';
 
 export type McpActor = { user: User; workspace: Workspace };
 
@@ -87,6 +89,7 @@ export class McpService {
     private readonly attachmentRepo: AttachmentRepo,
     private readonly pagePermissionRepo: PagePermissionRepo,
     private readonly pageTools: AiPageToolsService,
+    private readonly workspaceTools: WorkspaceToolsService,
   ) {}
 
   // Stateless: a fresh server per request, bound to the authenticated actor.
@@ -417,6 +420,7 @@ export class McpService {
     );
 
     this.registerPageTools(server, actor);
+    this.registerExtraTools(server, actor);
 
     return server;
   }
@@ -1162,6 +1166,26 @@ export class McpService {
       canEdit: permissions.canEdit,
       content: page.content ? jsonToMarkdown(page.content) : '',
     };
+  }
+
+  // Pages, labels, favorites, comments, files and bases (shared with AI chat).
+  extraTools(actor: McpActor): ToolDefinition[] {
+    return this.workspaceTools.definitions(actor);
+  }
+
+  private registerExtraTools(server: McpServer, actor: McpActor) {
+    for (const def of this.extraTools(actor)) {
+      server.registerTool(
+        def.name,
+        {
+          title: def.name.replace(/_/g, ' '),
+          description: def.description,
+          inputSchema: def.inputSchema,
+          annotations: { readOnlyHint: def.readOnly },
+        },
+        (args: any) => this.run(() => def.run(args)),
+      );
+    }
   }
 
   // Block-level page tools (shared with AI chat).
