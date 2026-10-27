@@ -104,9 +104,13 @@ export class WebPageFetcher implements OnModuleDestroy {
     const deadline = AbortSignal.timeout(PAGE_TIMEOUT_MS * 2);
     let finalUrl = url;
     let context: Awaited<ReturnType<Browser['newContext']>> | null = null;
+    // A remote browser service (browserless) ends idle sessions on its own
+    // timer, so each render gets its own session; a local one is reused.
+    const remote = this.environmentService.getWebImportBrowser() === 'remote';
+    let browser: Browser | null = null;
 
     try {
-      const browser = await this.getBrowser();
+      browser = remote ? await this.launchBrowser() : await this.getBrowser();
       context = await browser.newContext({
         locale: 'vi-VN',
         serviceWorkers: 'block',
@@ -179,6 +183,7 @@ export class WebPageFetcher implements OnModuleDestroy {
       throw new WebPageError('Could not render the page');
     } finally {
       await context?.close().catch(() => undefined);
+      if (remote) await browser?.close().catch(() => undefined);
       this.releaseRenderSlot();
     }
   }
