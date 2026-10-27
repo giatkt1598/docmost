@@ -143,7 +143,7 @@ export function DestinationPicker({
 
       <ScrollArea
         h="50vh"
-        offsetScrollbars
+        offsetScrollbars="present"
         className={classes.scrollArea}
         viewportRef={viewportRef}
       >
