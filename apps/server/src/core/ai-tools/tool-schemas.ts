@@ -63,11 +63,14 @@ export const spanSchema = z.union([
   }),
 ]);
 
+// a plain string is accepted wherever formatted text is expected
 const richText = z
-  .array(spanSchema)
-  .max(500)
+  .union([
+    z.string().max(20_000),
+    z.array(z.union([z.string().max(10_000), spanSchema])).max(500),
+  ])
   .describe(
-    'Formatted text: [{ text, bold?, italic?, underline?, strike?, code?, link? }]',
+    'Text: a plain string, or spans [{ text, bold?, italic?, underline?, strike?, code?, link? }]',
   );
 
 const BLOCK_TYPES = [
@@ -96,7 +99,12 @@ const BLOCK_TYPES = [
 
 export const blockInputSchema: z.ZodType<any> = z.lazy(() =>
   z.object({
-    type: z.enum(BLOCK_TYPES),
+    type: z
+      .enum(BLOCK_TYPES)
+      .optional()
+      .describe(
+        'Required, except for list items inside items/children of a list',
+      ),
     rich_text: richText.optional(),
     text: z
       .string()
@@ -114,12 +122,16 @@ export const blockInputSchema: z.ZodType<any> = z.lazy(() =>
       .array(z.array(richText).max(30))
       .max(200)
       .optional()
-      .describe('table: rows of cells, every row the same width'),
+      .describe(
+        'table: rows of cells (each cell a string or spans), every row the same width; the first row is the header when header_row is true',
+      ),
     items: z
-      .array(z.union([z.string().max(10_000), richText, blockInputSchema]))
+      .array(z.union([z.string().max(10_000), blockInputSchema]))
       .max(200)
       .optional()
-      .describe('lists: items as strings, rich text or item blocks'),
+      .describe(
+        'lists: items as strings, or objects { text | rich_text, checked? (todo), children? }',
+      ),
     open: z.boolean().optional().describe('toggle: expanded'),
     width: z
       .union([z.number(), z.string().max(20)])
@@ -140,7 +152,7 @@ export const blockInputSchema: z.ZodType<any> = z.lazy(() =>
     latex: z.string().max(5000).optional().describe('math: LaTeX'),
     align: z.enum(IMAGE_ALIGNS).nullable().optional().describe('image'),
     children: z
-      .array(blockInputSchema)
+      .array(z.union([z.string().max(20_000), blockInputSchema]))
       .max(100)
       .optional()
       .describe(
@@ -150,7 +162,9 @@ export const blockInputSchema: z.ZodType<any> = z.lazy(() =>
       .string()
       .max(20_000)
       .optional()
-      .describe('type "markdown": Markdown expanded into blocks'),
+      .describe(
+        'type "markdown": Markdown expanded into blocks (also read from "text")',
+      ),
   }),
 );
 
@@ -322,6 +336,20 @@ export const PAGE_TOOL_DESCRIPTIONS: Record<
     'Undo one earlier AI edit. Refused when someone changed the same blocks afterwards.',
 };
 
+const EXAMPLES = [
+  '{"type":"heading","level":2,"text":"Plan"}',
+  '{"type":"paragraph","rich_text":[{"text":"Due ","bold":true},{"text":"Friday"},{"mention":{"user_id":"<user uuid>"}}]}',
+  '{"type":"callout","variant":"warning","text":"Check the numbers"}',
+  '{"type":"bulleted_list","items":["One","Two"]}',
+  '{"type":"todo_list","items":[{"text":"Draft","checked":true},{"text":"Review"}]}',
+  '{"type":"table","header_row":true,"rows":[["Name","Owner"],["API","Ann"],["UI","Bob"]]}',
+  '{"type":"columns","children":[{"type":"column","children":[{"type":"paragraph","text":"Left"}]},{"type":"column","children":["Right"]}]}',
+  '{"type":"toggle","text":"Details","children":["Hidden text"]}',
+  '{"type":"code","language":"ts","text":"const a = 1;"}',
+  '{"type":"image","url":"https://example.com/chart.png","caption":"Chart"}',
+  '{"type":"markdown","markdown":"## Notes\\n- a\\n- b"}',
+];
+
 export const BLOCK_GUIDE = [
   'Blocks: paragraph, heading (level 1-3), quote, callout (variant default|info|note|success|warning|danger), code (language, text), divider,',
   'bulleted_list / numbered_list (items or list_item children), todo_list (todo_item with checked), table (header_row, rows of cells; update single cells with patch.cells),',
@@ -329,4 +357,6 @@ export const BLOCK_GUIDE = [
   'math (latex), video (url or attachment_id),',
   'and type "markdown" to insert longer Markdown at once. Text is rich_text spans or plain "text"; a span { mention: { page_id } } or { mention: { user_id } } links a page or a person, { math: "E=mc^2" } is an inline formula and { status: { text, color: gray|blue|green|yellow|red } } a status label.',
   'Blocks of type "unsupported" (drawings, complex tables...) can be moved or deleted but not edited.',
+  'An image from an external URL is copied into the workspace, so reading it back shows a /api/files/... url.',
+  `Examples: ${EXAMPLES.join(' ')}`,
 ].join(' ');

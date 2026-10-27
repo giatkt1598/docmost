@@ -88,7 +88,7 @@ describe('buildChatTools', () => {
     };
     const tools = buildChatTools(mcp as any, actor, true);
     expect(JSON.parse(await run(tools.get_page, { pageId: 'x' }))).toEqual({
-      error: 'No access',
+      error: { code: 'FORBIDDEN', message: 'No access' },
     });
   });
 

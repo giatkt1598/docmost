@@ -11,6 +11,7 @@ import { findBlocks, outline, sliceBlocks } from './blocks/navigation';
 import { Operation } from './operations/engine';
 import { pageToolSchemas } from './tool-schemas';
 import { ReferenceError, ReferenceResolver } from './reference-resolver';
+import { InputShapeError, normalizeOperations } from './operations/normalize';
 
 export type ToolActor = { user: User; workspace: Workspace };
 type Args<K extends keyof typeof pageToolSchemas> = z.infer<
@@ -114,8 +115,17 @@ export class AiPageToolsService {
     const page = await this.editable(actor, args.page_id);
     let resolved;
     try {
-      resolved = await this.references.resolve(args.operations, actor);
+      const operations = normalizeOperations(args.operations);
+      resolved = await this.references.resolve(operations, actor);
     } catch (err) {
+      if (err instanceof InputShapeError) {
+        return {
+          error: {
+            code: 'VALIDATION',
+            message: `${err.path}: ${err.message}`,
+          },
+        };
+      }
       if (err instanceof ReferenceError) {
         return { error: { code: 'VALIDATION', message: err.message } };
       }

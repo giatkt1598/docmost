@@ -51,6 +51,7 @@ import {
 } from '../../integrations/audit/audit.service';
 import { getPageTitle } from '../../common/helpers';
 import { AiPageToolsService } from '../ai-tools/ai-page-tools.service';
+import { toolError } from '../ai-tools/tool-error';
 import {
   BLOCK_GUIDE,
   PAGE_TOOL_DESCRIPTIONS,
@@ -1211,16 +1212,12 @@ export class McpService {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       };
     } catch (err) {
-      if (err instanceof HttpException) {
-        return {
-          isError: true,
-          content: [{ type: 'text', text: err.message }],
-        };
-      }
-      this.logger.error(err);
+      if (!(err instanceof HttpException)) this.logger.error(err);
       return {
         isError: true,
-        content: [{ type: 'text', text: 'Internal error' }],
+        content: [
+          { type: 'text', text: JSON.stringify(toolError(err), null, 2) },
+        ],
       };
     }
   }

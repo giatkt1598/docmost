@@ -575,6 +575,8 @@ describe('McpService HTTP handler', () => {
     });
 
     expect(body.result.isError).toBe(true);
-    expect(body.result.content[0].text).toEqual('Forbidden');
+    expect(JSON.parse(body.result.content[0].text)).toEqual({
+      error: { code: 'FORBIDDEN', message: 'Forbidden' },
+    });
   });
 });

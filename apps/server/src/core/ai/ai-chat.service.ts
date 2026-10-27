@@ -1,4 +1,9 @@
-import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  HttpException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ModelMessage, stepCountIs, streamText, tool, ToolSet } from 'ai';
 import { z } from 'zod';
 import { AiChat, User, Workspace } from '@docmost/db/types/entity.types';
@@ -7,6 +12,7 @@ import { McpActor, McpService } from '../mcp/mcp.service';
 import { SpaceRepo } from '@docmost/db/repos/space/space.repo';
 import { AiProviderService } from './ai-provider.service';
 import { AiPageToolsService } from '../ai-tools/ai-page-tools.service';
+import { toolError } from '../ai-tools/tool-error';
 import {
   BLOCK_GUIDE,
   PAGE_TOOL_DESCRIPTIONS,
@@ -73,9 +79,10 @@ async function runTool(fn: () => Promise<unknown>) {
       ? `${json.slice(0, MAX_TOOL_RESULT_CHARS)}… (truncated)`
       : json;
   } catch (err) {
-    const message =
-      err instanceof HttpException ? err.message : 'The tool failed';
-    return JSON.stringify({ error: message });
+    if (!(err instanceof HttpException)) {
+      new Logger('AiChatTools').error(err);
+    }
+    return JSON.stringify(toolError(err));
   }
 }
 

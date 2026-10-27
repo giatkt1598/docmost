@@ -520,8 +520,15 @@ export function fromBlockInput(
   const id = newBlockId();
 
   switch (input.type) {
-    case 'markdown':
-      return ctx.markdownToNodes(input.markdown ?? '');
+    case 'markdown': {
+      const nodes = ctx.markdownToNodes(input.markdown ?? '');
+      if (nodes.length === 0) {
+        throw new BlockInputError(
+          'The "markdown" block produced no content; put the Markdown in its "markdown" field',
+        );
+      }
+      return nodes;
+    }
     case 'paragraph':
       return [paragraph(spansOf(input))];
     case 'heading': {

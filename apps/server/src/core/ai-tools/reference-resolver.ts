@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { isUUID } from 'class-validator';
 import { User, Workspace } from '@docmost/db/types/entity.types';
 import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { UserRepo } from '@docmost/db/repos/user/user.repo';
@@ -43,6 +44,16 @@ export class ReferenceResolver {
       const key = page_id ? `p:${page_id}` : `u:${user_id}`;
       if (mentionCache.has(key)) return { ...mentionCache.get(key) };
       let attrs: Record<string, any>;
+      if (page_id && !isUUID(page_id) && !/^[A-Za-z0-9]{6,20}$/.test(page_id)) {
+        throw new ReferenceError(
+          `Mention page_id must be a page id or slug id, not "${page_id}"`,
+        );
+      }
+      if (user_id && !isUUID(user_id)) {
+        throw new ReferenceError(
+          `Mention user_id must be a user id (uuid), not "${user_id}"; look people up with list_workspace_members`,
+        );
+      }
       if (page_id) {
         const page = await this.pageRepo.findById(page_id);
         if (
