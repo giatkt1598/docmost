@@ -77,6 +77,7 @@ const OTHER_TOOL_LABELS: Record<
   list_page_history: (t) => t("Read the page history"),
   restore_page_version: (t) => t("Restored an earlier version"),
   get_diagram: (t) => t("Read a diagram"),
+  add_diagram: (t) => t("Added a diagram"),
   delete_page: (t) => t("Moved a page to the trash"),
   restore_page: (t) => t("Restored a page from the trash"),
   list_labels: (t) => t("Read the labels"),
@@ -99,6 +100,7 @@ const OTHER_TOOL_LABELS: Record<
 
 const PAGE_EDIT_TOOLS = new Set([
   "restore_page_version",
+  "add_diagram",
   "apply_operations",
   "insert_blocks",
   "update_block",

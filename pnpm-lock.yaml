@@ -672,6 +672,9 @@ importers:
       mammoth:
         specifier: 1.13.0
         version: 1.13.0
+      mermaid:
+        specifier: 11.16.1
+        version: 11.16.1
       mime-types:
         specifier: 3.0.2
         version: 3.0.2

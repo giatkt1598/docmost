@@ -160,6 +160,40 @@ export class AiPageToolsService {
     return this.result(outcome);
   }
 
+  // One diagram block, for models that look for a diagram tool by name.
+  addDiagram(
+    actor: ToolActor,
+    args: Args<'add_diagram'>,
+    ctx?: { aiChatId?: string },
+  ) {
+    const block =
+      args.format === 'mermaid'
+        ? { type: 'mermaid' as const, source: args.source }
+        : { type: 'drawio' as const, xml: args.xml, title: args.title };
+    if (args.format === 'mermaid' ? !args.source?.trim() : !args.xml?.trim()) {
+      return Promise.resolve({
+        error: {
+          code: 'VALIDATION',
+          message:
+            args.format === 'mermaid'
+              ? 'A mermaid diagram needs its "source"'
+              : 'A drawio diagram needs its "xml"',
+        },
+      });
+    }
+    return this.insertBlocks(
+      actor,
+      {
+        page_id: args.page_id,
+        summary: args.summary ?? `Add a ${args.format} diagram`,
+        parent_id: args.parent_id,
+        after_id: args.after_id,
+        blocks: [block as any],
+      },
+      ctx,
+    );
+  }
+
   insertBlocks(
     actor: ToolActor,
     args: Args<'insert_blocks'>,

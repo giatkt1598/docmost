@@ -91,6 +91,7 @@
     "kysely-postgres-js": "3.0.0",
     "ldapts": "8.1.7",
     "mammoth": "1.13.0",
+    "mermaid": "11.16.1",
     "mime-types": "3.0.2",
     "msgpackr": "1.11.9",
     "nanoid": "5.1.16",

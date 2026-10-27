@@ -37,6 +37,7 @@ describe('buildChatTools', () => {
       expect.arrayContaining([
         'create_page',
         'update_page',
+        'add_diagram',
         'apply_operations',
         'undo_ai_edit',
         'add_comment',

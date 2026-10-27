@@ -1201,6 +1201,7 @@ export class McpService {
     const writes = {
       apply_operations: (a: any) => tools.applyOperations(actor, a),
       insert_blocks: (a: any) => tools.insertBlocks(actor, a),
+      add_diagram: (a: any) => tools.addDiagram(actor, a),
       update_block: (a: any) => tools.updateBlock(actor, a),
       move_block: (a: any) => tools.moveBlock(actor, a),
       delete_blocks: (a: any) => tools.deleteBlocks(actor, a),
@@ -1217,6 +1218,7 @@ export class McpService {
             PAGE_TOOL_DESCRIPTIONS[name] +
             (readOnly ||
             name === 'undo_ai_edit' ||
+            name === 'add_diagram' ||
             name === 'restore_page_version'
               ? ''
               : ` ${BLOCK_GUIDE}`),

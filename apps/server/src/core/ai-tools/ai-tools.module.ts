@@ -7,6 +7,7 @@ import { AiPageEditController } from './ai-page-edit.controller';
 import { ReferenceResolver } from './reference-resolver';
 import { AttachmentWriter } from './attachment-writer';
 import { DiagramPreparer } from './diagrams/diagram-preparer';
+import { MermaidValidator } from './diagrams/mermaid-validator';
 import { StorageModule } from '../../integrations/storage/storage.module';
 import { BaseModule } from '../base/base.module';
 import { BaseToolsService } from './bases/base-tools.service';
@@ -20,6 +21,7 @@ import { BaseToolsService } from './bases/base-tools.service';
     ReferenceResolver,
     AttachmentWriter,
     DiagramPreparer,
+    MermaidValidator,
     BaseToolsService,
   ],
   exports: [AiPageToolsService, AttachmentWriter, BaseToolsService],

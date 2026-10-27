@@ -293,6 +293,27 @@ export const pageToolSchemas = {
     ...parentAndPosition,
     blocks: z.array(blockInputSchema).min(1).max(100),
   }),
+  add_diagram: z.object({
+    page_id: PAGE_ID,
+    summary: SUMMARY.optional(),
+    ...parentAndPosition,
+    format: z
+      .enum(['mermaid', 'drawio'])
+      .describe(
+        'mermaid for sequence, mindmap, flowchart, class, state, ER, gantt, timeline...; drawio for a free layout people will edit by hand',
+      ),
+    source: z
+      .string()
+      .max(20_000)
+      .optional()
+      .describe('mermaid: the diagram source'),
+    xml: z
+      .string()
+      .max(500_000)
+      .optional()
+      .describe('drawio: an <mxGraphModel> or <mxfile>'),
+    title: z.string().max(200).optional().describe('drawio: diagram name'),
+  }),
   update_block: z.object({
     page_id: PAGE_ID,
     summary: SUMMARY,
@@ -347,6 +368,8 @@ export const PAGE_TOOL_DESCRIPTIONS: Record<
     'Change a page with a batch of block operations, all or nothing: insert, update (only the fields of that block), move, delete. Pass the rev you read for every block you change; if a block changed meanwhile you get CONFLICT and should read again. Returns the changed blocks and an edit_id for undo.',
   insert_blocks:
     'Insert blocks after a sibling (or first) in the page or a container block.',
+  add_diagram:
+    'Add a diagram to a Docmost page, drawn right in the page: Mermaid (sequence diagram, mindmap, flowchart, class, state, ER, gantt, timeline, ...) or draw.io. Mermaid syntax is checked first; an error comes back to fix. Example: {"format":"mermaid","source":"sequenceDiagram\\n  User->>Docmost: Upload\\n  Docmost-->>User: attachment_id"}. Read a diagram with get_diagram; change it with update_block (patch.source or patch.xml).',
   update_block:
     "Change one block's own content or settings (text, level, checked, code, callout colour, table cells). Children are changed with insert/move/delete, never here.",
   move_block:

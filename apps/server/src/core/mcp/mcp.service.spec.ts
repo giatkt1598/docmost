@@ -539,6 +539,7 @@ describe('McpService HTTP handler', () => {
     expect(status).toBe(200);
     expect(body.result.tools.map((t: any) => t.name).sort()).toEqual([
       'add_base_property',
+      'add_diagram',
       'add_favorite',
       'add_page_labels',
       'apply_operations',
