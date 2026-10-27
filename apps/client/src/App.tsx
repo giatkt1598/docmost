@@ -105,6 +105,9 @@ const Connections = lazyWithPrefetch(
 const McpTokens = lazyWithPrefetch(
   () => import("@/pages/settings/account/mcp-tokens.tsx"),
 );
+const McpDocs = lazyWithPrefetch(
+  () => import("@/pages/settings/account/mcp-docs.tsx"),
+);
 const AiMcpSettings = lazyWithPrefetch(
   () => import("@/pages/settings/ai/ai-mcp-settings.tsx"),
 );
@@ -208,6 +211,7 @@ export default function App() {
             />
             <Route path={"account/connections"} element={<Connections />} />
             <Route path={"account/mcp"} element={<McpTokens />} />
+            <Route path={"account/mcp/docs"} element={<McpDocs />} />
             <Route path={"workspace"} element={<WorkspaceSettings />} />
             <Route path={"members"} element={<WorkspaceMembers />} />
             <Route path={"api-keys"} element={<WorkspaceApiKeys />} />

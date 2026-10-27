@@ -67,6 +67,54 @@ import { ToolDefinition } from '../ai-tools/tool-definition';
 
 export type McpActor = { user: User; workspace: Workspace };
 
+export type McpToolParamDoc = {
+  name: string;
+  type: string;
+  required: boolean;
+  description?: string;
+  enum?: unknown[];
+};
+
+export type McpToolDoc = {
+  name: string;
+  description: string;
+  readOnly: boolean;
+  params: McpToolParamDoc[];
+};
+
+function describeJsonType(schema: any): string {
+  if (!schema) return 'any';
+  if (schema.type === 'array') return `${describeJsonType(schema.items)}[]`;
+  if (Array.isArray(schema.type)) return schema.type.join(' | ');
+  if (schema.type) {
+    return schema.format ? `${schema.type} (${schema.format})` : schema.type;
+  }
+  const options = schema.anyOf ?? schema.oneOf;
+  if (options) return options.map(describeJsonType).join(' | ');
+  if (schema.enum) return 'string';
+  return 'any';
+}
+
+// A tools/list entry, flattened to what the documentation page shows.
+function toToolDoc(tool: any): McpToolDoc {
+  const schema = tool.inputSchema ?? {};
+  const required = new Set<string>(schema.required ?? []);
+  return {
+    name: tool.name,
+    description: tool.description ?? '',
+    readOnly: !!tool.annotations?.readOnlyHint,
+    params: Object.entries<any>(schema.properties ?? {}).map(
+      ([name, prop]) => ({
+        name,
+        type: describeJsonType(prop),
+        required: required.has(name),
+        ...(prop.description && { description: prop.description }),
+        ...(prop.enum && { enum: prop.enum }),
+      }),
+    ),
+  };
+}
+
 const MAX_LIST_LIMIT = 100;
 
 // Each tool mirrors the permission checks of the matching REST endpoint.
@@ -94,6 +142,38 @@ export class McpService {
     private readonly workspaceTools: WorkspaceToolsService,
     private readonly importTools: ImportToolsService,
   ) {}
+
+  /**
+   * The tools this actor's MCP server offers, for the documentation page:
+   * asked through the server itself so the list never drifts from it.
+   */
+  async listTools(actor: McpActor): Promise<McpToolDoc[]> {
+    const handler = this.createHandler(actor);
+    try {
+      const response = await handler.fetch(
+        new Request('http://localhost/api/mcp-server', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            accept: 'application/json, text/event-stream',
+          },
+        }),
+        { parsedBody: { jsonrpc: '2.0', id: 1, method: 'tools/list' } },
+      );
+      const text = await response.text();
+      // stateless responses may come back as a single SSE event
+      const json = text.startsWith('{')
+        ? text
+        : (text
+            .split('\n')
+            .find((l) => l.startsWith('data:'))
+            ?.slice(5) ?? '{}');
+      const tools: any[] = JSON.parse(json).result?.tools ?? [];
+      return tools.map((tool) => toToolDoc(tool));
+    } finally {
+      await handler.close().catch(() => undefined);
+    }
+  }
 
   // Stateless: a fresh server per request, bound to the authenticated actor.
   createHandler(actor: McpActor): McpHttpHandler {

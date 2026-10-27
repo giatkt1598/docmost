@@ -5,11 +5,17 @@ import {
   ICreateMcpToken,
   IMcpToken,
   IMcpTokenWithOwner,
+  IMcpToolDoc,
 } from "@/features/mcp/types/mcp-token.types";
 
 export async function getMcpServerInfo(): Promise<{ enabled: boolean }> {
   const req = await api.post<{ enabled: boolean }>("/mcp-tokens/info");
   return req.data;
+}
+
+export async function getMcpTools(): Promise<IMcpToolDoc[]> {
+  const req = await api.post<{ tools: IMcpToolDoc[] }>("/mcp-tokens/tools");
+  return req.data.tools;
 }
 
 export async function getMcpTokens(): Promise<IMcpToken[]> {

@@ -11,6 +11,7 @@ import {
   getAllMcpTokens,
   getMcpServerInfo,
   getMcpTokens,
+  getMcpTools,
   revokeMcpToken,
 } from "@/features/mcp/services/mcp-token-service";
 import { ICreateMcpToken } from "@/features/mcp/types/mcp-token.types";
@@ -24,6 +25,15 @@ export function useMcpServerInfoQuery() {
     queryKey: [MCP_SERVER_INFO_KEY],
     queryFn: getMcpServerInfo,
     staleTime: 5 * 60_000,
+  });
+}
+
+export function useMcpToolsQuery(enabled = true) {
+  return useQuery({
+    queryKey: ["mcp-tools"],
+    queryFn: getMcpTools,
+    staleTime: 5 * 60_000,
+    enabled,
   });
 }
 

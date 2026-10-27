@@ -14,6 +14,7 @@ import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator'
 import { User, Workspace } from '@docmost/db/types/entity.types';
 import { EnvironmentService } from '../../integrations/environment/environment.service';
 import { McpTokenService } from './mcp-token.service';
+import { McpService } from './mcp.service';
 import {
   CreateMcpTokenDto,
   ListMcpTokensDto,
@@ -28,6 +29,7 @@ export class McpTokenController {
   constructor(
     private readonly mcpTokenService: McpTokenService,
     private readonly environmentService: EnvironmentService,
+    private readonly mcpService: McpService,
   ) {}
 
   private assertEnabled() {
@@ -40,6 +42,14 @@ export class McpTokenController {
   @Post('info')
   async info() {
     return { enabled: this.environmentService.isMcpServerEnabled() };
+  }
+
+  // the tools a token of this user would get, for the documentation page
+  @HttpCode(HttpStatus.OK)
+  @Post('tools')
+  async tools(@AuthUser() user: User, @AuthWorkspace() workspace: Workspace) {
+    this.assertEnabled();
+    return { tools: await this.mcpService.listTools({ user, workspace }) };
   }
 
   @HttpCode(HttpStatus.OK)

@@ -603,6 +603,29 @@ describe('McpService HTTP handler', () => {
     ]);
   });
 
+  it('documents the tools with their parameters', async () => {
+    const { service } = createService();
+
+    const tools = await service.listTools(actor);
+    const createPage = tools.find((t) => t.name === 'create_page')!;
+    const getPage = tools.find((t) => t.name === 'get_page')!;
+
+    expect(tools.length).toBeGreaterThan(50);
+    expect(createPage.readOnly).toBe(false);
+    expect(getPage.readOnly).toBe(true);
+    expect(createPage.params).toEqual(
+      expect.arrayContaining([
+        { name: 'spaceId', type: 'string (uuid)', required: true },
+        {
+          name: 'content',
+          type: 'string',
+          required: false,
+          description: 'Markdown content',
+        },
+      ]),
+    );
+  });
+
   it('returns permission failures as tool errors', async () => {
     const { service, deps } = createService();
     deps.pageAccessService.validateCanViewWithPermissions.mockRejectedValue(

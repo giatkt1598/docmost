@@ -21,6 +21,7 @@ import {
 } from "@/features/mcp/queries/mcp-token-query";
 import CreateMcpTokenModal from "@/features/mcp/components/create-mcp-token-modal";
 import { getMcpServerUrl } from "@/features/mcp/mcp.utils";
+import { McpDocsButton } from "@/features/mcp/components/mcp-docs-button";
 
 export default function McpTokenList() {
   const { t } = useTranslation();
@@ -59,7 +60,10 @@ export default function McpTokenList() {
 
       <Group justify="space-between" mt="md">
         <Text fw={500}>{t("MCP tokens")}</Text>
-        <Button onClick={open}>{t("Create token")}</Button>
+        <Group gap="xs" wrap="nowrap">
+          <McpDocsButton />
+          <Button onClick={open}>{t("Create token")}</Button>
+        </Group>
       </Group>
 
       <Table verticalSpacing="sm">

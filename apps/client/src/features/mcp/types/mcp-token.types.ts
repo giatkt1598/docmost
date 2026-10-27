@@ -28,3 +28,17 @@ export interface ICreatedMcpToken {
   token: string;
   mcpToken: IMcpToken;
 }
+
+// a tool of the MCP server, as the documentation page lists it
+export interface IMcpToolDoc {
+  name: string;
+  description: string;
+  readOnly: boolean;
+  params: {
+    name: string;
+    type: string;
+    required: boolean;
+    description?: string;
+    enum?: unknown[];
+  }[];
+}
