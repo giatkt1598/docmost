@@ -7,8 +7,7 @@ export function updateColumns(
   colgroup: HTMLElement,
   table: HTMLTableElement,
   cellMinWidth: number,
-  overrideCol?: number,
-  overrideValue?: number,
+  overrides?: Map<number, number>,
 ) {
   let totalWidth = 0;
   let fixedWidth = true;
@@ -20,10 +19,9 @@ export function updateColumns(
       const { colspan, colwidth } = row.child(i).attrs;
 
       for (let j = 0; j < colspan; j += 1, col += 1) {
-        const hasWidth =
-          overrideCol === col
-            ? overrideValue
-            : ((colwidth && colwidth[j]) as number | undefined);
+        const hasWidth = overrides?.has(col)
+          ? overrides.get(col)
+          : ((colwidth && colwidth[j]) as number | undefined);
         const cssWidth = hasWidth ? `${hasWidth}px` : '';
 
         totalWidth += hasWidth || cellMinWidth;
@@ -77,9 +75,12 @@ export function updateColumns(
   if (fixedWidth && !hasUserWidth) {
     table.style.width = `${totalWidth}px`;
     table.style.minWidth = '';
+    // lets the stylesheet drop its default min-width so the table can shrink
+    table.dataset.fixedWidth = 'true';
   } else {
     table.style.width = '';
     table.style.minWidth = `${totalWidth}px`;
+    delete table.dataset.fixedWidth;
   }
 }
 

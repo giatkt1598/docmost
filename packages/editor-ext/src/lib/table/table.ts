@@ -2,7 +2,8 @@ import { Table } from "@tiptap/extension-table";
 import { Editor } from "@tiptap/core";
 import { DOMOutputSpec } from "@tiptap/pm/model";
 import { TextSelection } from "@tiptap/pm/state";
-import { cellAround } from "@tiptap/pm/tables";
+import { cellAround, tableEditing } from "@tiptap/pm/tables";
+import { columnResizing } from "./column-resizing";
 
 const LIST_TYPES = ["bulletList", "orderedList", "taskList"];
 
@@ -34,6 +35,26 @@ function handleListOutdent(editor: Editor): boolean {
 }
 
 export const CustomTable = Table.extend({
+  // Replaces the stock columnResizing plugin: outer edges scale the whole
+  // table, inner boundaries resize the two neighbouring columns.
+  addProseMirrorPlugins() {
+    const isResizable = this.options.resizable && this.editor.isEditable;
+
+    return [
+      ...(isResizable
+        ? [
+            columnResizing({
+              handleWidth: this.options.handleWidth,
+              cellMinWidth: this.options.cellMinWidth,
+              View: this.options.View as any,
+            }),
+          ]
+        : []),
+      tableEditing({
+        allowTableNodeSelection: this.options.allowTableNodeSelection,
+      }),
+    ];
+  },
 
   addKeyboardShortcuts() {
     return {

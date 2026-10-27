@@ -4,6 +4,8 @@ export * from "./header";
 export * from "./table";
 export * from "./dnd";
 export * from "./table-view";
+export { columnResizing } from "./column-resizing";
+export * from "./utils/column-resize";
 export * from "./header-pin";
 export * from "./table-readonly-sort";
 export { moveColumn } from "./utils/move-column";
