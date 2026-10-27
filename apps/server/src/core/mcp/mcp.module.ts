@@ -13,6 +13,8 @@ import { LabelModule } from '../label/label.module';
 import { FavoriteModule } from '../favorite/favorite.module';
 import { WorkspaceToolsService } from './workspace-tools.service';
 import { RemoteFileFetcher } from '../media-localize/remote-file-fetcher.service';
+import { ImportModule } from '../../integrations/import/import.module';
+import { ImportToolsService } from './import-tools.service';
 
 @Module({
   imports: [
@@ -23,6 +25,7 @@ import { RemoteFileFetcher } from '../media-localize/remote-file-fetcher.service
     AiToolsModule,
     LabelModule,
     FavoriteModule,
+    ImportModule,
   ],
   controllers: [McpController, McpTokenController],
   providers: [
@@ -30,6 +33,7 @@ import { RemoteFileFetcher } from '../media-localize/remote-file-fetcher.service
     McpTokenService,
     McpAuthGuard,
     WorkspaceToolsService,
+    ImportToolsService,
     RemoteFileFetcher,
   ],
   exports: [McpService],

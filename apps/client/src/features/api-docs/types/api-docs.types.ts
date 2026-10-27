@@ -23,7 +23,10 @@ export interface IApiOperation {
   scope: "read" | "write";
   sessionOnly: boolean;
   pathParams: string[];
+  description?: string;
   body?: ISchema;
+  // sent as multipart/form-data (file uploads) instead of JSON
+  multipart?: boolean;
 }
 
 export interface IOpenApiSpec {

@@ -31,6 +31,7 @@ import { QueueJob, QueueName } from '../../queue/constants';
 import { DocxImportService } from './docx-import.service';
 import { PdfImportService } from './pdf-import.service';
 import { load } from 'cheerio';
+import { Readable } from 'node:stream';
 import { normalizeImportHtml } from '../utils/import-formatter';
 import {
   extractWebPage,
@@ -84,10 +85,26 @@ export class ImportService {
     workspaceId: string,
   ) {
     const file = await filePromise;
-    const fileBuffer = await file.toBuffer();
-    const fileExtension = path.extname(file.filename).toLowerCase();
+    return this.importPageFile(
+      await file.toBuffer(),
+      file.filename,
+      userId,
+      spaceId,
+      workspaceId,
+    );
+  }
+
+  // One .md, .html, .docx or .pdf file; the format follows the extension.
+  async importPageFile(
+    fileBuffer: Buffer,
+    originalName: string,
+    userId: string,
+    spaceId: string,
+    workspaceId: string,
+  ) {
+    const fileExtension = path.extname(originalName).toLowerCase();
     const fileName = sanitizeFileName(
-      path.basename(file.filename, fileExtension),
+      path.basename(originalName, fileExtension),
     );
     const fileContent = fileBuffer.toString();
 
@@ -439,21 +456,43 @@ export class ImportService {
     workspaceId: string,
   ) {
     const file = await filePromise;
-    const fileExtension = path.extname(file.filename).toLowerCase();
+    return this.importZipFile(
+      file.file,
+      file.filename,
+      source,
+      userId,
+      spaceId,
+      workspaceId,
+    );
+  }
+
+  // Stores the zip and queues a background import; returns the file task.
+  async importZipFile(
+    content: Buffer | Readable,
+    originalName: string,
+    source: string,
+    userId: string,
+    spaceId: string,
+    workspaceId: string,
+  ) {
+    const fileExtension = path.extname(originalName).toLowerCase();
     const fileName = sanitizeFileName(
-      path.basename(file.filename, fileExtension),
+      path.basename(originalName, fileExtension),
     );
     const fileNameWithExt = fileName + fileExtension;
 
     const fileTaskId = uuid7();
     const filePath = `${getFileTaskFolderPath(FileTaskType.Import, workspaceId)}/${fileTaskId}/${fileNameWithExt}`;
 
-    // upload file
-    const { stream, getBytesRead } = createByteCountingStream(file.file);
-
-    await this.storageService.upload(filePath, stream);
-
-    const fileSize = getBytesRead();
+    let fileSize: number;
+    if (Buffer.isBuffer(content)) {
+      await this.storageService.upload(filePath, content);
+      fileSize = content.length;
+    } else {
+      const { stream, getBytesRead } = createByteCountingStream(content);
+      await this.storageService.upload(filePath, stream);
+      fileSize = getBytesRead();
+    }
 
     const fileTask = await this.db
       .insertInto('fileTasks')
@@ -478,5 +517,13 @@ export class ImportService {
     });
 
     return fileTask;
+  }
+
+  async findFileTask(fileTaskId: string) {
+    return this.db
+      .selectFrom('fileTasks')
+      .selectAll()
+      .where('id', '=', fileTaskId)
+      .executeTakeFirst();
   }
 }

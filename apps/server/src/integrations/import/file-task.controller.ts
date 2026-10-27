@@ -25,6 +25,8 @@ import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@docmost/db/types/kysely.types';
 import { AuthUser } from '../../common/decorators/auth-user.decorator';
 import { FileTaskIdDto } from './dto/file-task-dto';
+import { OAuthScope } from '../../common/decorators/oauth-scope.decorator';
+import { ApiDescription } from '../../core/api-docs/api-docs.decorators';
 import { SpaceMemberRepo } from '@docmost/db/repos/space/space-member.repo';
 import { PaginationOptions } from '@docmost/db/pagination/pagination-options';
 import { executeWithCursorPagination } from '@docmost/db/pagination/cursor-pagination';
@@ -70,6 +72,10 @@ export class FileTaskController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @Post('info')
+  @OAuthScope('read')
+  @ApiDescription(
+    'Status of a zip import: status is "processing", "success" or "failed" (see errorMessage).',
+  )
   async getFileTask(@Body() dto: FileTaskIdDto, @AuthUser() user: User) {
     const fileTask = await this.db
       .selectFrom('fileTasks')

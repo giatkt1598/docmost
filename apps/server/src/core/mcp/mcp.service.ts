@@ -62,6 +62,7 @@ import { SEARCH_QUERY_MAX_LENGTH } from '../search/dto/search.dto';
 import { UpdateSpaceDto } from '../space/dto/update-space.dto';
 import { CreateCommentDto } from '../comment/dto/create-comment.dto';
 import { WorkspaceToolsService } from './workspace-tools.service';
+import { ImportToolsService } from './import-tools.service';
 import { ToolDefinition } from '../ai-tools/tool-definition';
 
 export type McpActor = { user: User; workspace: Workspace };
@@ -91,6 +92,7 @@ export class McpService {
     private readonly pagePermissionRepo: PagePermissionRepo,
     private readonly pageTools: AiPageToolsService,
     private readonly workspaceTools: WorkspaceToolsService,
+    private readonly importTools: ImportToolsService,
   ) {}
 
   // Stateless: a fresh server per request, bound to the authenticated actor.
@@ -1184,7 +1186,12 @@ export class McpService {
   }
 
   private registerExtraTools(server: McpServer, actor: McpActor) {
-    for (const def of this.extraTools(actor)) {
+    // import tools need files, which AI chat cannot hand over: MCP only
+    const defs = [
+      ...this.extraTools(actor),
+      ...this.importTools.definitions(actor),
+    ];
+    for (const def of defs) {
       server.registerTool(
         def.name,
         {

@@ -5,10 +5,13 @@ import {
   Badge,
   Button,
   Code,
+  FileInput,
   Group,
+  Select,
   Stack,
   Table,
   Text,
+  TextInput,
   Textarea,
 } from "@mantine/core";
 import { IconPlayerPlay } from "@tabler/icons-react";
@@ -20,6 +23,8 @@ import {
   describeConstraints,
   describeType,
   exampleBody,
+  isFileField,
+  multipartFields,
 } from "@/features/api-docs/api-docs.utils";
 
 const METHOD_COLORS: Record<string, string> = {
@@ -37,7 +42,7 @@ interface ApiEndpointProps {
 
 export function ApiEndpoint({ op, baseUrl }: ApiEndpointProps) {
   const { t } = useTranslation();
-  const example = op.body ? exampleBody(op.body) : null;
+  const example = op.body && !op.multipart ? exampleBody(op.body) : null;
   const curl = curlExample(baseUrl, op, example);
   const fields = Object.entries(op.body?.properties ?? {});
   const required = new Set(op.body?.required ?? []);
@@ -51,10 +56,27 @@ export function ApiEndpoint({ op, baseUrl }: ApiEndpointProps) {
   } | null>(null);
   const [sending, setSending] = useState(false);
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [formFiles, setFormFiles] = useState<Record<string, File | null>>({});
+
+  const multipartBody = () => {
+    const form = new FormData();
+    for (const [name, schema] of multipartFields(op.body)) {
+      if (isFileField(schema)) {
+        const file = formFiles[name];
+        if (file) form.append(name, file);
+      } else if (formValues[name]) {
+        form.append(name, formValues[name]);
+      }
+    }
+    return form;
+  };
 
   const send = async () => {
-    let body: string | undefined;
-    if (op.method !== "get") {
+    let body: string | FormData | undefined;
+    if (op.multipart) {
+      body = multipartBody();
+    } else if (op.method !== "get") {
       try {
         body = JSON.stringify(JSON.parse(payload || "{}"));
         setJsonError(null);
@@ -69,7 +91,11 @@ export function ApiEndpoint({ op, baseUrl }: ApiEndpointProps) {
       const res = await fetch(op.path, {
         method: op.method.toUpperCase(),
         credentials: "include",
-        headers: body ? { "Content-Type": "application/json" } : undefined,
+        // FormData sets its own multipart boundary
+        headers:
+          typeof body === "string"
+            ? { "Content-Type": "application/json" }
+            : undefined,
         body,
       });
       const text = await res.text();
@@ -126,6 +152,12 @@ export function ApiEndpoint({ op, baseUrl }: ApiEndpointProps) {
               </Badge>
             )}
           </Group>
+
+          {op.description && (
+            <Text size="sm" c="dimmed" style={{ whiteSpace: "pre-line" }}>
+              {op.description}
+            </Text>
+          )}
 
           {op.pathParams.length > 0 && (
             <Text size="sm">
@@ -206,7 +238,45 @@ export function ApiEndpoint({ op, baseUrl }: ApiEndpointProps) {
                   </Text>
                 </Alert>
               )}
-              {op.method !== "get" && (
+              {op.multipart &&
+                multipartFields(op.body).map(([name, schema]) =>
+                  isFileField(schema) ? (
+                    <FileInput
+                      key={name}
+                      size="xs"
+                      label={name}
+                      placeholder={schema.description}
+                      value={formFiles[name] ?? null}
+                      onChange={(file) =>
+                        setFormFiles((f) => ({ ...f, [name]: file }))
+                      }
+                      clearable
+                    />
+                  ) : schema.enum?.length ? (
+                    <Select
+                      key={name}
+                      size="xs"
+                      label={name}
+                      data={schema.enum.map(String)}
+                      value={formValues[name] ?? null}
+                      onChange={(value) =>
+                        setFormValues((v) => ({ ...v, [name]: value ?? "" }))
+                      }
+                    />
+                  ) : (
+                    <TextInput
+                      key={name}
+                      size="xs"
+                      label={name}
+                      value={formValues[name] ?? ""}
+                      onChange={(e) => {
+                        const value = e.currentTarget.value;
+                        setFormValues((v) => ({ ...v, [name]: value }));
+                      }}
+                    />
+                  ),
+                )}
+              {op.method !== "get" && !op.multipart && (
                 <Textarea
                   value={payload}
                   onChange={(e) => setPayload(e.currentTarget.value)}

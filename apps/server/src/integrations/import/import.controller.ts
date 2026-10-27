@@ -24,6 +24,16 @@ import { FileInterceptor } from '../../common/interceptors/file.interceptor';
 import * as bytes from 'bytes';
 import * as path from 'path';
 import { ImportService } from './services/import.service';
+import {
+  PAGE_IMPORT_EXTENSIONS,
+  PAGE_IMPORT_MAX_SIZE,
+  ZIP_IMPORT_SOURCES,
+} from './import.constants';
+import { OAuthScope } from '../../common/decorators/oauth-scope.decorator';
+import {
+  ApiDescription,
+  ApiMultipartBody,
+} from '../../core/api-docs/api-docs.decorators';
 import { ImportWebPageDto } from './dto/import-web-page.dto';
 import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator';
 import { EnvironmentService } from '../environment/environment.service';
@@ -48,14 +58,30 @@ export class ImportController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @Post('pages/import')
+  @OAuthScope('write')
+  @ApiDescription(
+    'Creates a page at the root of the space from one Markdown, HTML, Word or PDF file. The first heading becomes the title. Returns the new page. Send spaceId before the file part.',
+  )
+  @ApiMultipartBody({
+    type: 'object',
+    properties: {
+      file: {
+        type: 'string',
+        format: 'binary',
+        description: `${PAGE_IMPORT_EXTENSIONS.join(', ')}; max ${PAGE_IMPORT_MAX_SIZE}`,
+      },
+      spaceId: { type: 'string', format: 'uuid' },
+    },
+    required: ['file', 'spaceId'],
+  })
   async importPage(
     @Req() req: any,
     @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
-    const validFileExtensions = ['.md', '.html', '.docx', '.pdf'];
+    const validFileExtensions = PAGE_IMPORT_EXTENSIONS;
 
-    const maxFileSize = bytes('30mb');
+    const maxFileSize = bytes(PAGE_IMPORT_MAX_SIZE);
 
     let file = null;
     try {
@@ -66,7 +92,7 @@ export class ImportController {
       this.logger.error(err.message);
       if (err?.statusCode === 413) {
         throw new BadRequestException(
-          `File too large. Exceeds the 30mb import limit`,
+          `File too large. Exceeds the ${PAGE_IMPORT_MAX_SIZE} import limit`,
         );
       }
     }
@@ -126,6 +152,10 @@ export class ImportController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @Post('pages/import-url')
+  @OAuthScope('write')
+  @ApiDescription(
+    'Reads a public web page and creates a page at the root of the space. mode "article" (default) keeps the main content; "full" keeps the whole page without menus and footers. Images are copied into Docmost shortly after. Returns the new page.',
+  )
   async importWebPage(
     @Body() dto: ImportWebPageDto,
     @AuthUser() user: User,
@@ -162,6 +192,19 @@ export class ImportController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @Post('pages/import-zip')
+  @OAuthScope('write')
+  @ApiDescription(
+    'Imports a zip of pages in the background: a folder of Markdown/HTML files (generic), a Notion export, or a Confluence HTML space export. Returns a file task; poll /api/file-tasks/info with its id until status is "success" or "failed". Send spaceId and source before the file part.',
+  )
+  @ApiMultipartBody({
+    type: 'object',
+    properties: {
+      file: { type: 'string', format: 'binary', description: '.zip' },
+      spaceId: { type: 'string', format: 'uuid' },
+      source: { type: 'string', enum: [...ZIP_IMPORT_SOURCES] },
+    },
+    required: ['file', 'spaceId', 'source'],
+  })
   async importZip(
     @Req() req: any,
     @AuthUser() user: User,
@@ -198,8 +241,7 @@ export class ImportController {
     const spaceId = file.fields?.spaceId?.value;
     const source = file.fields?.source?.value;
 
-    const validZipSources = ['generic', 'notion', 'confluence'];
-    if (!validZipSources.includes(source)) {
+    if (!(ZIP_IMPORT_SOURCES as readonly string[]).includes(source)) {
       throw new BadRequestException(
         'Invalid import source. Import source must either be generic, notion or confluence.',
       );

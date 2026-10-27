@@ -10,6 +10,10 @@ import { OAUTH_SCOPE_KEY } from '../../common/decorators/oauth-scope.decorator';
 import { REQUIRE_SESSION_AUTH_KEY } from '../../common/decorators/require-session-auth.decorator';
 import { DomainService } from '../../integrations/environment/domain.service';
 import { schemaFromDto, SchemaObject } from './openapi-schema';
+import {
+  API_DESCRIPTION_KEY,
+  API_MULTIPART_BODY_KEY,
+} from './api-docs.decorators';
 
 export type ApiOperation = {
   method: string;
@@ -21,7 +25,10 @@ export type ApiOperation = {
   // the route refuses API keys (interactive session only)
   sessionOnly: boolean;
   pathParams: string[];
+  description?: string;
   body?: SchemaObject;
+  // body sent as multipart/form-data (file uploads) instead of JSON
+  multipart?: boolean;
 };
 
 const METHODS: Partial<Record<RequestMethod, string>> = {
@@ -90,6 +97,10 @@ export class ApiDocsService {
           Reflect.getMetadata(PATH_METADATA, handler) ?? '',
         )[0];
         const path = joinPath('api', basePath, routePath);
+        const multipartBody: SchemaObject | undefined = this.reflector.get(
+          API_MULTIPART_BODY_KEY,
+          handler,
+        );
 
         operations.push({
           method,
@@ -103,7 +114,9 @@ export class ApiDocsService {
             [handler, controller],
           ),
           pathParams: [...path.matchAll(/:([a-zA-Z0-9_]+)/g)].map((m) => m[1]),
-          body: this.bodySchema(controller, name),
+          description: this.reflector.get(API_DESCRIPTION_KEY, handler),
+          body: multipartBody ?? this.bodySchema(controller, name),
+          ...(multipartBody && { multipart: true }),
         });
       }
     }
@@ -118,15 +131,19 @@ export class ApiDocsService {
     const paths: Record<string, Record<string, unknown>> = {};
     for (const op of this.operations()) {
       const openApiPath = op.path.replace(/:([a-zA-Z0-9_]+)/g, '{$1}');
+      const description = [
+        op.description,
+        op.sessionOnly &&
+          'Requires an interactive session; API keys are refused (403).',
+      ]
+        .filter(Boolean)
+        .join('\n\n');
       paths[openApiPath] ??= {};
       paths[openApiPath][op.method] = {
         tags: [op.tag],
         summary: op.summary,
         operationId: op.operationId,
-        ...(op.sessionOnly && {
-          description:
-            'Requires an interactive session; API keys are refused (403).',
-        }),
+        ...(description && { description }),
         'x-docmost-scope': op.scope,
         'x-docmost-session-only': op.sessionOnly,
         parameters: op.pathParams.map((name) => ({
@@ -138,7 +155,11 @@ export class ApiDocsService {
         ...(op.body && {
           requestBody: {
             required: true,
-            content: { 'application/json': { schema: op.body } },
+            content: {
+              [op.multipart ? 'multipart/form-data' : 'application/json']: {
+                schema: op.body,
+              },
+            },
           },
         }),
         responses: {

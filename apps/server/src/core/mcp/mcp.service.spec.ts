@@ -1,6 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { McpService } from './mcp.service';
 import { WorkspaceToolsService } from './workspace-tools.service';
+import { ImportToolsService } from './import-tools.service';
 import { BaseToolsService } from '../ai-tools/bases/base-tools.service';
 
 // the extra tools with no services behind them: enough to list them
@@ -9,6 +10,11 @@ const workspaceTools = () =>
     ...Array(12).fill({}),
     new (BaseToolsService as any)(...Array(7).fill({})),
   ) as WorkspaceToolsService;
+
+// the real service pulls in ESM-only import formatters
+jest.mock('../../integrations/import/services/import.service', () => ({
+  ImportService: class {},
+}));
 
 jest.mock('../../collaboration/collaboration.util', () => ({
   jsonToMarkdown: jest.fn(() => '# markdown'),
@@ -132,6 +138,7 @@ function createService(
     deps.pagePermissionRepo as any,
     {} as any,
     workspaceTools(),
+    new (ImportToolsService as any)(...Array(5).fill({})),
   );
   return { service, deps };
 }
@@ -560,9 +567,12 @@ describe('McpService HTTP handler', () => {
       'get_comments',
       'get_current_user',
       'get_diagram',
+      'get_import_task',
       'get_page',
       'get_page_outline',
       'get_space',
+      'import_page',
+      'import_zip',
       'insert_blocks',
       'list_bases',
       'list_child_pages',

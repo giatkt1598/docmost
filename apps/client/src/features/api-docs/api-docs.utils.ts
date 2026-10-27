@@ -8,6 +8,8 @@ export function operationsFromSpec(spec: IOpenApiSpec): IApiOperation[] {
   const operations: IApiOperation[] = [];
   for (const [openApiPath, methods] of Object.entries(spec.paths)) {
     for (const [method, op] of Object.entries(methods)) {
+      const content = op.requestBody?.content ?? {};
+      const multipartBody = content["multipart/form-data"]?.schema;
       operations.push({
         method,
         path: openApiPath,
@@ -17,7 +19,9 @@ export function operationsFromSpec(spec: IOpenApiSpec): IApiOperation[] {
         scope: op["x-docmost-scope"],
         sessionOnly: !!op["x-docmost-session-only"],
         pathParams: (op.parameters ?? []).map((p: any) => p.name),
-        body: op.requestBody?.content?.["application/json"]?.schema,
+        description: op.description,
+        body: content["application/json"]?.schema ?? multipartBody,
+        multipart: !!multipartBody,
       });
     }
   }
@@ -54,7 +58,22 @@ export function exampleBody(schema?: ISchema): Record<string, unknown> {
   return body;
 }
 
+export function isFileField(schema?: ISchema): boolean {
+  return schema?.type === "string" && schema.format === "binary";
+}
+
+// Multipart fields with the files last: the server only sees the fields that
+// arrive before the file part.
+export function multipartFields(schema?: ISchema): [string, ISchema][] {
+  const fields = Object.entries(schema?.properties ?? {});
+  return [
+    ...fields.filter(([, s]) => !isFileField(s)),
+    ...fields.filter(([, s]) => isFileField(s)),
+  ];
+}
+
 export function describeType(schema: ISchema): string {
+  if (isFileField(schema)) return "file";
   if (schema.type === "array") {
     const item = schema.items ? describeType(schema.items) : "any";
     return `${item}[]`;
@@ -85,6 +104,17 @@ export function curlExample(
     `curl -X ${op.method.toUpperCase()} "${baseUrl}${op.path}"`,
     `  -H "Authorization: Bearer $DOCMOST_API_KEY"`,
   ];
+  if (op.multipart) {
+    const required = new Set(op.body?.required ?? []);
+    for (const [name, schema] of multipartFields(op.body)) {
+      if (!required.has(name)) continue;
+      const value = isFileField(schema)
+        ? `@path/to/${name}`
+        : String(exampleValue(name, schema));
+      lines.push(`  -F "${name}=${value}"`);
+    }
+    return lines.join(" \\\n");
+  }
   if (body) {
     lines.push(`  -H "Content-Type: application/json"`);
     lines.push(`  -d '${JSON.stringify(body)}'`);
