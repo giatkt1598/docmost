@@ -1,8 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 import {
   createMcpToken,
+  getAllMcpTokens,
   getMcpServerInfo,
   getMcpTokens,
   revokeMcpToken,
@@ -10,6 +16,7 @@ import {
 import { ICreateMcpToken } from "@/features/mcp/types/mcp-token.types";
 
 const MCP_TOKENS_KEY = "mcp-tokens";
+const ALL_MCP_TOKENS_KEY = "mcp-tokens-all";
 const MCP_SERVER_INFO_KEY = "mcp-server-info";
 
 export function useMcpServerInfoQuery() {
@@ -28,12 +35,22 @@ export function useMcpTokensQuery(enabled = true) {
   });
 }
 
+// every token of the workspace (admins)
+export function useAllMcpTokensQuery(cursor?: string) {
+  return useQuery({
+    queryKey: [ALL_MCP_TOKENS_KEY, cursor],
+    queryFn: () => getAllMcpTokens({ cursor }),
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useCreateMcpTokenMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: ICreateMcpToken) => createMcpToken(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [MCP_TOKENS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [ALL_MCP_TOKENS_KEY] });
     },
     onError: (error: any) => {
       notifications.show({
@@ -51,6 +68,7 @@ export function useRevokeMcpTokenMutation() {
     mutationFn: (tokenId: string) => revokeMcpToken(tokenId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [MCP_TOKENS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [ALL_MCP_TOKENS_KEY] });
       notifications.show({ message: t("Token revoked") });
     },
     onError: (error: any) => {

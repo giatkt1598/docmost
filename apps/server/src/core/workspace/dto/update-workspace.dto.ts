@@ -30,6 +30,10 @@ export class UpdateWorkspaceDto extends PartialType(CreateWorkspaceDto) {
 
   @IsOptional()
   @IsBoolean()
+  restrictMcpToAdmins: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   aiSearch: boolean;
 
   @IsOptional()

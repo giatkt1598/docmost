@@ -1,8 +1,10 @@
 import api from "@/lib/api-client";
+import { IPagination } from "@/lib/types.ts";
 import {
   ICreatedMcpToken,
   ICreateMcpToken,
   IMcpToken,
+  IMcpTokenWithOwner,
 } from "@/features/mcp/types/mcp-token.types";
 
 export async function getMcpServerInfo(): Promise<{ enabled: boolean }> {
@@ -12,6 +14,13 @@ export async function getMcpServerInfo(): Promise<{ enabled: boolean }> {
 
 export async function getMcpTokens(): Promise<IMcpToken[]> {
   const req = await api.post<IMcpToken[]>("/mcp-tokens");
+  return req.data;
+}
+
+export async function getAllMcpTokens(params: {
+  cursor?: string;
+}): Promise<IPagination<IMcpTokenWithOwner>> {
+  const req = await api.post("/mcp-tokens/all", params);
   return req.data;
 }
 

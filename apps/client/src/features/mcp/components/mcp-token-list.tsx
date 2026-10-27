@@ -71,6 +71,7 @@ export default function McpTokenList() {
             <Table.Th>{t("Name")}</Table.Th>
             <Table.Th>{t("Created")}</Table.Th>
             <Table.Th>{t("Last used")}</Table.Th>
+            <Table.Th>{t("Expires")}</Table.Th>
             <Table.Th>
               <VisuallyHidden>{t("Action")}</VisuallyHidden>
             </Table.Th>
@@ -80,7 +81,7 @@ export default function McpTokenList() {
           {isLoading &&
             [1, 2].map((i) => (
               <Table.Tr key={i}>
-                <Table.Td colSpan={4}>
+                <Table.Td colSpan={5}>
                   <Skeleton height={14} radius="xs" />
                 </Table.Td>
               </Table.Tr>
@@ -88,7 +89,7 @@ export default function McpTokenList() {
 
           {!isLoading && tokens?.length === 0 && (
             <Table.Tr>
-              <Table.Td colSpan={4}>
+              <Table.Td colSpan={5}>
                 <Text size="sm" c="dimmed">
                   {t("No MCP tokens yet")}
                 </Text>
@@ -110,6 +111,13 @@ export default function McpTokenList() {
                 <Text size="sm">
                   {token.lastUsedAt
                     ? formattedDate(new Date(token.lastUsedAt))
+                    : t("Never")}
+                </Text>
+              </Table.Td>
+              <Table.Td>
+                <Text size="sm">
+                  {token.expiresAt
+                    ? formattedDate(new Date(token.expiresAt))
                     : t("Never")}
                 </Text>
               </Table.Td>

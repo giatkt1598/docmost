@@ -13,7 +13,11 @@ import {
   isUserDisabled,
 } from '../../common/helpers';
 import { EnvironmentService } from '../../integrations/environment/environment.service';
-import { McpTokenService } from './mcp-token.service';
+import {
+  isWorkspaceAdmin,
+  McpTokenService,
+  mcpRestrictedToAdmins,
+} from './mcp-token.service';
 
 export const MCP_AUTH_TYPE = 'mcp_token';
 
@@ -60,6 +64,13 @@ export class McpAuthGuard implements CanActivate {
     );
     if (!user || isUserDisabled(user)) {
       throw new UnauthorizedException();
+    }
+
+    // admins can switch MCP off for members; their tokens stop working
+    if (mcpRestrictedToAdmins(workspace) && !isWorkspaceAdmin(user)) {
+      throw new UnauthorizedException(
+        'MCP access is restricted to workspace admins',
+      );
     }
 
     this.mcpTokenService

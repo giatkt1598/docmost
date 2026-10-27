@@ -2130,5 +2130,17 @@
   "Deleted database rows": "Đã xóa dòng dữ liệu",
   "Created a database": "Đã tạo cơ sở dữ liệu",
   "Added a database column": "Đã thêm cột dữ liệu",
-  "Added a diagram": "Đã thêm sơ đồ"
+  "Added a diagram": "Đã thêm sơ đồ",
+  "MCP Server": "MCP Server",
+  "MCP access is restricted to workspace admins. Ask an admin if you need it.": "Quyền dùng MCP đang được giới hạn cho quản trị viên. Hãy liên hệ quản trị viên nếu cậu cần.",
+  "Restrict MCP to admins": "Chỉ cho quản trị viên dùng MCP",
+  "Only workspace admins can create and use MCP tokens. Tokens of other members stop working until this is turned off.": "Chỉ quản trị viên workspace mới được tạo và dùng token MCP. Token của các thành viên khác sẽ ngừng hoạt động cho đến khi tắt tùy chọn này.",
+  "Toggle MCP restriction": "Bật/tắt giới hạn MCP",
+  "MCP tokens of every member of the workspace.": "Token MCP của mọi thành viên trong workspace.",
+  "Revoke MCP token": "Thu hồi token MCP",
+  "A token acts as you, with your permissions. Short-lived tokens are safer.": "Token hoạt động như cậu, với đúng quyền của cậu. Token có thời hạn ngắn sẽ an toàn hơn.",
+  "7 days": "7 ngày",
+  "30 days": "30 ngày",
+  "90 days": "90 ngày",
+  "1 year": "1 năm"
 }

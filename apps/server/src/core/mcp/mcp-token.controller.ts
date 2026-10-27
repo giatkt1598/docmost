@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   HttpCode,
@@ -15,7 +14,11 @@ import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator'
 import { User, Workspace } from '@docmost/db/types/entity.types';
 import { EnvironmentService } from '../../integrations/environment/environment.service';
 import { McpTokenService } from './mcp-token.service';
-import { CreateMcpTokenDto, McpTokenIdDto } from './dto/mcp-token.dto';
+import {
+  CreateMcpTokenDto,
+  ListMcpTokensDto,
+  McpTokenIdDto,
+} from './dto/mcp-token.dto';
 
 // Tokens can only be managed from an interactive session, never with a token.
 @UseGuards(JwtAuthGuard)
@@ -54,21 +57,19 @@ export class McpTokenController {
     @AuthWorkspace() workspace: Workspace,
   ) {
     this.assertEnabled();
+    return this.mcpTokenService.createForUser(user, workspace, dto);
+  }
 
-    let expiresAt: Date | null = null;
-    if (dto.expiresAt) {
-      expiresAt = new Date(dto.expiresAt);
-      if (expiresAt.getTime() <= Date.now()) {
-        throw new BadRequestException('Expiry date must be in the future');
-      }
-    }
-
-    return this.mcpTokenService.create({
-      name: dto.name.trim(),
-      userId: user.id,
-      workspaceId: workspace.id,
-      expiresAt,
-    });
+  // every member's tokens, for admins
+  @HttpCode(HttpStatus.OK)
+  @Post('all')
+  async listAll(
+    @Body() dto: ListMcpTokensDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    this.assertEnabled();
+    return this.mcpTokenService.listAll(user, workspace, dto);
   }
 
   @HttpCode(HttpStatus.OK)
@@ -79,6 +80,6 @@ export class McpTokenController {
     @AuthWorkspace() workspace: Workspace,
   ) {
     this.assertEnabled();
-    await this.mcpTokenService.revoke(dto.tokenId, user.id, workspace.id);
+    await this.mcpTokenService.revoke(dto.tokenId, user, workspace);
   }
 }

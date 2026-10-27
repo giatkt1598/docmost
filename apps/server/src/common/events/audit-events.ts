@@ -24,6 +24,10 @@ export const AuditEvent = {
   API_KEY_UPDATED: 'api_key.updated',
   API_KEY_DELETED: 'api_key.deleted',
 
+  // MCP tokens
+  MCP_TOKEN_CREATED: 'mcp_token.created',
+  MCP_TOKEN_REVOKED: 'mcp_token.revoked',
+
   // OAuth
   OAUTH_CLIENT_REGISTERED: 'oauth_client.registered',
   OAUTH_GRANT_CREATED: 'oauth_grant.created',
@@ -144,6 +148,7 @@ export const AuditResource = {
   COMMENT: 'comment',
   SHARE: 'share',
   API_KEY: 'api_key',
+  MCP_TOKEN: 'mcp_token',
   OAUTH_CLIENT: 'oauth_client',
   OAUTH_GRANT: 'oauth_grant',
   INTEGRATION: 'integration',

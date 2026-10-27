@@ -2315,5 +2315,16 @@
   "Deleted database rows": "Deleted database rows",
   "Created a database": "Created a database",
   "Added a database column": "Added a database column",
-  "Added a diagram": "Added a diagram"
+  "Added a diagram": "Added a diagram",
+  "MCP Server": "MCP Server",
+  "MCP access is restricted to workspace admins. Ask an admin if you need it.": "MCP access is restricted to workspace admins. Ask an admin if you need it.",
+  "Restrict MCP to admins": "Restrict MCP to admins",
+  "Only workspace admins can create and use MCP tokens. Tokens of other members stop working until this is turned off.": "Only workspace admins can create and use MCP tokens. Tokens of other members stop working until this is turned off.",
+  "Toggle MCP restriction": "Toggle MCP restriction",
+  "MCP tokens of every member of the workspace.": "MCP tokens of every member of the workspace.",
+  "Revoke MCP token": "Revoke MCP token",
+  "A token acts as you, with your permissions. Short-lived tokens are safer.": "A token acts as you, with your permissions. Short-lived tokens are safer.",
+  "7 days": "7 days",
+  "90 days": "90 days",
+  "1 year": "1 year"
 }

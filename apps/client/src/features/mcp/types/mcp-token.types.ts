@@ -9,6 +9,16 @@ export interface IMcpToken {
   createdAt: string;
 }
 
+// a token with its owner, as the admin management list returns it
+export interface IMcpTokenWithOwner extends IMcpToken {
+  owner: {
+    id: string;
+    name: string;
+    email: string;
+    avatarUrl: string | null;
+  } | null;
+}
+
 export interface ICreateMcpToken {
   name: string;
   expiresAt?: string;

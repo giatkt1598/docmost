@@ -473,6 +473,20 @@ export class WorkspaceService {
         );
       }
 
+      if (typeof updateWorkspaceDto.restrictMcpToAdmins !== 'undefined') {
+        const prev = settingsBefore?.mcp?.restrictToAdmins ?? false;
+        if (prev !== updateWorkspaceDto.restrictMcpToAdmins) {
+          before.restrictMcpToAdmins = prev;
+          after.restrictMcpToAdmins = updateWorkspaceDto.restrictMcpToAdmins;
+        }
+        await this.workspaceRepo.updateMcpSettings(
+          workspaceId,
+          'restrictToAdmins',
+          updateWorkspaceDto.restrictMcpToAdmins,
+          trx,
+        );
+      }
+
       if (typeof updateWorkspaceDto.aiSearch !== 'undefined') {
         const prev = settingsBefore?.ai?.search ?? false;
         if (prev !== updateWorkspaceDto.aiSearch) {
@@ -672,6 +686,7 @@ export class WorkspaceService {
       }
 
       delete updateWorkspaceDto.restrictApiToAdmins;
+      delete updateWorkspaceDto.restrictMcpToAdmins;
       delete updateWorkspaceDto.aiSearch;
       delete updateWorkspaceDto.generativeAi;
       delete updateWorkspaceDto.disablePublicSharing;

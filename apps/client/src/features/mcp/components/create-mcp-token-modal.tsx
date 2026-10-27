@@ -6,6 +6,7 @@ import {
   Code,
   Group,
   Modal,
+  Select,
   Stack,
   Text,
   TextInput,
@@ -17,6 +18,8 @@ import { CopyButton } from "@/components/common/copy-button";
 import { useCreateMcpTokenMutation } from "@/features/mcp/queries/mcp-token-query";
 import { getMcpServerUrl } from "@/features/mcp/mcp.utils";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 interface Props {
   opened: boolean;
   onClose: () => void;
@@ -25,17 +28,25 @@ interface Props {
 export default function CreateMcpTokenModal({ opened, onClose }: Props) {
   const { t } = useTranslation();
   const [name, setName] = useState("");
+  const [expiry, setExpiry] = useState("90");
   const [token, setToken] = useState<string | null>(null);
   const createMutation = useCreateMcpTokenMutation();
 
   const handleClose = () => {
     setName("");
+    setExpiry("90");
     setToken(null);
     onClose();
   };
 
   const handleCreate = async () => {
-    const result = await createMutation.mutateAsync({ name: name.trim() });
+    const result = await createMutation.mutateAsync({
+      name: name.trim(),
+      expiresAt:
+        expiry === "never"
+          ? undefined
+          : new Date(Date.now() + Number(expiry) * DAY_MS).toISOString(),
+    });
     setToken(result.token);
   };
 
@@ -70,6 +81,22 @@ export default function CreateMcpTokenModal({ opened, onClose }: Props) {
             onChange={(e) => setName(e.currentTarget.value)}
             maxLength={100}
             data-autofocus
+          />
+          <Select
+            label={t("Expiration")}
+            description={t(
+              "A token acts as you, with your permissions. Short-lived tokens are safer.",
+            )}
+            value={expiry}
+            onChange={(value) => setExpiry(value ?? "90")}
+            allowDeselect={false}
+            data={[
+              { value: "7", label: t("7 days") },
+              { value: "30", label: t("30 days") },
+              { value: "90", label: t("90 days") },
+              { value: "365", label: t("1 year") },
+              { value: "never", label: t("Never") },
+            ]}
           />
           <Group justify="flex-end">
             <Button variant="default" onClick={handleClose}>

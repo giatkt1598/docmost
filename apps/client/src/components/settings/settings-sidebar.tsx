@@ -55,7 +55,6 @@ type DataItem = {
   env?: "cloud" | "selfhosted";
   requiresInstalledIntegration?: boolean;
   requiresMcpServer?: boolean;
-  hideForAdmin?: boolean;
 };
 
 type DataGroup = {
@@ -79,17 +78,16 @@ const groupedData: DataGroup[] = [
         path: "/settings/account/api-keys",
       },
       {
+        label: "MCP Server",
+        icon: IconPlugConnected,
+        path: "/settings/account/mcp",
+        requiresMcpServer: true,
+      },
+      {
         label: "Connections",
         icon: IconPlug,
         path: "/settings/account/connections",
         requiresInstalledIntegration: true,
-      },
-      {
-        label: "MCP",
-        icon: IconPlugConnected,
-        path: "/settings/account/mcp",
-        requiresMcpServer: true,
-        hideForAdmin: true,
       },
     ],
   },
@@ -191,7 +189,6 @@ export default function SettingsSidebar() {
     if (item.requiresMcpServer && !mcpServerInfo?.enabled) {
       return false;
     }
-    if (item.hideForAdmin && isAdmin) return false;
     return true;
   };
 

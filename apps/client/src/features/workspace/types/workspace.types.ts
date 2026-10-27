@@ -32,6 +32,7 @@ export interface IWorkspace {
   enforceMcpOauth?: boolean;
   trashRetentionDays?: number;
   restrictApiToAdmins?: boolean;
+  restrictMcpToAdmins?: boolean;
   allowMemberTemplates?: boolean;
   allowPersonalSpaces?: boolean;
   defaultPageEditMode?: string;
@@ -42,6 +43,7 @@ export interface IWorkspaceSettings {
   ai?: IWorkspaceAiSettings;
   sharing?: IWorkspaceSharingSettings;
   api?: IWorkspaceApiSettings;
+  mcp?: IWorkspaceMcpSettings;
   templates?: IWorkspaceTemplateSettings;
   spaces?: IWorkspaceSpaceSettings;
   publicSpaces?: IWorkspacePublicSpacesSettings;
@@ -49,6 +51,10 @@ export interface IWorkspaceSettings {
 }
 
 export interface IWorkspaceApiSettings {
+  restrictToAdmins?: boolean;
+}
+
+export interface IWorkspaceMcpSettings {
   restrictToAdmins?: boolean;
 }
 

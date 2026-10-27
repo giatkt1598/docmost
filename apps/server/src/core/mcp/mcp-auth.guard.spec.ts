@@ -18,7 +18,9 @@ function request(authorization?: string, workspaceId = 'ws_1') {
   } as any;
 }
 
-function createGuard(opts: { enabled?: boolean; user?: any } = {}) {
+function createGuard(
+  opts: { enabled?: boolean; user?: any; workspace?: any } = {},
+) {
   const mcpTokenService = {
     findActive: jest.fn(async (token: string) =>
       token === 'dmcp_valid' ? mcpToken : undefined,
@@ -29,7 +31,7 @@ function createGuard(opts: { enabled?: boolean; user?: any } = {}) {
     findById: jest.fn().mockResolvedValue(opts.user ?? { id: 'user_1' }),
   } as any;
   const workspaceRepo = {
-    findById: jest.fn().mockResolvedValue({ id: 'ws_1' }),
+    findById: jest.fn().mockResolvedValue(opts.workspace ?? { id: 'ws_1' }),
   } as any;
   const environmentService = {
     isMcpServerEnabled: jest.fn().mockReturnValue(opts.enabled ?? true),
@@ -79,6 +81,20 @@ describe('McpAuthGuard', () => {
     await expect(
       guard.canActivate(createCtx(request('Bearer dmcp_valid'))),
     ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('stops member tokens when MCP is restricted to admins', async () => {
+    const workspace = { id: 'ws_1', settings: { mcp: { restrictToAdmins: true } } };
+    const member = createGuard({ workspace, user: { id: 'user_1', role: 'member' } });
+    await expect(
+      member.guard.canActivate(createCtx(request('Bearer dmcp_valid'))),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(member.mcpTokenService.touchLastUsed).not.toHaveBeenCalled();
+
+    const admin = createGuard({ workspace, user: { id: 'user_1', role: 'admin' } });
+    await expect(
+      admin.guard.canActivate(createCtx(request('Bearer dmcp_valid'))),
+    ).resolves.toBe(true);
   });
 
   it('attaches the user and workspace for a valid token', async () => {
