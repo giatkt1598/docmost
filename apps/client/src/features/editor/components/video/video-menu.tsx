@@ -20,7 +20,6 @@ import {
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { getFileUrl } from "@/lib/config.ts";
-import { useAltTextControl } from "@/features/editor/components/common/use-alt-text-control.tsx";
 import { lightboxRequestAtom } from "@/features/editor/atoms/editor-atoms";
 import classes from "../common/toolbar-menu.module.css";
 
@@ -43,7 +42,6 @@ export function VideoMenu({ editor }: EditorMenuProps) {
         isAlignCenter: ctx.editor.isActive("video", { align: "center" }),
         isAlignRight: ctx.editor.isActive("video", { align: "right" }),
         src: videoAttrs?.src || null,
-        alt: videoAttrs?.alt || "",
       };
     },
   });
@@ -118,16 +116,6 @@ export function VideoMenu({ editor }: EditorMenuProps) {
     editor.commands.deleteSelection();
   }, [editor]);
 
-  const {
-    button: altTextButton,
-    panel: altTextPanel,
-    isEditing: isEditingAlt,
-  } = useAltTextControl({
-    editor,
-    nodeName: "video",
-    currentAlt: editorState?.alt || "",
-  });
-
   return (
     <BaseBubbleMenu
       editor={editor}
@@ -144,9 +132,6 @@ export function VideoMenu({ editor }: EditorMenuProps) {
       }}
       shouldShow={shouldShow}
     >
-      {isEditingAlt ? (
-        altTextPanel
-      ) : (
         <div className={classes.toolbar}>
         <Tooltip position="top" label={t("Align left")} withinPortal={false}>
           <ActionIcon
@@ -183,10 +168,6 @@ export function VideoMenu({ editor }: EditorMenuProps) {
             <IconLayoutAlignRight size={18} />
           </ActionIcon>
         </Tooltip>
-
-        <div className={classes.divider} />
-
-        {altTextButton}
 
         <div className={classes.divider} />
 
@@ -229,7 +210,6 @@ export function VideoMenu({ editor }: EditorMenuProps) {
           </ActionIcon>
         </Tooltip>
         </div>
-      )}
     </BaseBubbleMenu>
   );
 }

@@ -38,7 +38,6 @@ import { IAttachment } from "@/features/attachments/types/attachment.types";
 import ReactClearModal from "react-clear-modal";
 import { useHandleLibrary } from "@excalidraw/excalidraw";
 import { localStorageLibraryAdapter } from "@/features/editor/components/excalidraw/excalidraw-utils.ts";
-import { useAltTextControl } from "@/features/editor/components/common/use-alt-text-control.tsx";
 import { lightboxRequestAtom } from "@/features/editor/atoms/editor-atoms";
 import classes from "../common/toolbar-menu.module.css";
 
@@ -82,7 +81,6 @@ export function ExcalidrawMenu({ editor }: EditorMenuProps) {
         isAlignRight: ctx.editor.isActive("excalidraw", { align: "right" }),
         src: excalidrawAttr?.src || null,
         attachmentId: excalidrawAttr?.attachmentId || null,
-        alt: excalidrawAttr?.alt || "",
       };
     },
   });
@@ -158,16 +156,6 @@ export function ExcalidrawMenu({ editor }: EditorMenuProps) {
   const handleDelete = useCallback(() => {
     editor.commands.deleteSelection();
   }, [editor]);
-
-  const {
-    button: altTextButton,
-    panel: altTextPanel,
-    isEditing: isEditingAlt,
-  } = useAltTextControl({
-    editor,
-    nodeName: "excalidraw",
-    currentAlt: editorState?.alt || "",
-  });
 
   const handleOpen = useCallback(async () => {
     if (!editorState?.src) return;
@@ -307,9 +295,6 @@ export function ExcalidrawMenu({ editor }: EditorMenuProps) {
         }}
         shouldShow={shouldShow}
       >
-        {isEditingAlt ? (
-          altTextPanel
-        ) : (
           <div className={classes.toolbar}>
           <Tooltip position="top" label={t("Align left")} withinPortal={false}>
             <ActionIcon
@@ -356,10 +341,6 @@ export function ExcalidrawMenu({ editor }: EditorMenuProps) {
               <IconLayoutAlignRight size={18} />
             </ActionIcon>
           </Tooltip>
-
-          <div className={classes.divider} />
-
-          {altTextButton}
 
           <div className={classes.divider} />
 
@@ -414,7 +395,6 @@ export function ExcalidrawMenu({ editor }: EditorMenuProps) {
             </ActionIcon>
           </Tooltip>
           </div>
-        )}
       </BaseBubbleMenu>
 
       <ReactClearModal
