@@ -68,3 +68,14 @@ jobs:
             docker tag "${IMAGE_NAME}:${{ steps.image.outputs.tag }}" "${IMAGE_NAME}:latest"
             docker push "${IMAGE_NAME}:latest"
           fi
+
+  # Deploy: write the new tag (main-<run>) into base/kustomization.yaml of giatk-k8s so Argo CD rolls it out.
+  # Shared logic lives in admin/workflows; it only acts on pushes to the default branch.
+  deploy:
+    needs: build
+    uses: admin/workflows/.gitea/workflows/k8s-bump.yml@v1
+    with:
+      default_branch: main
+      tag_strategy: branch-run
+    secrets:
+      TOKEN: ${{ secrets.TOKEN }}
