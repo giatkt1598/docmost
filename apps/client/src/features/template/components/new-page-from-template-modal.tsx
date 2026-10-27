@@ -109,7 +109,7 @@ export function NewPageFromTemplateModal({
             data-autofocus
           />
 
-          <ScrollArea h="50vh" offsetScrollbars className={classes.scrollArea}>
+          <ScrollArea h="50vh" offsetScrollbars="present" className={classes.scrollArea}>
             {debouncedSearch ? (
               <TemplateRows
                 query={debouncedSearch}
