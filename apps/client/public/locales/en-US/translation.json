@@ -2327,5 +2327,13 @@
   "7 days": "7 days",
   "90 days": "90 days",
   "1 year": "1 year",
-  "New page from template": "New page from template"
+  "New page from template": "New page from template",
+  "Web page": "Web page",
+  "Importing web page": "Importing web page",
+  "Reading {{url}}": "Reading {{url}}",
+  "Failed to import web page": "Failed to import web page",
+  "Enter a valid web address": "Enter a valid web address",
+  "Web page URL": "Web page URL",
+  "Import the whole page": "Import the whole page",
+  "By default only the main content is kept, without menus, sidebars and footers.": "By default only the main content is kept, without menus, sidebars and footers."
 }

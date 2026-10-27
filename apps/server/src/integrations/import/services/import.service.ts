@@ -32,6 +32,33 @@ import { DocxImportService } from './docx-import.service';
 import { PdfImportService } from './pdf-import.service';
 import { load } from 'cheerio';
 import { normalizeImportHtml } from '../utils/import-formatter';
+import {
+  extractWebPage,
+  MIN_ARTICLE_TEXT,
+  WebPageMode,
+} from '../utils/web-page-html';
+import { WebPageError, WebPageFetcher } from './web-page-fetcher.service';
+import { EnvironmentService } from '../../environment/environment.service';
+import { enqueueMediaLocalize } from '../../../core/media-localize/media-localize.queue';
+
+function webPageErrorMessage(err: WebPageError): string {
+  if (err.status === 401 || err.status === 403) {
+    return 'The website refused access (it may require a login or block automated readers).';
+  }
+  if (err.status === 404 || err.status === 410) {
+    return 'The page was not found (HTTP 404).';
+  }
+  if (err.status) return `The website returned an error (HTTP ${err.status}).`;
+  if (err.message.startsWith('Blocked address')) {
+    return 'This address cannot be imported.';
+  }
+  if (err.message.startsWith('Not a web page')) {
+    return 'The link does not point to a web page.';
+  }
+  if (err.message === 'The page is too large')
+    return 'The page is too large to import.';
+  return 'Could not reach the website.';
+}
 
 @Injectable()
 export class ImportService {
@@ -45,6 +72,9 @@ export class ImportService {
     private readonly fileTaskQueue: Queue,
     private readonly docxImport: DocxImportService,
     private readonly pdfImport: PdfImportService,
+    private readonly webPageFetcher: WebPageFetcher,
+    private readonly environmentService: EnvironmentService,
+    @InjectQueue(QueueName.MEDIA_QUEUE) private readonly mediaQueue: Queue,
   ) {}
 
   async importPage(
@@ -113,34 +143,152 @@ export class ImportService {
     const pageTitle = title || fileName;
 
     if (prosemirrorJson) {
-      try {
-        const pagePosition = await this.getNewPagePosition(spaceId);
+      createdPage = await this.createImportedPage({
+        pageId,
+        title: pageTitle,
+        prosemirrorJson,
+        userId,
+        spaceId,
+        workspaceId,
+      });
 
-        createdPage = await this.pageRepo.insertPage({
-          ...(pageId ? { id: pageId } : {}),
-          slugId: generateSlugId(),
-          title: pageTitle,
-          content: prosemirrorJson,
-          textContent: jsonToText(prosemirrorJson),
-          ydoc: await this.createYdoc(prosemirrorJson),
-          position: pagePosition,
-          spaceId: spaceId,
-          creatorId: userId,
-          workspaceId: workspaceId,
-          lastUpdatedById: userId,
-        });
-
-        this.logger.debug(
-          `Successfully imported "${title}${fileExtension}. ID: ${createdPage.id} - SlugId: ${createdPage.slugId}"`,
-        );
-      } catch (err) {
-        const message = 'Failed to create imported page';
-        this.logger.error(message, err);
-        throw new BadRequestException(message);
-      }
+      this.logger.debug(
+        `Successfully imported "${title}${fileExtension}. ID: ${createdPage.id} - SlugId: ${createdPage.slugId}"`,
+      );
     }
 
     return createdPage;
+  }
+
+  async importWebPage(
+    url: string,
+    mode: WebPageMode,
+    userId: string,
+    spaceId: string,
+    workspaceId: string,
+  ) {
+    let page;
+    try {
+      const fetched = await this.webPageFetcher.fetchHtml(url);
+      page = extractWebPage(fetched.html, fetched.finalUrl, mode);
+
+      // little text usually means the page is rendered by JavaScript
+      if (
+        page.textLength < MIN_ARTICLE_TEXT &&
+        this.webPageFetcher.isBrowserEnabled()
+      ) {
+        const rendered = await this.webPageFetcher
+          .renderHtml(fetched.finalUrl)
+          .catch((err) => {
+            this.logger.warn(`Rendering ${url} failed: ${err?.message}`);
+            return null;
+          });
+        if (rendered) {
+          const renderedPage = extractWebPage(
+            rendered.html,
+            rendered.finalUrl,
+            mode,
+          );
+          if (renderedPage.textLength > page.textLength) page = renderedPage;
+        }
+      }
+    } catch (err) {
+      if (err instanceof WebPageError) {
+        throw new BadRequestException(webPageErrorMessage(err));
+      }
+      this.logger.error(`Failed to read web page ${url}`, err);
+      throw new BadRequestException('Could not read the web page');
+    }
+
+    if (!page.textLength && !page.imageCount) {
+      throw new BadRequestException(
+        'No readable content found on this page. It may need a login or be rendered by JavaScript.',
+      );
+    }
+
+    const sourceLink = load('<p><a></a></p>', null, false);
+    sourceLink('a').attr('href', url).text(url);
+
+    let prosemirrorState;
+    try {
+      prosemirrorState = await this.processHTML(page.html + sourceLink.html());
+    } catch (err) {
+      this.logger.error('Failed to convert web page', err);
+      throw new BadRequestException('Error processing web page content');
+    }
+
+    // Readability usually drops the heading that repeats the title; when the
+    // page still starts with it, keep it as the title instead of in the body
+    const content = prosemirrorState.content ?? [];
+    let title = page.title;
+    const first = content[0];
+    if (first?.type === 'heading') {
+      const headingText = (first.content ?? [])
+        .map((node: any) => node.text ?? '')
+        .join('')
+        .trim();
+      if (headingText && (!title || title.includes(headingText))) {
+        title = headingText;
+        content.shift();
+      }
+    }
+    if (content.length === 0) content.push({ type: 'paragraph', content: [] });
+
+    const prosemirrorJson = { ...prosemirrorState, content };
+    const createdPage = await this.createImportedPage({
+      title: (title || new URL(url).hostname).slice(0, 250),
+      prosemirrorJson,
+      userId,
+      spaceId,
+      workspaceId,
+    });
+
+    // copy the page's images into our storage, as pasting would
+    await enqueueMediaLocalize(
+      this.mediaQueue,
+      this.environmentService,
+      createdPage.id,
+      prosemirrorJson,
+    ).catch((err) =>
+      this.logger.warn(
+        `Failed to queue media copy for page ${createdPage.id}: ${err}`,
+      ),
+    );
+
+    return createdPage;
+  }
+
+  private async createImportedPage(opts: {
+    pageId?: string;
+    title: string;
+    prosemirrorJson: any;
+    userId: string;
+    spaceId: string;
+    workspaceId: string;
+  }) {
+    const { pageId, title, prosemirrorJson, userId, spaceId, workspaceId } =
+      opts;
+    try {
+      const pagePosition = await this.getNewPagePosition(spaceId);
+
+      return await this.pageRepo.insertPage({
+        ...(pageId ? { id: pageId } : {}),
+        slugId: generateSlugId(),
+        title,
+        content: prosemirrorJson,
+        textContent: jsonToText(prosemirrorJson),
+        ydoc: await this.createYdoc(prosemirrorJson),
+        position: pagePosition,
+        spaceId: spaceId,
+        creatorId: userId,
+        workspaceId: workspaceId,
+        lastUpdatedById: userId,
+      });
+    } catch (err) {
+      const message = 'Failed to create imported page';
+      this.logger.error(message, err);
+      throw new BadRequestException(message);
+    }
   }
 
   async processMarkdown(markdownInput: string): Promise<any> {

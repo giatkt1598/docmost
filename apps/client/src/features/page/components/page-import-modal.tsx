@@ -5,6 +5,9 @@ import {
   FileButton,
   Group,
   Text,
+  TextInput,
+  Checkbox,
+  Stack,
   Tooltip,
 } from "@mantine/core";
 import {
@@ -15,10 +18,12 @@ import {
   IconFileTypePdf,
   IconFileTypeZip,
   IconMarkdown,
+  IconWorldWww,
   IconX,
 } from "@tabler/icons-react";
 import {
   importPage,
+  importWebPage,
   importZip,
 } from "@/features/page/services/page-service.ts";
 import { notifications } from "@mantine/notifications";
@@ -67,7 +72,11 @@ export default function PageImportModal({
             <Modal.CloseButton aria-label={t("Close")} />
           </Modal.Header>
           <Modal.Body>
-            <ImportFormatSelection spaceId={spaceId} onClose={onClose} />
+            <ImportFormatSelection
+              spaceId={spaceId}
+              open={open}
+              onClose={onClose}
+            />
           </Modal.Body>
         </Modal.Content>
       </Modal.Root>
@@ -77,13 +86,24 @@ export default function PageImportModal({
 
 interface ImportFormatSelection {
   spaceId: string;
+  open: boolean;
   onClose: () => void;
 }
-function ImportFormatSelection({ spaceId, onClose }: ImportFormatSelection) {
+function ImportFormatSelection({
+  spaceId,
+  open,
+  onClose,
+}: ImportFormatSelection) {
   const { t } = useTranslation();
   const [treeData, setTreeData] = useAtom(treeDataAtom);
   const [fileTaskId, setFileTaskId] = useState<string | null>(null);
+  const [showWebForm, setShowWebForm] = useState(false);
   const emit = useQueryEmit();
+
+  // the modal stays mounted; start from the format list each time it opens
+  useEffect(() => {
+    if (!open) setShowWebForm(false);
+  }, [open]);
 
   const markdownFileRef = useRef<() => void>(null);
   const htmlFileRef = useRef<() => void>(null);
@@ -321,6 +341,56 @@ function ImportFormatSelection({ spaceId, onClose }: ImportFormatSelection) {
     }
   };
 
+  const handleWebPageImport = async (url: string, mode: "article" | "full") => {
+    onClose();
+
+    const alert = notifications.show({
+      title: t("Importing web page"),
+      message: t("Reading {{url}}", { url }),
+      loading: true,
+      autoClose: false,
+    });
+
+    try {
+      const page = await importWebPage(url, spaceId, mode);
+      const newTreeNodes = buildTree([page]);
+      if (newTreeNodes?.length) {
+        setTreeData(treeData.concat(newTreeNodes));
+      }
+
+      notifications.update({
+        id: alert,
+        color: "teal",
+        title: `${t("Successfully imported")} 1 ${t("page")}`,
+        message: page.title,
+        icon: <IconCheck size={18} />,
+        loading: false,
+        autoClose: 5000,
+      });
+    } catch (err) {
+      notifications.update({
+        id: alert,
+        color: "red",
+        title: t("Failed to import web page"),
+        message:
+          err?.response?.data?.message ??
+          t("Unable to import pages. Please try again."),
+        icon: <IconX size={18} />,
+        loading: false,
+        autoClose: 8000,
+      });
+    }
+  };
+
+  if (showWebForm) {
+    return (
+      <WebPageImportForm
+        onBack={() => setShowWebForm(false)}
+        onSubmit={handleWebPageImport}
+      />
+    );
+  }
+
   // @ts-ignore
   return (
     <>
@@ -456,6 +526,15 @@ function ImportFormatSelection({ spaceId, onClose }: ImportFormatSelection) {
             </Tooltip>
           )}
         </FileButton>
+
+        <Button
+          justify="start"
+          variant="default"
+          leftSection={<IconWorldWww size={18} />}
+          onClick={() => setShowWebForm(true)}
+        >
+          {t("Web page")}
+        </Button>
       </SimpleGrid>
 
       <Group justify="center" gap="xl" mih={150}>
@@ -494,5 +573,70 @@ function ImportFormatSelection({ spaceId, onClose }: ImportFormatSelection) {
         </div>
       </Group>
     </>
+  );
+}
+
+interface WebPageImportFormProps {
+  onBack: () => void;
+  onSubmit: (url: string, mode: "article" | "full") => void;
+}
+
+function WebPageImportForm({ onBack, onSubmit }: WebPageImportFormProps) {
+  const { t } = useTranslation();
+  const [url, setUrl] = useState("");
+  const [fullPage, setFullPage] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    let value = url.trim();
+    if (value && !/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) {
+      value = `https://${value}`;
+    }
+    try {
+      const parsed = new URL(value);
+      if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
+    } catch {
+      setError(t("Enter a valid web address"));
+      return;
+    }
+    onSubmit(value, fullPage ? "full" : "article");
+    setUrl("");
+    setError(null);
+  };
+
+  return (
+    <form onSubmit={submit}>
+      <Stack gap="sm">
+        <TextInput
+          label={t("Web page URL")}
+          placeholder="https://example.com/article"
+          value={url}
+          onChange={(e) => {
+            setUrl(e.currentTarget.value);
+            setError(null);
+          }}
+          error={error}
+          leftSection={<IconWorldWww size={16} />}
+          data-autofocus
+        />
+        <Checkbox
+          label={t("Import the whole page")}
+          description={t(
+            "By default only the main content is kept, without menus, sidebars and footers.",
+          )}
+          checked={fullPage}
+          onChange={(e) => setFullPage(e.currentTarget.checked)}
+        />
+        <Group justify="space-between" mt="xs">
+          <Button variant="default" onClick={onBack}>
+            {t("Back")}
+          </Button>
+          <Button type="submit" disabled={!url.trim()}>
+            {t("Import")}
+          </Button>
+        </Group>
+      </Stack>
+    </form>
   );
 }

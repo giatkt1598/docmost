@@ -8,6 +8,7 @@ import { ImportAttachmentService } from './services/import-attachment.service';
 import { ImportImageService } from './services/import-image.service';
 import { DocxImportService } from './services/docx-import.service';
 import { PdfImportService } from './services/pdf-import.service';
+import { WebPageFetcher } from './services/web-page-fetcher.service';
 import { ConfluenceImportService } from './services/confluence-import.service';
 import { FileTaskController } from './file-task.controller';
 import { PageModule } from '../../core/page/page.module';
@@ -24,6 +25,7 @@ import { BaseReferenceService } from '../../core/base/base-reference.service';
     ConfluenceImportService,
     DocxImportService,
     PdfImportService,
+    WebPageFetcher,
     BaseTransferService,
     BaseReferenceService,
   ],

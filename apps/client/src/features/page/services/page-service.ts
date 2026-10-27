@@ -166,6 +166,19 @@ export async function importPage(file: File, spaceId: string) {
   return req.data;
 }
 
+export async function importWebPage(
+  url: string,
+  spaceId: string,
+  mode: "article" | "full",
+): Promise<IPage> {
+  const req = await api.post<IPage>("/pages/import-url", {
+    url,
+    spaceId,
+    mode,
+  });
+  return req.data;
+}
+
 export async function importZip(
   file: File,
   spaceId: string,

@@ -2143,5 +2143,13 @@
   "30 days": "30 ngày",
   "90 days": "90 ngày",
   "1 year": "1 năm",
-  "New page from template": "Trang mới từ mẫu"
+  "New page from template": "Trang mới từ mẫu",
+  "Web page": "Trang web",
+  "Importing web page": "Đang nhập trang web",
+  "Reading {{url}}": "Đang đọc {{url}}",
+  "Failed to import web page": "Không thể nhập trang web",
+  "Enter a valid web address": "Nhập địa chỉ web hợp lệ",
+  "Web page URL": "Địa chỉ trang web",
+  "Import the whole page": "Nhập toàn bộ trang",
+  "By default only the main content is kept, without menus, sidebars and footers.": "Mặc định chỉ giữ nội dung chính, bỏ menu, thanh bên và chân trang."
 }

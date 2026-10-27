@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   ForbiddenException,
   HttpCode,
@@ -23,6 +24,7 @@ import { FileInterceptor } from '../../common/interceptors/file.interceptor';
 import * as bytes from 'bytes';
 import * as path from 'path';
 import { ImportService } from './services/import.service';
+import { ImportWebPageDto } from './dto/import-web-page.dto';
 import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator';
 import { EnvironmentService } from '../environment/environment.service';
 import { AuditEvent, AuditResource } from '../../common/events/audit-events';
@@ -117,6 +119,41 @@ export class ImportController {
         },
       });
     }
+
+    return createdPage;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Post('pages/import-url')
+  async importWebPage(
+    @Body() dto: ImportWebPageDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const ability = await this.spaceAbility.createForUser(user, dto.spaceId);
+    if (ability.cannot(SpaceCaslAction.Edit, SpaceCaslSubject.Page)) {
+      throw new ForbiddenException();
+    }
+
+    const createdPage = await this.importService.importWebPage(
+      dto.url,
+      dto.mode ?? 'article',
+      user.id,
+      dto.spaceId,
+      workspace.id,
+    );
+
+    this.auditService.log({
+      event: AuditEvent.PAGE_CREATED,
+      resourceType: AuditResource.PAGE,
+      resourceId: createdPage.id,
+      spaceId: dto.spaceId,
+      metadata: {
+        source: 'web',
+        url: dto.url,
+      },
+    });
 
     return createdPage;
   }

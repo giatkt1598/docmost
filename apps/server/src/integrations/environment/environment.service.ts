@@ -102,6 +102,22 @@ export class EnvironmentService {
     );
   }
 
+  // headless Chromium for "Import from web page": off | local | remote
+  getWebImportBrowser(): 'off' | 'local' | 'remote' {
+    const mode = this.configService
+      .get<string>('WEB_IMPORT_BROWSER', 'off')
+      .toLowerCase();
+    return mode === 'local' || mode === 'remote' ? mode : 'off';
+  }
+
+  getWebImportBrowserWsEndpoint(): string {
+    return this.configService.get<string>('WEB_IMPORT_BROWSER_WS');
+  }
+
+  getWebImportBrowserPath(): string {
+    return this.configService.get<string>('WEB_IMPORT_BROWSER_PATH');
+  }
+
   getFileImportSizeLimit(): string {
     return this.configService.get<string>('FILE_IMPORT_SIZE_LIMIT', '200mb');
   }
