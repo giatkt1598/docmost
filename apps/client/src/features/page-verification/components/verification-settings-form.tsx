@@ -130,7 +130,6 @@ export function VerificationSettingsForm({
           value={fixedDate}
           onChange={setFixedDate}
           minDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
-          valueFormat="LL"
           popoverProps={{ withinPortal: true }}
         />
       )}

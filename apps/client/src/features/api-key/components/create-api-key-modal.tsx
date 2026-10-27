@@ -97,7 +97,6 @@ export function CreateApiKeyModal({
               onChange={setCustomDate}
               minDate={new Date(Date.now() + DAY_MS)}
               maxDate={new Date(Date.now() + 365 * DAY_MS)}
-              valueFormat="LL"
               popoverProps={{ withinPortal: true }}
             />
           )}
