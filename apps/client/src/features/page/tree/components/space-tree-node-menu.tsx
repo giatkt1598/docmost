@@ -12,12 +12,14 @@ import {
   IconLink,
   IconStar,
   IconStarFilled,
+  IconTemplate,
   IconTrash,
 } from "@tabler/icons-react";
 
 import ExportModal from "@/components/common/export-modal";
 import MovePageModal from "@/features/page/components/move-page-modal.tsx";
 import CopyPageModal from "@/features/page/components/copy-page-modal.tsx";
+import { NewPageFromTemplateModal } from "@/features/template/components/new-page-from-template-modal";
 import { useDeletePageModal } from "@/features/page/hooks/use-delete-page-modal.tsx";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
 import { getPageTitle } from "@/features/page/page.utils";
@@ -63,6 +65,10 @@ export function NodeMenu({ node, canEdit }: NodeMenuProps) {
   const [
     copyPageModalOpened,
     { open: openCopyPageModal, close: closeCopySpaceModal },
+  ] = useDisclosure(false);
+  const [
+    templateModalOpened,
+    { open: openTemplateModal, close: closeTemplateModal },
   ] = useDisclosure(false);
   const favoriteIds = useFavoriteIds("page", node.spaceId);
   const addFavorite = useAddFavoriteMutation();
@@ -152,6 +158,19 @@ export function NodeMenu({ node, canEdit }: NodeMenuProps) {
         </Menu.Target>
 
         <Menu.Dropdown>
+          {canEdit && (
+            <Menu.Item
+              leftSection={<IconTemplate size={16} />}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openTemplateModal();
+              }}
+            >
+              {t("New page from template")}
+            </Menu.Item>
+          )}
+
           <Menu.Item
             leftSection={<IconLink size={16} />}
             onClick={(e) => {
@@ -258,6 +277,14 @@ export function NodeMenu({ node, canEdit }: NodeMenuProps) {
         currentSpaceSlug={spaceSlug}
         onClose={closeCopySpaceModal}
         open={copyPageModalOpened}
+      />
+
+      <NewPageFromTemplateModal
+        opened={templateModalOpened}
+        onClose={closeTemplateModal}
+        spaceId={node.spaceId}
+        spaceSlug={spaceSlug}
+        parentPageId={node.id}
       />
 
       <ExportModal
