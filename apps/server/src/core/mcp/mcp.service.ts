@@ -52,6 +52,7 @@ import {
 import { getPageTitle } from '../../common/helpers';
 import { AiPageToolsService } from '../ai-tools/ai-page-tools.service';
 import { toolError } from '../ai-tools/tool-error';
+import { normalizePageRef } from '../ai-tools/page-ref';
 import {
   BLOCK_GUIDE,
   PAGE_TOOL_DESCRIPTIONS,
@@ -476,7 +477,7 @@ export class McpService {
   }
 
   async getPage(actor: McpActor, args: { pageId: string }) {
-    const page = await this.pageRepo.findById(args.pageId, {
+    const page = await this.pageRepo.findById(normalizePageRef(args.pageId), {
       includeSpace: true,
       includeContent: true,
     });
@@ -507,12 +508,14 @@ export class McpService {
     }
 
     let spaceId = args.spaceId;
+    let parentId = args.pageId;
     if (args.pageId) {
-      const page = await this.pageRepo.findById(args.pageId);
+      const page = await this.pageRepo.findById(normalizePageRef(args.pageId));
       if (!page) {
         throw new ForbiddenException();
       }
       spaceId = page.spaceId;
+      parentId = page.id;
     }
 
     const ability = await this.spaceAbility.createForUser(actor.user, spaceId);
@@ -527,7 +530,7 @@ export class McpService {
     const result = await this.pageService.getSidebarPages(
       spaceId,
       this.pagination(args),
-      args.pageId,
+      parentId,
       actor.user.id,
       spaceCanEdit,
     );
@@ -554,8 +557,11 @@ export class McpService {
   ) {
     const { user, workspace } = actor;
 
+    let parentId = args.parentPageId;
     if (args.parentPageId) {
-      const parentPage = await this.pageRepo.findById(args.parentPageId);
+      const parentPage = await this.pageRepo.findById(
+        normalizePageRef(args.parentPageId),
+      );
       if (
         !parentPage ||
         parentPage.deletedAt ||
@@ -564,6 +570,7 @@ export class McpService {
         throw new NotFoundException('Parent page not found');
       }
       await this.pageAccessService.validateCanEdit(parentPage, user);
+      parentId = parentPage.id;
     } else {
       await this.assertSpaceAction(user, args.spaceId, SpaceCaslAction.Create);
     }
@@ -571,7 +578,7 @@ export class McpService {
     const page = await this.pageService.create(user.id, workspace.id, {
       spaceId: args.spaceId,
       title: args.title,
-      parentPageId: args.parentPageId,
+      parentPageId: parentId,
       ...(args.content !== undefined && {
         content: args.content,
         format: 'markdown',
@@ -606,7 +613,7 @@ export class McpService {
       );
     }
 
-    const page = await this.pageRepo.findById(args.pageId);
+    const page = await this.pageRepo.findById(normalizePageRef(args.pageId));
     if (!page || page.deletedAt) {
       throw new NotFoundException('Page not found');
     }
@@ -664,7 +671,7 @@ export class McpService {
     args: { pageId: string; spaceId?: string },
   ) {
     const { user } = actor;
-    const copiedPage = await this.pageRepo.findById(args.pageId);
+    const copiedPage = await this.pageRepo.findById(normalizePageRef(args.pageId));
     if (!copiedPage) {
       throw new NotFoundException('Page to copy not found');
     }
@@ -725,7 +732,7 @@ export class McpService {
     args: { pageId: string; parentPageId?: string | null },
   ) {
     const { user } = actor;
-    const movedPage = await this.pageRepo.findById(args.pageId);
+    const movedPage = await this.pageRepo.findById(normalizePageRef(args.pageId));
     if (!movedPage) {
       throw new NotFoundException('Moved page not found');
     }
@@ -734,17 +741,20 @@ export class McpService {
     await this.pageAccessService.validateCanEdit(movedPage, user);
 
     // undefined keeps the current parent, null moves to the space root
-    const parentPageId =
+    let parentPageId =
       args.parentPageId === undefined
         ? movedPage.parentPageId
         : args.parentPageId;
 
     if (parentPageId && parentPageId !== movedPage.parentPageId) {
-      const targetParent = await this.pageRepo.findById(parentPageId);
+      const targetParent = await this.pageRepo.findById(
+        normalizePageRef(parentPageId),
+      );
       if (!targetParent || targetParent.deletedAt) {
         throw new NotFoundException('Target parent page not found');
       }
       await this.pageAccessService.validateCanEdit(targetParent, user);
+      parentPageId = targetParent.id;
     }
 
     const position = await this.pageService.nextPagePosition(
@@ -765,7 +775,7 @@ export class McpService {
     args: { pageId: string; spaceId: string },
   ) {
     const { user } = actor;
-    const movedPage = await this.pageRepo.findById(args.pageId);
+    const movedPage = await this.pageRepo.findById(normalizePageRef(args.pageId));
     if (!movedPage) {
       throw new NotFoundException('Page to move not found');
     }
@@ -1100,7 +1110,7 @@ export class McpService {
   }
 
   private async findWorkspacePage(actor: McpActor, pageId: string) {
-    const page = await this.pageRepo.findById(pageId);
+    const page = await this.pageRepo.findById(normalizePageRef(pageId));
     if (!page || page.workspaceId !== actor.workspace.id || page.deletedAt) {
       throw new NotFoundException('Page not found');
     }
