@@ -11,8 +11,9 @@ const MAX_RESOURCE_BYTES = 15 * 1024 * 1024;
 const MAX_CONCURRENT_RENDERS = 2;
 const HTML_TYPES = ['text/html', 'application/xhtml+xml'];
 
-const BROWSER_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
+// An honest reader identity: hosts such as WordPress.com reject requests that
+// claim to be Chrome but don't look like it.
+const USER_AGENT = 'Mozilla/5.0 (compatible; Docmost; +https://docmost.com)';
 
 // Not worth downloading to read a page's text.
 const SKIPPED_RESOURCES = [
@@ -76,7 +77,7 @@ export class WebPageFetcher implements OnModuleDestroy {
       headers: {
         accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.5',
         'accept-language': 'vi,en;q=0.8',
-        'user-agent': BROWSER_USER_AGENT,
+        'user-agent': USER_AGENT,
       },
     });
 
@@ -107,7 +108,6 @@ export class WebPageFetcher implements OnModuleDestroy {
     try {
       const browser = await this.getBrowser();
       context = await browser.newContext({
-        userAgent: BROWSER_USER_AGENT,
         locale: 'vi-VN',
         serviceWorkers: 'block',
         javaScriptEnabled: true,
