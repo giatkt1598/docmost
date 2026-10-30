@@ -28,6 +28,7 @@ import { parseRedisUrl } from './common/helpers';
 import { LoggerModule } from './common/logger/logger.module';
 import { ClsModule } from 'nestjs-cls';
 import { AuditModule } from './core/audit/audit.module';
+import { SiemModule } from './core/siem/siem.module';
 import { ThrottleModule } from './integrations/throttle/throttle.module';
 import { OutboundModule } from './integrations/outbound/outbound.module';
 import { EncryptionModule } from './integrations/encryption/encryption.module';
@@ -53,7 +54,7 @@ try {
       middleware: { mount: true },
     }),
     LoggerModule,
-    ...(enterpriseModules.length > 0 ? [] : [AuditModule]),
+    ...(enterpriseModules.length > 0 ? [] : [AuditModule, SiemModule]),
     CoreModule,
     DatabaseModule,
     EnvironmentModule,

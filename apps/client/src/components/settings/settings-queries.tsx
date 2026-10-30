@@ -13,7 +13,8 @@ import { SSO_PROVIDERS_KEY } from "@/features/sso/queries/sso-query";
 import { getShares } from "@/features/share/services/share-service.ts";
 import { getApiKeys } from "@/features/api-key/services/api-key-service";
 import { API_KEYS_KEY } from "@/features/api-key/queries/api-key-query";
-import { getAuditLogs } from "@/ee/audit/services/audit-service";
+import { getAuditLogs } from "@/features/audit/services/audit-service";
+import { AUDIT_LOGS_KEY } from "@/features/audit/queries/audit-query";
 import { getPageVerifications } from "@/features/page-verification/services/page-verification-service";
 import { VERIFICATION_LIST_KEY } from "@/features/page-verification/queries/page-verification-query";
 import { getScimTokens } from "@/ee/scim/services/scim-token-service";
@@ -88,10 +89,10 @@ export const prefetchApiKeyManagement = () => {
 };
 
 export const prefetchAuditLogs = () => {
-  const params = { limit: 50 };
+  const query = { limit: 50 };
   queryClient.prefetchQuery({
-    queryKey: ["audit-logs", params],
-    queryFn: () => getAuditLogs(params),
+    queryKey: [AUDIT_LOGS_KEY, query],
+    queryFn: () => getAuditLogs(query),
   });
 };
 

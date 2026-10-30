@@ -81,7 +81,9 @@ const AiSettings = lazyWithPrefetch(
   () => import("@/pages/settings/ai/ai-settings.tsx"),
 );
 const BasePage = lazyWithPrefetch(() => import("@/pages/base/base-page.tsx"));
-const AuditLogs = lazyWithPrefetch(() => import("@/ee/audit/pages/audit-logs.tsx"));
+const AuditSettings = lazyWithPrefetch(
+  () => import("@/pages/settings/audit/audit-settings"),
+);
 const VerifiedPages = lazyWithPrefetch(
   () => import("@/features/page-verification/pages/verified-pages.tsx"),
 );
@@ -223,8 +225,9 @@ export default function App() {
             <Route path={"security"} element={<Security />} />
             <Route path={"ai"} element={<AiSettings />} />
             <Route path={"ai/mcp"} element={<AiMcpSettings />} />
-            <Route path={"audit"} element={<AuditLogs />} />
-            <Route path={"audit/siem"} element={<AuditLogs />} />
+            <Route path={"audit"} element={<AuditSettings />} />
+            <Route path={"audit/siem"} element={<AuditSettings />} />
+            <Route path={"audit/retention"} element={<AuditSettings />} />
             <Route
               path={"siem"}
               element={<Navigate to="/settings/audit/siem" replace />}

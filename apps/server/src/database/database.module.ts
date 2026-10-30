@@ -31,6 +31,7 @@ import { TemplateRepo } from '@docmost/db/repos/template/template.repo';
 import { McpTokenRepo } from '@docmost/db/repos/mcp-token/mcp-token.repo';
 import { ApiKeyRepo } from '@docmost/db/repos/api-key/api-key.repo';
 import { AuditRepo } from '@docmost/db/repos/audit/audit.repo';
+import { SiemDestinationRepo } from '@docmost/db/repos/siem/siem-destination.repo';
 import { BasePropertyRepo } from '@docmost/db/repos/base/base-property.repo';
 import { BaseRowRepo } from '@docmost/db/repos/base/base-row.repo';
 import { BaseViewRepo } from '@docmost/db/repos/base/base-view.repo';
@@ -109,6 +110,7 @@ import { normalizePostgresUrl } from '../common/helpers';
     McpTokenRepo,
     ApiKeyRepo,
     AuditRepo,
+    SiemDestinationRepo,
     BasePropertyRepo,
     BaseRowRepo,
     BaseViewRepo,
@@ -147,6 +149,7 @@ import { normalizePostgresUrl } from '../common/helpers';
     McpTokenRepo,
     ApiKeyRepo,
     AuditRepo,
+    SiemDestinationRepo,
     BasePropertyRepo,
     BaseRowRepo,
     BaseViewRepo,
