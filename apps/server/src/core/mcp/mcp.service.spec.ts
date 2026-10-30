@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { McpService } from './mcp.service';
+import { McpService, pageIconSchema } from './mcp.service';
 import { WorkspaceToolsService } from './workspace-tools.service';
 import { ImportToolsService } from './import-tools.service';
 import { BaseToolsService } from '../ai-tools/bases/base-tools.service';
@@ -61,6 +61,7 @@ function createService(
     ),
   });
   const deps = {
+    wsService: { emitCommentEvent: jest.fn().mockResolvedValue(undefined) },
     pageRepo: { findById: jest.fn().mockResolvedValue(page) },
     pageService: {
       create: jest.fn().mockResolvedValue(page),
@@ -139,6 +140,7 @@ function createService(
     {} as any,
     workspaceTools(),
     new (ImportToolsService as any)(...Array(5).fill({})),
+    deps.wsService as any,
   );
   return { service, deps };
 }
@@ -214,6 +216,39 @@ describe('McpService tools', () => {
       format: 'markdown',
     });
     expect(deps.auditService.log).toHaveBeenCalled();
+  });
+
+  it('create_page sets the icon', async () => {
+    const { service, deps } = createService();
+
+    await service.createPage(actor, { spaceId: 'space_1', icon: '🚀' });
+
+    expect(deps.pageService.create.mock.calls[0][2].icon).toBe('🚀');
+  });
+
+  it('update_page sets, removes and leaves alone the icon', async () => {
+    const { service, deps } = createService();
+
+    await service.updatePage(actor, { pageId: 'page_1', icon: '🚀' });
+    expect(deps.pageService.update.mock.calls[0][1].icon).toBe('🚀');
+    expect(deps.wsService.emitCommentEvent).toHaveBeenCalledTimes(1);
+
+    await service.updatePage(actor, { pageId: 'page_1', icon: null });
+    expect(deps.pageService.update.mock.calls[1][1].icon).toBeNull();
+    expect(deps.wsService.emitCommentEvent).toHaveBeenCalledTimes(2);
+
+    await service.updatePage(actor, { pageId: 'page_1', title: 'x' });
+    expect(deps.pageService.update.mock.calls[2][1]).not.toHaveProperty('icon');
+    expect(deps.wsService.emitCommentEvent).toHaveBeenCalledTimes(2);
+  });
+
+  it('a failed icon broadcast does not fail the update', async () => {
+    const { service, deps } = createService();
+    deps.wsService.emitCommentEvent.mockRejectedValue(new Error('down'));
+
+    await expect(
+      service.updatePage(actor, { pageId: 'page_1', icon: '🚀' }),
+    ).resolves.toBeDefined();
   });
 
   it('update_page requires edit access', async () => {
@@ -642,4 +677,17 @@ describe('McpService HTTP handler', () => {
       error: { code: 'FORBIDDEN', message: 'Forbidden' },
     });
   });
+});
+
+describe('page icon schema', () => {
+  it.each(['🚀', '📄', '👨‍👩‍👧', '🇻🇳', '1️⃣', '❤️'])('accepts %s', (icon) => {
+    expect(pageIconSchema.safeParse(icon).success).toBe(true);
+  });
+
+  it.each(['', 'rocket', '🚀 rocket', ':rocket:', '5', 'https://x.io/a.png'])(
+    'rejects %s',
+    (icon) => {
+      expect(pageIconSchema.safeParse(icon).success).toBe(false);
+    },
+  );
 });

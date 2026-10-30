@@ -15,6 +15,7 @@ import {
 } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import { Page, User, Workspace } from '@docmost/db/types/entity.types';
+import { WsService } from '../../ws/ws.service';
 import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { PaginationOptions } from '@docmost/db/pagination/pagination-options';
 import { PageService } from '../page/services/page.service';
@@ -118,6 +119,16 @@ function toToolDoc(tool: any): McpToolDoc {
 const MAX_LIST_LIMIT = 100;
 
 // Each tool mirrors the permission checks of the matching REST endpoint.
+// The page icon is a single emoji, as the editor's picker stores it. Rejecting
+// anything else stops a word like "rocket" ending up on the page.
+export const pageIconSchema = z
+  .string()
+  .max(32)
+  .regex(
+    /^(?=.*(?:\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20e3))[^\s\p{L}]+$/u,
+    'icon must be an emoji',
+  );
+
 @Injectable()
 export class McpService {
   private readonly logger = new Logger(McpService.name);
@@ -141,6 +152,7 @@ export class McpService {
     private readonly pageTools: AiPageToolsService,
     private readonly workspaceTools: WorkspaceToolsService,
     private readonly importTools: ImportToolsService,
+    private readonly wsService: WsService,
   ) {}
 
   /**
@@ -258,6 +270,7 @@ export class McpService {
         inputSchema: z.object({
           spaceId: z.uuid(),
           title: z.string().optional(),
+          icon: pageIconSchema.optional().describe('Page icon: one emoji'),
           content: z.string().optional().describe('Markdown content'),
           parentPageId: z.string().optional(),
         }),
@@ -270,10 +283,14 @@ export class McpService {
       {
         title: 'Update page',
         description:
-          'Update a page title and/or content. Content is Markdown and is appended, prepended, or replaces the existing content.',
+          'Update a page title, icon and/or content. Content is Markdown and is appended, prepended, or replaces the existing content.',
         inputSchema: z.object({
           pageId: z.string().min(1),
           title: z.string().optional(),
+          icon: pageIconSchema
+            .nullable()
+            .optional()
+            .describe('Page icon: one emoji, or null to remove it'),
           content: z.string().optional().describe('Markdown content'),
           operation: z
             .enum(['append', 'prepend', 'replace'])
@@ -622,6 +639,7 @@ export class McpService {
         id: page.id,
         slugId: page.slugId,
         title: page.title,
+        icon: page.icon,
         hasChildren: page.hasChildren,
       })),
       nextCursor: result.meta.nextCursor ?? null,
@@ -633,6 +651,7 @@ export class McpService {
     args: {
       spaceId: string;
       title?: string;
+      icon?: string;
       content?: string;
       parentPageId?: string;
     },
@@ -661,6 +680,7 @@ export class McpService {
       spaceId: args.spaceId,
       title: args.title,
       parentPageId: parentId,
+      ...(args.icon !== undefined && { icon: args.icon }),
       ...(args.content !== undefined && {
         content: args.content,
         format: 'markdown',
@@ -685,6 +705,7 @@ export class McpService {
     args: {
       pageId: string;
       title?: string;
+      icon?: string | null;
       content?: string;
       operation?: 'append' | 'prepend' | 'replace';
     },
@@ -707,6 +728,7 @@ export class McpService {
       {
         pageId: page.id,
         title: args.title,
+        ...(args.icon !== undefined && { icon: args.icon }),
         ...(args.content !== undefined && {
           content: args.content,
           operation: args.operation,
@@ -716,7 +738,27 @@ export class McpService {
       actor.user,
     );
 
+    if (args.icon !== undefined) {
+      this.notifyIconChanged(updatedPage);
+    }
+
     return this.toPageResult(updatedPage, { canEdit: true });
+  }
+
+  // Browsers learn of icon changes from each other, so tell them here. This
+  // goes through the same restriction check as comments on the page.
+  private notifyIconChanged(page: Page) {
+    this.wsService
+      .emitCommentEvent(page.spaceId, page.id, {
+        operation: 'updateOne',
+        spaceId: page.spaceId,
+        entity: ['pages'],
+        id: page.id,
+        payload: { icon: page.icon, parentPageId: page.parentPageId },
+      })
+      .catch((err) =>
+        this.logger.warn(`Failed to broadcast page icon: ${err.message}`),
+      );
   }
 
   async listPages(
@@ -740,6 +782,7 @@ export class McpService {
         id: page.id,
         slugId: page.slugId,
         title: page.title,
+        icon: page.icon,
         parentPageId: page.parentPageId,
         updatedAt: page.updatedAt,
       })),
@@ -1249,6 +1292,7 @@ export class McpService {
       id: page.id,
       slugId: page.slugId,
       title: page.title,
+      icon: page.icon,
       spaceId: page.spaceId,
       space: space
         ? { id: space.id, name: space.name, slug: space.slug }
