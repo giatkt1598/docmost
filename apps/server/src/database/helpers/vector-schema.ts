@@ -18,6 +18,15 @@ export async function isVectorSchemaReady(db: Kysely<any>): Promise<boolean> {
 export async function ensureVectorSchema(db: Kysely<any>): Promise<boolean> {
   if (await isVectorSchemaReady(db)) return true;
 
+  // Checked first: inside a migration a failed CREATE EXTENSION would abort the
+  // whole transaction, and the catch below could not recover from that.
+  const { rows } = await sql<{ available: boolean }>`
+    SELECT EXISTS (
+      SELECT 1 FROM pg_available_extensions WHERE name = 'vector'
+    ) AS available
+  `.execute(db);
+  if (!rows[0]?.available) return false;
+
   try {
     await sql`CREATE EXTENSION IF NOT EXISTS vector`.execute(db);
   } catch {

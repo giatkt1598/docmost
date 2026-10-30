@@ -14,7 +14,7 @@ export const EDITION_FEATURES: { label: string; available: boolean }[] = [
   { label: "AI Integration (Chat, Search & Assistant)", available: true },
   { label: "SCIM Provisioning", available: false },
   { label: "Approval Workflow", available: false },
-  { label: "Audit Logs", available: false },
+  { label: "Audit Logs", available: true },
   { label: "Advanced Search Engine Support", available: true },
   { label: "Full-text Search in Attachments (PDF, DOCX)", available: true },
   { label: "Confluence Import", available: true },
