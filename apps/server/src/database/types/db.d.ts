@@ -72,6 +72,7 @@ export interface Audit {
   id: Generated<string>;
   ipAddress: string | null;
   metadata: Json | null;
+  occurredAt: Timestamp | null;
   resourceId: string | null;
   resourceType: string;
   spaceId: string | null;

@@ -90,8 +90,9 @@ import { GeneralQueueProcessor } from './processors/general-queue.processor';
       name: QueueName.AUDIT_QUEUE,
       defaultJobOptions: {
         removeOnComplete: true,
-        removeOnFail: true,
-        attempts: 3,
+        removeOnFail: { count: 500 },
+        attempts: 5,
+        backoff: { type: 'exponential', delay: 5 * 1000 },
       },
     }),
     BullModule.registerQueue({
