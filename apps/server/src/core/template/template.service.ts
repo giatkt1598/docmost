@@ -58,7 +58,7 @@ export class TemplateService {
       result.items.map(async (template) => ({
         ...template,
         permissions: {
-          canManage: await this.templateAccess.canManage(template, user),
+          canManage: await this.templateAccess.canManage(template, user, workspace),
         },
       })),
     );
@@ -76,14 +76,14 @@ export class TemplateService {
     return {
       ...template,
       permissions: {
-        canManage: await this.templateAccess.canManage(template, user),
+        canManage: await this.templateAccess.canManage(template, user, workspace),
       },
     };
   }
 
   async create(dto: CreateTemplateDto, user: User, workspace: Workspace) {
     const spaceId = dto.spaceId ?? null;
-    await this.templateAccess.assertCanCreateIn(spaceId, user);
+    await this.templateAccess.assertCanCreateIn(spaceId, user, workspace);
 
     let { title, icon, content } = dto;
     let copies = [];
@@ -145,12 +145,16 @@ export class TemplateService {
       user,
       workspace.id,
     );
-    await this.templateAccess.assertCanManage(template, user);
+    await this.templateAccess.assertCanManage(template, user, workspace);
 
     const scopeChanged =
       dto.spaceId !== undefined && (dto.spaceId ?? null) !== template.spaceId;
     if (scopeChanged) {
-      await this.templateAccess.assertCanCreateIn(dto.spaceId ?? null, user);
+      await this.templateAccess.assertCanCreateIn(
+        dto.spaceId ?? null,
+        user,
+        workspace,
+      );
     }
 
     await this.templateRepo.updateTemplate(
@@ -175,7 +179,7 @@ export class TemplateService {
       user,
       workspace.id,
     );
-    await this.templateAccess.assertCanManage(template, user);
+    await this.templateAccess.assertCanManage(template, user, workspace);
 
     await this.templateAttachments.deleteTemplateFiles(template.id);
     await this.templateRepo.deleteTemplate(template.id, workspace.id);

@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Template, User } from '@docmost/db/types/entity.types';
+import { Template, User, Workspace } from '@docmost/db/types/entity.types';
 import { TemplateRepo } from '@docmost/db/repos/template/template.repo';
 import { SpaceMemberRepo } from '@docmost/db/repos/space/space-member.repo';
 import SpaceAbilityFactory from '../casl/abilities/space-ability.factory';
@@ -44,8 +44,20 @@ export class TemplateAccessService {
     return template;
   }
 
-  async canManage(template: Template, user: User): Promise<boolean> {
+  // Without allowMemberTemplates only workspace admins create and manage
+  // templates; everyone can still use them.
+  membersMayAuthor(workspace: Workspace): boolean {
+    const settings = workspace.settings as any;
+    return settings?.templates?.allowMemberTemplates === true;
+  }
+
+  async canManage(
+    template: Template,
+    user: User,
+    workspace: Workspace,
+  ): Promise<boolean> {
     if (this.isWorkspaceAdmin(user)) return true;
+    if (!this.membersMayAuthor(workspace)) return false;
     if (template.creatorId === user.id) return true;
     if (!template.spaceId) return false;
     const ability = await this.spaceAbility.createForUser(
@@ -55,13 +67,26 @@ export class TemplateAccessService {
     return ability.can(SpaceCaslAction.Manage, SpaceCaslSubject.Settings);
   }
 
-  async assertCanManage(template: Template, user: User): Promise<void> {
-    if (!(await this.canManage(template, user))) {
+  async assertCanManage(
+    template: Template,
+    user: User,
+    workspace: Workspace,
+  ): Promise<void> {
+    if (!(await this.canManage(template, user, workspace))) {
       throw new ForbiddenException();
     }
   }
 
-  async assertCanCreateIn(spaceId: string | null, user: User): Promise<void> {
+  async assertCanCreateIn(
+    spaceId: string | null,
+    user: User,
+    workspace: Workspace,
+  ): Promise<void> {
+    if (!this.isWorkspaceAdmin(user) && !this.membersMayAuthor(workspace)) {
+      throw new ForbiddenException(
+        'Only workspace admins can create templates',
+      );
+    }
     if (spaceId === null) {
       if (!this.isWorkspaceAdmin(user)) {
         throw new ForbiddenException(

@@ -36,6 +36,7 @@ import {
 } from "@/features/template/queries/template-query";
 import { ITemplate } from "@/features/template/types/template.types";
 import { CreateTemplateModal } from "@/features/template/components/create-template-modal";
+import { useCanCreateTemplates } from "@/features/template/hooks/use-can-create-templates";
 import { TemplatePreviewModal } from "@/features/template/components/template-preview-modal";
 import { UseTemplateModal } from "@/features/template/components/use-template-modal";
 
@@ -45,6 +46,7 @@ export default function TemplateList() {
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebouncedValue(search, 300);
   const [spaceFilter, setSpaceFilter] = useState<string | null>(null);
+  const canCreate = useCanCreateTemplates();
   const [createOpened, { open: openCreate, close: closeCreate }] =
     useDisclosure(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -78,9 +80,11 @@ export default function TemplateList() {
 
       <Group justify="space-between" mb="lg">
         <Title order={3}>{t("Templates")}</Title>
-        <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
-          {t("New template")}
-        </Button>
+        {canCreate && (
+          <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
+            {t("New template")}
+          </Button>
+        )}
       </Group>
 
       <Group mb="lg" gap="sm" wrap="wrap">

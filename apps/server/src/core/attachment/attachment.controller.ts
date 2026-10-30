@@ -142,7 +142,7 @@ export class AttachmentController {
         user,
         workspace.id,
       );
-      await this.templateAccess.assertCanManage(template, user);
+      await this.templateAccess.assertCanManage(template, user, workspace);
       spaceId = template.spaceId;
     } else {
       throw new BadRequestException('PageId is required');

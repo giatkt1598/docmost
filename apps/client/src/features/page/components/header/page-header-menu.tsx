@@ -21,6 +21,7 @@ import {
   IconWifiOff,
 } from "@tabler/icons-react";
 import { CreateTemplateModal } from "@/features/template/components/create-template-modal";
+import { useCanCreateTemplates } from "@/features/template/hooks/use-can-create-templates";
 import { useEffect, useRef, useState } from "react";
 import type { Content } from "@tiptap/react";
 import { useAsideTriggerProps } from "@/hooks/use-toggle-aside.tsx";
@@ -151,6 +152,7 @@ interface PageActionMenuProps {
   readOnly?: boolean;
 }
 function PageActionMenu({ readOnly }: PageActionMenuProps) {
+  const canCreateTemplates = useCanCreateTemplates();
   const { t } = useTranslation();
   const [, setHistoryModalOpen] = useAtom(historyAtoms);
   const clipboard = useClipboard({ timeout: 500 });
@@ -355,7 +357,7 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
             />
           )}
 
-          {!readOnly && !page?.isBase && (
+          {!readOnly && !page?.isBase && canCreateTemplates && (
             <Menu.Item
               leftSection={<IconTemplate size={16} />}
               onClick={openSaveAsTemplate}

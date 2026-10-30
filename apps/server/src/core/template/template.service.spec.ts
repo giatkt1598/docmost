@@ -9,7 +9,11 @@ jest.mock('../../collaboration/collaboration.util', () => ({
 
 const member = { id: 'member_1', role: 'member' } as any;
 const admin = { id: 'admin_1', role: 'admin' } as any;
-const workspace = { id: 'ws_1' } as any;
+const workspace = {
+  id: 'ws_1',
+  settings: { templates: { allowMemberTemplates: true } },
+} as any;
+const adminsOnly = { id: 'ws_1', settings: {} } as any;
 const content = { type: 'doc', content: [] };
 
 function template(overrides: Record<string, any> = {}) {
@@ -305,6 +309,56 @@ describe('TemplateService manage', () => {
     await expect(service.getInfo('tpl_1', member, workspace)).rejects.toThrow(
       NotFoundException,
     );
+  });
+});
+
+describe('TemplateService with member templates off', () => {
+  it('stops members from creating, even in their own space', async () => {
+    const { service, deps } = createService();
+
+    await expect(
+      service.create({ title: 'x', spaceId: 'space_1' }, member, adminsOnly),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(deps.templateRepo.insertTemplate).not.toHaveBeenCalled();
+  });
+
+  it('stops creators from managing their own templates', async () => {
+    const { service, deps } = createService({
+      template: template({ creatorId: 'member_1' }),
+    });
+
+    await expect(
+      service.remove('tpl_1', member, adminsOnly),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(deps.templateRepo.deleteTemplate).not.toHaveBeenCalled();
+  });
+
+  it('reports the template as not manageable', async () => {
+    const { service } = createService({
+      template: template({ creatorId: 'member_1' }),
+    });
+
+    const info = await service.getInfo('tpl_1', member, adminsOnly);
+
+    expect(info.permissions.canManage).toBe(false);
+  });
+
+  it('leaves admins alone', async () => {
+    const { service, deps } = createService();
+
+    await service.create({ title: 'x' }, admin, adminsOnly);
+
+    expect(deps.templateRepo.insertTemplate).toHaveBeenCalled();
+  });
+
+  it('still lets members use a template', async () => {
+    const { service, deps } = createService({
+      template: template({ spaceId: 'space_1' }),
+    });
+
+    await service.use({ templateId: 'tpl_1', spaceId: 'space_1' } as any, member, adminsOnly);
+
+    expect(deps.pageService.create).toHaveBeenCalled();
   });
 });
 

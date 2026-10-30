@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { isBetaPublicSpaces, isCloud } from "@/lib/config.ts";
 import ManageHostname from "@/ee/components/manage-hostname.tsx";
 import { Divider } from "@mantine/core";
-import AllowMemberTemplates from "@/ee/security/components/allow-member-templates.tsx";
+import { AllowMemberTemplates } from "@/features/template/components/allow-member-templates";
 import WorkspaceDefaultPageEditMode from "@/features/workspace/components/settings/components/workspace-default-page-edit-mode.tsx";
 import { PersonalSpacesSetting } from "@/features/personal-space/components/personal-spaces-setting";
 import AllowPublicSpaces from "@/features/workspace/components/settings/components/allow-public-spaces.tsx";

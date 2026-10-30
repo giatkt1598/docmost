@@ -420,13 +420,7 @@ export class WorkspaceService {
 
       // public sharing and trash retention are enforced by core and need no license
       // restrictApiToAdmins is enforced by the core API key module
-      if (typeof updateWorkspaceDto.allowMemberTemplates !== 'undefined') {
-        if (!this.licenseCheckService.hasFeature(ws.licenseKey, Feature.SECURITY_SETTINGS, ws.plan)) {
-          throw new ForbiddenException(
-            'This feature requires a valid license',
-          );
-        }
-      }
+      // allowMemberTemplates is enforced by core TemplateAccessService
 
       if (
         typeof updateWorkspaceDto.trashRetentionDays !== 'undefined' &&
