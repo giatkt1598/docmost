@@ -71,6 +71,15 @@ export class AuthService {
     return this.completeLogin(user, workspaceId, 'password');
   }
 
+  private auditLoginFailure(email: string, userId: string, reason: string) {
+    this.auditService.log({
+      event: AuditEvent.USER_LOGIN_FAILED,
+      resourceType: AuditResource.USER,
+      resourceId: userId,
+      metadata: { email, reason },
+    });
+  }
+
   // First half of a login: checks the password but creates no session, so
   // a second factor can be required before completeLogin.
   async verifyCredentials(
@@ -83,6 +92,7 @@ export class AuthService {
 
     const errorMessage = 'Email or password does not match';
     if (!user || isUserDisabled(user)) {
+      this.auditLoginFailure(loginDto.email, user?.id, user ? 'disabled' : 'unknown_user');
       throw new UnauthorizedException(errorMessage);
     }
 
@@ -92,6 +102,7 @@ export class AuthService {
     );
 
     if (!isPasswordMatch) {
+      this.auditLoginFailure(loginDto.email, user.id, 'wrong_password');
       throw new UnauthorizedException(errorMessage);
     }
 

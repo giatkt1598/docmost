@@ -6,6 +6,8 @@ export interface AuditContext {
   workspaceId: string | null;
   actorId: string | null;
   actorType: 'user' | 'system' | 'api_key';
+  // how a non-interactive actor signed in: api_key, mcp_token, oauth_access
+  credential?: string;
   ipAddress: string | null;
   userAgent: string | null;
 }

@@ -49,6 +49,7 @@ function createService() {
     userMfaRepo as any,
     userRepo as any,
     encryptionService as any,
+    { log: jest.fn() } as any,
   );
   return { service, userMfaRepo, getRow: () => row };
 }

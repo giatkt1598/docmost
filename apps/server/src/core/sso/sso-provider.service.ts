@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -11,6 +12,11 @@ import {
 } from '../../integrations/encryption/encryption.service';
 import { DomainService } from '../../integrations/environment/domain.service';
 import { isSsoProviderTypeSupported } from '../auth/auth-capabilities';
+import {
+  AUDIT_SERVICE,
+  IAuditService,
+} from '../../integrations/audit/audit.service';
+import { AuditEvent, AuditResource } from '../../common/events/audit-events';
 import {
   CreateSsoProviderDto,
   SsoProviderType,
@@ -28,6 +34,7 @@ export class SsoProviderService {
     private readonly authProviderRepo: AuthProviderRepo,
     private readonly encryptionService: EncryptionService,
     private readonly domainService: DomainService,
+    @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
   ) {}
 
   async list(workspace: Workspace) {
@@ -62,6 +69,12 @@ export class SsoProviderService {
       creatorId: userId,
       workspaceId: workspace.id,
     });
+    this.auditService.log({
+      event: AuditEvent.SSO_PROVIDER_CREATED,
+      resourceType: AuditResource.SSO_PROVIDER,
+      resourceId: provider.id,
+      metadata: { name: provider.name, type: provider.type },
+    });
     return this.toPublic(provider, workspace);
   }
 
@@ -85,6 +98,17 @@ export class SsoProviderService {
       ...(dto.allowSignup !== undefined && { allowSignup: dto.allowSignup }),
       ...(dto.groupSync !== undefined && { groupSync: dto.groupSync }),
     });
+    this.auditService.log({
+      event: AuditEvent.SSO_PROVIDER_UPDATED,
+      resourceType: AuditResource.SSO_PROVIDER,
+      resourceId: existing.id,
+      metadata: {
+        name: dto.name?.trim() ?? existing.name,
+        type: existing.type,
+        // names only: the values of these fields include credentials
+        fields: Object.keys(dto).filter((key) => key !== 'providerId'),
+      },
+    });
     return this.get(existing.id, workspace);
   }
 
@@ -94,6 +118,12 @@ export class SsoProviderService {
       await this.assertNotLastEnforcedProvider(existing, workspace);
     }
     await this.authProviderRepo.softDelete(existing.id, workspace.id);
+    this.auditService.log({
+      event: AuditEvent.SSO_PROVIDER_DELETED,
+      resourceType: AuditResource.SSO_PROVIDER,
+      resourceId: existing.id,
+      metadata: { name: existing.name, type: existing.type },
+    });
   }
 
   // For the login flows: an enabled provider with decrypted secrets.

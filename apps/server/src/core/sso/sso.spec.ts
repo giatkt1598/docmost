@@ -244,6 +244,7 @@ function providerService(stored: any[] = []) {
     repo as any,
     encryption as any,
     domain as any,
+    { log: jest.fn() } as any,
   );
   return { service, repo };
 }

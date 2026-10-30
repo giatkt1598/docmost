@@ -10,6 +10,7 @@ export const AuditEvent = {
   USER_CREATED: 'user.created',
   USER_DELETED: 'user.deleted',
   USER_LOGIN: 'user.login',
+  USER_LOGIN_FAILED: 'user.login_failed',
   USER_LOGOUT: 'user.logout',
   USER_ROLE_CHANGED: 'user.role_changed',
   USER_PASSWORD_CHANGED: 'user.password_changed',
@@ -75,6 +76,8 @@ export const AuditEvent = {
   PAGE_RESTORED: 'page.restored',
   PAGE_MOVED_TO_SPACE: 'page.moved_to_space',
   PAGE_DUPLICATED: 'page.duplicated',
+  PAGE_AI_EDITED: 'page.ai_edited',
+  PAGE_AI_EDIT_UNDONE: 'page.ai_edit_undone',
   // Page permission
   PAGE_RESTRICTED: 'page.restricted',
   PAGE_RESTRICTION_REMOVED: 'page.restriction_removed',
@@ -123,6 +126,10 @@ export const AuditEvent = {
   SIEM_DESTINATION_DELETED: 'siem_destination.deleted',
   SIEM_DESTINATION_TEST: 'siem_destination.test',
 
+  // AI provider
+  AI_PROVIDER_UPDATED: 'ai_provider.updated',
+  AI_PROVIDER_DELETED: 'ai_provider.deleted',
+
   // Template
   TEMPLATE_CREATED: 'template.created',
   TEMPLATE_DELETED: 'template.deleted',
@@ -158,6 +165,7 @@ export const AuditResource = {
   ATTACHMENT: 'attachment',
   LICENSE: 'license',
   SIEM_DESTINATION: 'siem_destination',
+  AI_PROVIDER: 'ai_provider',
   TEMPLATE: 'template',
 } as const;
 

@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   HttpCode,
   HttpStatus,
+  Inject,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -21,6 +22,11 @@ import { AiProviderService } from './ai-provider.service';
 import { AiProviderAdminService } from './ai-provider-admin.service';
 import { EmbeddingIndexService } from '../embedding/embedding-index.service';
 import {
+  AUDIT_SERVICE,
+  IAuditService,
+} from '../../integrations/audit/audit.service';
+import { AuditEvent, AuditResource } from '../../common/events/audit-events';
+import {
   AiProviderConnectionDto,
   SaveAiProviderDto,
   TestAiProviderDto,
@@ -37,6 +43,7 @@ export class AiProviderController {
     private readonly admin: AiProviderAdminService,
     private readonly workspaceAbility: WorkspaceAbilityFactory,
     private readonly embeddings: EmbeddingIndexService,
+    @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
   ) {}
 
   @HttpCode(HttpStatus.OK)
@@ -48,20 +55,34 @@ export class AiProviderController {
 
   @HttpCode(HttpStatus.OK)
   @Post('save')
-  save(
+  async save(
     @Body() dto: SaveAiProviderDto,
     @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
     this.assertAdmin(user, workspace);
-    return this.admin.save(workspace.id, user.id, dto);
+    const saved = await this.admin.save(workspace.id, user.id, dto);
+    this.auditService.log({
+      event: AuditEvent.AI_PROVIDER_UPDATED,
+      resourceType: AuditResource.AI_PROVIDER,
+      resourceId: workspace.id,
+      // field names only: the DTO carries the provider API key
+      metadata: { fields: Object.keys(dto) },
+    });
+    return saved;
   }
 
   @HttpCode(HttpStatus.OK)
   @Post('delete')
-  remove(@AuthUser() user: User, @AuthWorkspace() workspace: Workspace) {
+  async remove(@AuthUser() user: User, @AuthWorkspace() workspace: Workspace) {
     this.assertAdmin(user, workspace);
-    return this.admin.remove(workspace.id);
+    const result = await this.admin.remove(workspace.id);
+    this.auditService.log({
+      event: AuditEvent.AI_PROVIDER_DELETED,
+      resourceType: AuditResource.AI_PROVIDER,
+      resourceId: workspace.id,
+    });
+    return result;
   }
 
   @HttpCode(HttpStatus.OK)

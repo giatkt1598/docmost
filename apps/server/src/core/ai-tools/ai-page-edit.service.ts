@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectKysely } from 'nestjs-kysely';
 import { sql } from 'kysely';
 import { isDeepStrictEqual } from 'node:util';
@@ -8,6 +8,11 @@ import { Page, User } from '@docmost/db/types/entity.types';
 import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { PageHistoryRepo } from '@docmost/db/repos/page/page-history.repo';
 import { CollaborationGateway } from '../../collaboration/collaboration.gateway';
+import {
+  AUDIT_SERVICE,
+  IAuditService,
+} from '../../integrations/audit/audit.service';
+import { AuditEvent, AuditResource } from '../../common/events/audit-events';
 import {
   AttachmentRef,
   BlockInput,
@@ -139,6 +144,7 @@ export class AiPageEditService implements OnModuleInit {
     private readonly collaboration: CollaborationGateway,
     private readonly pageRepo: PageRepo,
     private readonly pageHistoryRepo: PageHistoryRepo,
+    @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
   ) {}
 
   // Edits left pending by a crash are not undoable.
@@ -259,6 +265,20 @@ export class AiPageEditService implements OnModuleInit {
       // regular history snapshot still captures the content
       this.logger.error(`Recording AI edit ${edit.id} failed`, err);
     }
+
+    this.auditService.log({
+      event: undo ? AuditEvent.PAGE_AI_EDIT_UNDONE : AuditEvent.PAGE_AI_EDITED,
+      resourceType: AuditResource.PAGE,
+      resourceId: page.id,
+      spaceId: page.spaceId,
+      metadata: {
+        editId: edit.id,
+        ...(opts.undoOf && { undoOf: opts.undoOf }),
+        summary: opts.summary,
+        changedBlocks: result.changedIds.length,
+        deletedBlocks: result.deletedIds.length,
+      },
+    });
 
     const changed = result.changedIds
       .map((id: string) => findNode(result.doc, id))

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -14,6 +15,15 @@ import {
   EncryptionService,
 } from '../../integrations/encryption/encryption.service';
 import { comparePasswordHash } from '../../common/helpers';
+import {
+  AUDIT_SERVICE,
+  IAuditService,
+} from '../../integrations/audit/audit.service';
+import {
+  AuditEvent,
+  AuditEventType,
+  AuditResource,
+} from '../../common/events/audit-events';
 
 const ISSUER = 'Docmost';
 const BACKUP_CODE_COUNT = 10;
@@ -40,6 +50,7 @@ export class TwoFactorService {
     private readonly userMfaRepo: UserMfaRepo,
     private readonly userRepo: UserRepo,
     private readonly encryptionService: EncryptionService,
+    @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
   ) {}
 
   async getStatus(user: User, workspaceId: string) {
@@ -101,6 +112,7 @@ export class TwoFactorService {
 
     const backupCodes = this.newBackupCodes();
     await this.userMfaRepo.enable(mfa.id, backupCodes.map(hashBackupCode));
+    this.audit(AuditEvent.USER_MFA_ENABLED, user);
     return { backupCodes };
   }
 
@@ -112,6 +124,7 @@ export class TwoFactorService {
       );
     }
     await this.userMfaRepo.delete(user.id, workspace.id);
+    this.audit(AuditEvent.USER_MFA_DISABLED, user);
   }
 
   async regenerateBackupCodes(
@@ -129,6 +142,7 @@ export class TwoFactorService {
       mfa.id,
       backupCodes.map(hashBackupCode),
     );
+    this.audit(AuditEvent.USER_MFA_BACKUP_CODE_GENERATED, user);
     return { backupCodes };
   }
 
@@ -149,12 +163,26 @@ export class TwoFactorService {
     const remaining = mfa.backupCodes ?? [];
     const match = remaining.find((stored) => safeEqual(stored, hashed));
     if (!match) {
+      this.auditService.log({
+        event: AuditEvent.USER_LOGIN_FAILED,
+        resourceType: AuditResource.USER,
+        resourceId: user.id,
+        metadata: { email: user.email, reason: 'wrong_mfa_code' },
+      });
       throw new UnauthorizedException('Invalid verification code');
     }
     await this.userMfaRepo.setBackupCodes(
       mfa.id,
       remaining.filter((stored) => stored !== match),
     );
+  }
+
+  private audit(event: AuditEventType, user: User) {
+    this.auditService.log({
+      event,
+      resourceType: AuditResource.USER,
+      resourceId: user.id,
+    });
   }
 
   private isValidTotp(

@@ -5,6 +5,7 @@ export type AuditLogContext = {
   workspaceId: string;
   actorId?: string;
   actorType?: ActorType;
+  credential?: string;
   ipAddress?: string;
   userAgent?: string;
 };

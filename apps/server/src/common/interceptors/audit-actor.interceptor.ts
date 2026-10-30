@@ -7,6 +7,9 @@ import {
 import { Observable } from 'rxjs';
 import { ClsService } from 'nestjs-cls';
 import { AuditContext, AUDIT_CONTEXT_KEY } from '../middlewares/audit-context.middleware';
+import { JwtType } from '../../core/auth/dto/jwt-payload';
+
+const INTERACTIVE_AUTH_TYPES: unknown[] = [undefined, JwtType.ACCESS];
 
 @Injectable()
 export class AuditActorInterceptor implements NestInterceptor {
@@ -20,6 +23,11 @@ export class AuditActorInterceptor implements NestInterceptor {
       const auditContext = this.cls.get<AuditContext>(AUDIT_CONTEXT_KEY);
       if (auditContext) {
         auditContext.actorId = user.id;
+        const authType = request.user.authType;
+        if (!INTERACTIVE_AUTH_TYPES.includes(authType)) {
+          auditContext.actorType = 'api_key';
+          auditContext.credential = String(authType);
+        }
         this.cls.set(AUDIT_CONTEXT_KEY, auditContext);
       }
     }

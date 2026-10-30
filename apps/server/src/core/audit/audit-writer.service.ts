@@ -56,6 +56,7 @@ export class AuditWriterService implements IAuditService {
       workspaceId: context.workspaceId,
       actorId: context.actorId ?? undefined,
       actorType: context.actorType,
+      credential: context.credential,
       ipAddress: context.ipAddress ?? undefined,
       userAgent: context.userAgent ?? undefined,
     });
@@ -107,6 +108,14 @@ export class AuditWriterService implements IAuditService {
   }
 }
 
+function buildMetadata(payload: AuditLogPayload, context: AuditLogContext) {
+  if (!payload.metadata && !context.credential) return null;
+  return redactSensitive({
+    ...payload.metadata,
+    ...(context.credential && { credential: context.credential }),
+  });
+}
+
 function toRow(
   payload: AuditLogPayload,
   context: AuditLogContext,
@@ -121,7 +130,7 @@ function toRow(
     resourceId: uuidOrNull(payload.resourceId),
     spaceId: uuidOrNull(payload.spaceId),
     changes: payload.changes ? redactSensitive(payload.changes) : null,
-    metadata: payload.metadata ? redactSensitive(payload.metadata) : null,
+    metadata: buildMetadata(payload, context),
     ipAddress: ipOrNull(context.ipAddress),
     userAgent: context.userAgent?.slice(0, 512) ?? null,
     occurredAt,
