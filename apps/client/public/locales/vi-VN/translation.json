@@ -2290,5 +2290,11 @@
   "Channel ID": "ID kênh",
   "Saved. Leave blank to keep.": "Đã lưu. Để trống nếu muốn giữ nguyên.",
   "Skip TLS certificate verification": "Bỏ qua kiểm tra chứng chỉ TLS",
-  "Test event delivered": "Đã gửi sự kiện thử"
+  "Test event delivered": "Đã gửi sự kiện thử",
+  "Created page": "Đã tạo trang",
+  "Duplicated page": "Đã nhân bản trang",
+  "Moved page to another space": "Đã chuyển trang sang không gian khác",
+  "Uploaded attachment": "Đã tải lên tệp đính kèm",
+  "All actors": "Tất cả người thực hiện",
+  "Could not load audit logs": "Không tải được nhật ký kiểm tra"
 }

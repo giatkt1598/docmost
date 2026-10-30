@@ -76,6 +76,9 @@ export const AUDIT_EVENT_GROUPS: AuditEventGroup[] = [
   {
     group: "Pages",
     events: {
+      "page.created": "Created page",
+      "page.duplicated": "Duplicated page",
+      "page.moved_to_space": "Moved page to another space",
       "page.trashed": "Moved page to trash",
       "page.deleted": "Deleted page",
       "page.restored": "Restored page",
@@ -106,6 +109,7 @@ export const AUDIT_EVENT_GROUPS: AuditEventGroup[] = [
       "comment.deleted": "Deleted comment",
       "comment.resolved": "Resolved comment",
       "comment.reopened": "Reopened comment",
+      "attachment.uploaded": "Uploaded attachment",
       "attachment.deleted": "Deleted attachment",
     },
   },

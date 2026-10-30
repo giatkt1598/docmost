@@ -2473,5 +2473,11 @@
   "Channel ID": "Channel ID",
   "Saved. Leave blank to keep.": "Saved. Leave blank to keep.",
   "Skip TLS certificate verification": "Skip TLS certificate verification",
-  "Test event delivered": "Test event delivered"
+  "Test event delivered": "Test event delivered",
+  "Created page": "Created page",
+  "Duplicated page": "Duplicated page",
+  "Moved page to another space": "Moved page to another space",
+  "Uploaded attachment": "Uploaded attachment",
+  "All actors": "All actors",
+  "Could not load audit logs": "Could not load audit logs"
 }

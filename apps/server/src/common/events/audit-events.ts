@@ -138,10 +138,6 @@ export const AuditEvent = {
 export type AuditEventType = (typeof AuditEvent)[keyof typeof AuditEvent];
 
 export const EXCLUDED_AUDIT_EVENTS: Set<string> = new Set([
-  AuditEvent.PAGE_CREATED,
-  AuditEvent.PAGE_MOVED_TO_SPACE,
-  AuditEvent.PAGE_DUPLICATED,
-  AuditEvent.ATTACHMENT_UPLOADED,
   AuditEvent.SIEM_DESTINATION_TEST,
 ]);
 

@@ -23,6 +23,7 @@ export type AuditLogQuery = {
   cursor?: string;
   limit?: number;
   event?: string;
+  actorId?: string;
   startDate?: string;
   endDate?: string;
 };

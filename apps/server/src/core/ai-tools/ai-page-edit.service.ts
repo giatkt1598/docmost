@@ -274,7 +274,8 @@ export class AiPageEditService implements OnModuleInit {
       metadata: {
         editId: edit.id,
         ...(opts.undoOf && { undoOf: opts.undoOf }),
-        summary: opts.summary,
+        // written by the model and may quote the page: keep it short in logs
+        summary: opts.summary?.slice(0, 500),
         changedBlocks: result.changedIds.length,
         deletedBlocks: result.deletedIds.length,
       },

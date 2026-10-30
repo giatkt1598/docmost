@@ -53,7 +53,9 @@ function buildHttp(
   };
   if (secrets.token) {
     const name = config.authHeaderName || 'Authorization';
-    const prefix = config.authHeaderPrefix ?? 'Bearer';
+    // Bearer only belongs on the default header; X-Api-Key style headers are raw
+    const prefix =
+      config.authHeaderPrefix ?? (config.authHeaderName ? '' : 'Bearer');
     headers[name] = prefix ? `${prefix} ${secrets.token}` : secrets.token;
   }
   return {

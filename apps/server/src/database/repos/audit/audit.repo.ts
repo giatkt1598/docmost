@@ -6,6 +6,9 @@ import { InsertableAudit } from '@docmost/db/types/entity.types';
 import { PaginationOptions } from '@docmost/db/pagination/pagination-options';
 import { executeWithCursorPagination } from '@docmost/db/pagination/cursor-pagination';
 
+// A large import logs one row per page; Postgres caps parameters per statement.
+const INSERT_CHUNK_SIZE = 1000;
+
 export type AuditLogFilters = {
   event?: string;
   resourceType?: string;
@@ -20,8 +23,12 @@ export class AuditRepo {
   constructor(@InjectKysely() private readonly db: KyselyDB) {}
 
   async insertMany(rows: InsertableAudit[]): Promise<void> {
-    if (rows.length === 0) return;
-    await this.db.insertInto('audit').values(rows).execute();
+    for (let i = 0; i < rows.length; i += INSERT_CHUNK_SIZE) {
+      await this.db
+        .insertInto('audit')
+        .values(rows.slice(i, i + INSERT_CHUNK_SIZE))
+        .execute();
+    }
   }
 
   async findPage(

@@ -73,29 +73,22 @@ export function SiemDestinationModal({ opened, destination, onClose }: Props) {
   const secretRequired = type !== "http" && !hasStoredSecret;
   const tlsSkipped = config.tls?.rejectUnauthorized === false;
 
-  const submit = async () => {
+  const submit = () => {
     if (destination) {
-      await update.mutateAsync({
-        destinationId: destination.id,
-        name,
-        config,
-        secrets,
-      });
+      update.mutate(
+        { destinationId: destination.id, name, config, secrets },
+        { onSuccess: onClose },
+      );
     } else {
-      await create.mutateAsync({ name, type, config, secrets });
+      create.mutate({ name, type, config, secrets }, { onSuccess: onClose });
     }
-    onClose();
   };
 
-  const runTest = async () => {
+  const runTest = () => {
     setTestResult(null);
-    setTestResult(
-      await test.mutateAsync({
-        type,
-        config,
-        secrets,
-        destinationId: destination?.id,
-      }),
+    test.mutate(
+      { type, config, secrets, destinationId: destination?.id },
+      { onSuccess: setTestResult },
     );
   };
 
@@ -170,7 +163,7 @@ export function SiemDestinationModal({ opened, destination, onClose }: Props) {
               />
               <TextInput
                 label={t("Auth prefix")}
-                placeholder="Bearer"
+                placeholder={config.authHeaderName ? "" : "Bearer"}
                 {...field("authHeaderPrefix")}
               />
             </Group>

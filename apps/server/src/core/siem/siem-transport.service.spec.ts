@@ -28,7 +28,6 @@ describe('buildRequest', () => {
         url: 'https://siem.example/in',
         format: 'ndjson',
         authHeaderName: 'X-Key',
-        authHeaderPrefix: '',
       },
       { token: 'tok' },
       [event, event],
@@ -36,6 +35,34 @@ describe('buildRequest', () => {
 
     expect(request.headers['X-Key']).toBe('tok');
     expect(request.body.split('\n')).toHaveLength(2);
+  });
+
+  it('sends a raw token when the form leaves the prefix blank', () => {
+    const config = normalizeConfig('http', {
+      url: 'https://siem.example/in',
+      authHeaderName: 'X-Api-Key',
+      authHeaderPrefix: '',
+    });
+
+    const request = buildRequest('http', config, { token: 'tok' }, [event]);
+
+    expect(request.headers['X-Api-Key']).toBe('tok');
+  });
+
+  it('keeps an explicit prefix on a custom header', () => {
+    const request = buildRequest(
+      'http',
+      {
+        url: 'https://siem.example/in',
+        format: 'json',
+        authHeaderName: 'X-Auth',
+        authHeaderPrefix: 'Token',
+      },
+      { token: 'tok' },
+      [event],
+    );
+
+    expect(request.headers['X-Auth']).toBe('Token tok');
   });
 
   it('targets the Splunk collector with concatenated events', () => {

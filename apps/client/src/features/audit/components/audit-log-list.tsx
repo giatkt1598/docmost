@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { Badge, Group, Select, Table, Text, TextInput } from "@mantine/core";
+import {
+  Alert,
+  Badge,
+  Center,
+  Group,
+  Loader,
+  Select,
+  Table,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import Paginate from "@/components/common/paginate";
 import NoTableResults from "@/components/common/no-table-results";
@@ -12,6 +22,7 @@ import {
 import { useAuditLogsQuery } from "@/features/audit/queries/audit-query";
 import { AuditLogEntry } from "@/features/audit/types/audit.types";
 import { AuditLogDetail } from "@/features/audit/components/audit-log-detail";
+import { AuditActorSelect } from "@/features/audit/components/audit-actor-select";
 
 // A date input gives a calendar day: the end of the range includes all of it.
 function dayBoundary(day: string, end: boolean) {
@@ -23,14 +34,16 @@ export function AuditLogList() {
   const { t } = useTranslation();
   const { cursor, goNext, goPrev, resetCursor } = useCursorPaginate();
   const [event, setEvent] = useState<string | null>(null);
+  const [actorId, setActorId] = useState<string | null>(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [selected, setSelected] = useState<AuditLogEntry | null>(null);
 
-  const { data } = useAuditLogsQuery({
+  const { data, isLoading, isError } = useAuditLogsQuery({
     cursor,
     limit: 50,
     event: event ?? undefined,
+    actorId: actorId ?? undefined,
     startDate: dayBoundary(from, false),
     endDate: dayBoundary(to, true),
   });
@@ -61,6 +74,7 @@ export function AuditLogList() {
           searchable
           w={260}
         />
+        <AuditActorSelect value={actorId} onChange={filterChanged(setActorId)} />
         <TextInput
           type="date"
           label={t("From")}
@@ -74,6 +88,12 @@ export function AuditLogList() {
           onChange={(e) => filterChanged(setTo)(e.currentTarget.value)}
         />
       </Group>
+
+      {isError && (
+        <Alert color="red" variant="light" mb="md">
+          {t("Could not load audit logs")}
+        </Alert>
+      )}
 
       <Table.ScrollContainer minWidth={700}>
         <Table highlightOnHover verticalSpacing="xs">
@@ -129,8 +149,16 @@ export function AuditLogList() {
                   </Table.Td>
                 </Table.Tr>
               ))
+            ) : isLoading ? (
+              <Table.Tr>
+                <Table.Td colSpan={5}>
+                  <Center py="md">
+                    <Loader size="sm" />
+                  </Center>
+                </Table.Td>
+              </Table.Tr>
             ) : (
-              <NoTableResults colSpan={5} />
+              !isError && <NoTableResults colSpan={5} />
             )}
           </Table.Tbody>
         </Table>

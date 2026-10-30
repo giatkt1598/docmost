@@ -67,9 +67,22 @@ describe('AuditWriterService', () => {
   it('drops excluded events', () => {
     const { service, queue } = setup({ workspaceId: WORKSPACE_ID });
 
-    service.log({ ...payload, event: AuditEvent.PAGE_CREATED });
+    service.log({ ...payload, event: AuditEvent.SIEM_DESTINATION_TEST });
 
     expect(queue.add).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    AuditEvent.PAGE_CREATED,
+    AuditEvent.PAGE_DUPLICATED,
+    AuditEvent.PAGE_MOVED_TO_SPACE,
+    AuditEvent.ATTACHMENT_UPLOADED,
+  ])('records %s', (event) => {
+    const { service, queue } = setup({ workspaceId: WORKSPACE_ID });
+
+    service.log({ ...payload, event });
+
+    expect(queue.add).toHaveBeenCalledTimes(1);
   });
 
   it('skips a log call without a workspace instead of throwing', () => {
