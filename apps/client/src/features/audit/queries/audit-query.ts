@@ -21,6 +21,9 @@ export function useAuditLogsQuery(query: AuditLogQuery) {
     queryKey: [AUDIT_LOGS_KEY, query],
     queryFn: () => getAuditLogs(query),
     placeholderData: keepPreviousData,
+    // new events arrive all the time: opt out of the app-wide cache defaults
+    staleTime: 0,
+    refetchOnMount: true,
   });
 }
 

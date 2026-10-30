@@ -18,6 +18,8 @@ export function useSiemDestinationsQuery() {
     queryFn: getSiemDestinations,
     // delivery state changes in the background
     refetchInterval: 30 * 1000,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 }
 
