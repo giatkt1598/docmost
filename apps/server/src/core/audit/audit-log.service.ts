@@ -101,6 +101,18 @@ export class AuditLogService implements OnApplicationBootstrap {
     return { retentionDays };
   }
 
+  // Logged after the delete so the trail records who emptied it.
+  async deleteAll(workspaceId: string) {
+    const deleted = await this.purge(workspaceId, new Date());
+    this.auditService.log({
+      event: AuditEvent.AUDIT_LOGS_DELETED,
+      resourceType: AuditResource.WORKSPACE,
+      resourceId: workspaceId,
+      metadata: { deleted },
+    });
+    return { deleted };
+  }
+
   async cleanup(now: Date = new Date()): Promise<number> {
     const workspaces = await this.auditRepo.listWorkspaceRetention();
     let removed = 0;
@@ -109,18 +121,24 @@ export class AuditLogService implements OnApplicationBootstrap {
       const days = workspace.auditRetentionDays ?? DEFAULT_AUDIT_RETENTION_DAYS;
       const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
-      let deleted: number;
-      do {
-        deleted = await this.auditRepo.deleteOlderThan(
-          workspace.id,
-          cutoff,
-          CLEANUP_BATCH_SIZE,
-        );
-        removed += deleted;
-      } while (deleted === CLEANUP_BATCH_SIZE);
+      removed += await this.purge(workspace.id, cutoff);
     }
 
     this.logger.debug(`Audit cleanup removed ${removed} row(s)`);
+    return removed;
+  }
+
+  private async purge(workspaceId: string, cutoff: Date): Promise<number> {
+    let removed = 0;
+    let deleted: number;
+    do {
+      deleted = await this.auditRepo.deleteOlderThan(
+        workspaceId,
+        cutoff,
+        CLEANUP_BATCH_SIZE,
+      );
+      removed += deleted;
+    } while (deleted === CLEANUP_BATCH_SIZE);
     return removed;
   }
 }

@@ -7,6 +7,7 @@ import {
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 import {
+  deleteAllAuditLogs,
   getAuditLogs,
   getAuditRetention,
   saveAuditRetention,
@@ -31,6 +32,27 @@ export function useAuditRetentionQuery() {
   return useQuery({
     queryKey: [AUDIT_RETENTION_KEY],
     queryFn: getAuditRetention,
+  });
+}
+
+export function useDeleteAllAuditLogsMutation() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteAllAuditLogs,
+    onSuccess: ({ deleted }) => {
+      queryClient.invalidateQueries({ queryKey: [AUDIT_LOGS_KEY] });
+      notifications.show({
+        message: t("Deleted {{count}} audit logs", { count: deleted }),
+      });
+    },
+    onError: (error: any) => {
+      notifications.show({
+        message: error?.response?.data?.message ?? t("Something went wrong"),
+        color: "red",
+      });
+    },
   });
 }
 

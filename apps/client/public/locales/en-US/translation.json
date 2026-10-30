@@ -2479,5 +2479,10 @@
   "Moved page to another space": "Moved page to another space",
   "Uploaded attachment": "Uploaded attachment",
   "All actors": "All actors",
-  "Could not load audit logs": "Could not load audit logs"
+  "Could not load audit logs": "Could not load audit logs",
+  "Deleted all audit logs": "Deleted all audit logs",
+  "Delete all audit logs": "Delete all audit logs",
+  "Deleted {{count}} audit logs": "Deleted {{count}} audit logs",
+  "This permanently deletes every audit log in this workspace, including events not yet sent to SIEM. It cannot be undone.": "This permanently deletes every audit log in this workspace, including events not yet sent to SIEM. It cannot be undone.",
+  "Type DELETE to confirm": "Type DELETE to confirm"
 }

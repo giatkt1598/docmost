@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Button, Group, NumberInput, Text } from "@mantine/core";
+import { Button, Divider, Group, NumberInput, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import {
   useAuditRetentionQuery,
   useSaveAuditRetentionMutation,
 } from "@/features/audit/queries/audit-query";
+import { DeleteAuditLogs } from "@/features/audit/components/delete-audit-logs";
 
 const MAX_RETENTION_DAYS = 3650;
 
@@ -41,6 +42,9 @@ export function AuditRetentionForm() {
           {t("Save")}
         </Button>
       </Group>
+
+      <Divider my="lg" />
+      <DeleteAuditLogs />
     </>
   );
 }

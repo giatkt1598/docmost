@@ -72,6 +72,23 @@ describe('AuditLogService', () => {
     );
   });
 
+  it('deletes everything in batches and records who did it', async () => {
+    const { service, repo, audit } = setup();
+    repo.deleteOlderThan
+      .mockResolvedValueOnce(5000)
+      .mockResolvedValueOnce(3);
+
+    await expect(service.deleteAll('w')).resolves.toEqual({ deleted: 5003 });
+
+    expect(repo.deleteOlderThan).toHaveBeenCalledTimes(2);
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: AuditEvent.AUDIT_LOGS_DELETED,
+        metadata: { deleted: 5003 },
+      }),
+    );
+  });
+
   it('names the resources of a page of logs', async () => {
     const { service, repo } = setup();
     repo.findPage.mockResolvedValue({

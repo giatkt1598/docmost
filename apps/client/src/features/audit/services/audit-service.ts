@@ -12,6 +12,11 @@ export async function getAuditLogs(
   return req.data;
 }
 
+export async function deleteAllAuditLogs(): Promise<{ deleted: number }> {
+  const req = await api.post("/audit/delete-all");
+  return req.data;
+}
+
 export async function getAuditRetention(): Promise<{ retentionDays: number }> {
   const req = await api.post("/audit/retention");
   return req.data;

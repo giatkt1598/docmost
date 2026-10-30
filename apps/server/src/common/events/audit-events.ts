@@ -126,6 +126,9 @@ export const AuditEvent = {
   SIEM_DESTINATION_DELETED: 'siem_destination.deleted',
   SIEM_DESTINATION_TEST: 'siem_destination.test',
 
+  // Audit
+  AUDIT_LOGS_DELETED: 'audit.logs_deleted',
+
   // AI provider
   AI_PROVIDER_UPDATED: 'ai_provider.updated',
   AI_PROVIDER_DELETED: 'ai_provider.deleted',

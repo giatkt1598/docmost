@@ -61,6 +61,13 @@ export class AuditController {
     );
   }
 
+  @HttpCode(HttpStatus.OK)
+  @Post('delete-all')
+  deleteAll(@AuthUser() user: User, @AuthWorkspace() workspace: Workspace) {
+    this.assertCanManage(user, workspace);
+    return this.auditLogService.deleteAll(workspace.id);
+  }
+
   private assertCanManage(user: User, workspace: Workspace) {
     const ability = this.workspaceAbility.createForUser(user, workspace);
     if (ability.cannot(WorkspaceCaslAction.Manage, WorkspaceCaslSubject.Audit)) {

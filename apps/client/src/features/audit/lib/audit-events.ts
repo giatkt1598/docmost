@@ -29,6 +29,7 @@ export const AUDIT_EVENT_GROUPS: AuditEventGroup[] = [
     group: "Workspace",
     events: {
       "workspace.updated": "Updated workspace",
+      "audit.logs_deleted": "Deleted all audit logs",
       "workspace.invite_created": "Created invitation",
       "workspace.invite_resent": "Resent invitation",
       "workspace.invite_revoked": "Revoked invitation",
