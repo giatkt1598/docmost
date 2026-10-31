@@ -110,6 +110,7 @@ describe('OAuthService', () => {
     'integration-entra': { id: 'integration-entra', type: 'entra', workspaceId, settings: {} },
     'integration-design': { id: 'integration-design', type: 'design', workspaceId, settings: {} },
     'integration-tracker': { id: 'integration-tracker', type: 'tracker', workspaceId, settings: {} },
+    'integration-atlas': { id: 'integration-atlas', type: 'atlas', workspaceId, settings: {} },
     'integration-foreign': { id: 'integration-foreign', type: 'acme', workspaceId: 'workspace-2', settings: {} },
   };
 
@@ -230,6 +231,16 @@ describe('OAuthService', () => {
             ...providerOAuth(['file_metadata:read']),
             refreshUrl: `${tokenEndpoint.url}/oauth/refresh`,
             clientAuth: 'basic' as const,
+          },
+        },
+      },
+      atlas: {
+        definition: {
+          type: 'atlas',
+          oauth: {
+            ...providerOAuth(['read']),
+            tokenRequestFormat: 'json' as const,
+            redirectUriOnRefresh: true,
           },
         },
       },
@@ -989,6 +1000,20 @@ describe('OAuthService', () => {
       expect(tokenEndpoint.requests.map((r) => r.body)).toEqual([
         'grant_type=refresh_token&client_id=entra-client-id&client_secret=entra-client-secret&refresh_token=refresh-token&scope=api%3A%2F%2Fresource%2Fitems.read+offline_access',
       ]);
+    });
+
+    it('sends JSON and repeats redirect_uri when the provider asks for it', async () => {
+      connectionRepo.findById.mockResolvedValue(expiringConnection({ integrationId: 'integration-atlas' }));
+      tokenEndpointReply = (_req, res) => tokenJson(res, { access_token: 'new-access-token', expires_in: 3600 });
+
+      await service.refreshAccessToken(expiringConnection({ integrationId: 'integration-atlas' }));
+
+      expect(JSON.parse(tokenEndpoint.requests[0].body)).toMatchObject({
+        grant_type: 'refresh_token',
+        client_id: 'atlas-client-id',
+        client_secret: 'atlas-client-secret',
+        redirect_uri: 'http://localhost:3000/api/integrations/oauth/atlas/callback',
+      });
     });
 
     it("refreshes at the provider's own refresh endpoint with HTTP Basic credentials and keeps a refresh token it does not replace", async () => {

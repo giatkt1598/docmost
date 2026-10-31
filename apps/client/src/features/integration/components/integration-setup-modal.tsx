@@ -105,7 +105,11 @@ export default function IntegrationSetupModal({
         "Sign in to {{name}} and create an access token under Your account > Access tokens. Use an account that can only see the files you want to preview.",
         { name },
       )
-    : definition.type === "gitea"
+    : definition.type === "jira"
+      ? t(
+          "Jira Cloud: in the Atlassian developer console create an OAuth 2.0 integration, add the Jira API and User Identity API with the permissions below, and find the client ID and secret under Settings. Jira Data Center: go to Administration > Applications > Application links, create an incoming link to an external application with the READ permission, and enter your Jira address below.",
+        )
+      : definition.type === "gitea"
       ? t(
           "On your Gitea server, open Settings > Applications and create a new OAuth2 application. Keep \"Confidential client\" ticked.",
         )
@@ -230,13 +234,13 @@ export default function IntegrationSetupModal({
                   ? t("The address of your {{name}} server.", { name })
                   : t(
                       "Only for a self-hosted server. Leave empty for {{host}}.",
-                      { host: setup?.defaultBaseUrl },
+                      { host: setup?.defaultLabel ?? setup?.defaultBaseUrl },
                     )
               }
               placeholder={
                 baseUrlMode === "required"
                   ? "https://gitea.example.com"
-                  : setup?.defaultBaseUrl
+                  : (setup?.baseUrlPlaceholder ?? setup?.defaultBaseUrl)
               }
               required={baseUrlMode === "required"}
               value={baseUrl}

@@ -28,6 +28,10 @@ export type OAuthConfig = {
   refreshUrl?: string;
   // Send the client id and secret as HTTP Basic instead of in the body (Figma).
   clientAuth?: 'basic';
+  // Send token requests as JSON instead of a form (Atlassian).
+  tokenRequestFormat?: 'json';
+  // Repeat redirect_uri on refresh (Jira Data Center).
+  redirectUriOnRefresh?: boolean;
   // Without it, workspace-scoped members can only link from inside the provider.
   identity?: IdentityOAuthConfig;
 };
@@ -108,6 +112,9 @@ export type IntegrationSetup = {
   auth?: 'oauth' | 'apiToken';
   baseUrl: 'none' | 'optional' | 'required';
   defaultBaseUrl?: string;
+  // What an empty base URL means, when that isn't a single address.
+  defaultLabel?: string;
+  baseUrlPlaceholder?: string;
   // Where the OAuth app is created: absolute, or a path on the configured base URL.
   appRegistrationUrl?: string;
   appRegistrationPath?: string;

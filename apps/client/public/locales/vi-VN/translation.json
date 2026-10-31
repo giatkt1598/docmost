@@ -2334,5 +2334,6 @@
   "Sign in to {{name}} and create an access token under Your account > Access tokens. Use an account that can only see the files you want to preview.": "Đăng nhập {{name}} và tạo access token tại Your account > Access tokens. Hãy dùng tài khoản chỉ xem được những file bạn muốn hiển thị.",
   "Everyone in this workspace shares this token. Any member who pastes a {{name}} link sees the file's name if the token's account can open it.": "Mọi người trong không gian làm việc dùng chung token này. Thành viên nào dán liên kết {{name}} cũng thấy tên file nếu tài khoản của token mở được file đó.",
   "Access token": "Access token",
-  "Enter it again because the server changed.": "Hãy nhập lại vì máy chủ đã thay đổi."
+  "Enter it again because the server changed.": "Hãy nhập lại vì máy chủ đã thay đổi.",
+  "Jira Cloud: in the Atlassian developer console create an OAuth 2.0 integration, add the Jira API and User Identity API with the permissions below, and find the client ID and secret under Settings. Jira Data Center: go to Administration > Applications > Application links, create an incoming link to an external application with the READ permission, and enter your Jira address below.": "Jira Cloud: trong Atlassian developer console, tạo một OAuth 2.0 integration, thêm Jira API và User Identity API với các quyền bên dưới, rồi lấy client ID và secret ở mục Settings. Jira Data Center: vào Administration > Applications > Application links, tạo incoming link tới external application với quyền READ, rồi nhập địa chỉ Jira ở bên dưới."
 }

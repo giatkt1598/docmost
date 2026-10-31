@@ -12,6 +12,8 @@ export type IntegrationSetup = {
   auth?: "oauth" | "apiToken";
   baseUrl: "none" | "optional" | "required";
   defaultBaseUrl?: string;
+  defaultLabel?: string;
+  baseUrlPlaceholder?: string;
   appRegistrationUrl?: string;
   appRegistrationPath?: string;
 };

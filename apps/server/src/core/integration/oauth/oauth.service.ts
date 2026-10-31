@@ -799,12 +799,16 @@ export class OAuthService {
       if (oauthConfig.scopeOnRefresh) {
         params.set('scope', oauthConfig.scopes.join(' '));
       }
+      if (oauthConfig.redirectUriOnRefresh) {
+        params.set('redirect_uri', this.buildCallbackUrl(integration.type));
+      }
 
       const response = await this.postTokenRequest(
         integration.type,
         oauthConfig.refreshUrl ?? oauthConfig.tokenUrl,
         params,
         basicAuth ? { clientId, clientSecret } : undefined,
+        oauthConfig.tokenRequestFormat,
       );
 
       // A parse error would quote the body.
@@ -916,6 +920,7 @@ export class OAuthService {
       tokenUrl,
       params,
       basicAuth ? { clientId, clientSecret } : undefined,
+      oauthConfig.tokenRequestFormat,
     );
 
     if (!response.ok) {
@@ -955,11 +960,15 @@ export class OAuthService {
     tokenUrl: string,
     params: URLSearchParams,
     basicAuth?: { clientId: string; clientSecret: string },
+    format?: OAuthConfig['tokenRequestFormat'],
   ): Promise<Response> {
     const response = await proxyFetch(tokenUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type':
+          format === 'json'
+            ? 'application/json'
+            : 'application/x-www-form-urlencoded',
         Accept: 'application/json',
         ...(basicAuth
           ? {
@@ -967,7 +976,10 @@ export class OAuthService {
             }
           : {}),
       },
-      body: params.toString(),
+      body:
+        format === 'json'
+          ? JSON.stringify(Object.fromEntries(params))
+          : params.toString(),
       // Never follow: a 3xx would re-POST the client secret and code to the Location target.
       redirect: 'manual',
       signal: AbortSignal.timeout(OAUTH_HTTP_TIMEOUT_MS),
