@@ -69,18 +69,23 @@ export default function IntegrationSetupModal({
 
   const { name, setup, oauth } = definition;
   const baseUrlMode = setup?.baseUrl ?? "none";
+  const usesApiToken = setup?.auth === "apiToken";
   const appUrl = registrationUrl(definition, baseUrl);
   const callbackUrl = config?.callbackUrl ?? "";
 
+  const baseUrlChanged =
+    !!config?.hasClientSecret &&
+    baseUrl.trim().replace(/\/+$/, "") !== (config.baseUrl ?? "");
+
   const breaksConnections =
+    !usesApiToken &&
     !!installation &&
     !!config?.clientId &&
-    (baseUrl.trim().replace(/\/+$/, "") !== (config.baseUrl ?? "") ||
-      clientId.trim() !== config.clientId);
+    (baseUrlChanged || clientId.trim() !== config.clientId);
 
   const canSave =
-    !!clientId.trim() &&
-    (!!clientSecret || !!config?.hasClientSecret) &&
+    (usesApiToken || !!clientId.trim()) &&
+    (!!clientSecret || (!!config?.hasClientSecret && !baseUrlChanged)) &&
     (baseUrlMode !== "required" || !!baseUrl.trim());
 
   const handleSave = () => {
@@ -88,15 +93,19 @@ export default function IntegrationSetupModal({
       {
         type: definition.type,
         baseUrl: baseUrlMode === "none" ? undefined : baseUrl.trim(),
-        clientId: clientId.trim(),
+        clientId: usesApiToken ? undefined : clientId.trim(),
         clientSecret: clientSecret || undefined,
       },
       { onSuccess: onClose },
     );
   };
 
-  const firstStep =
-    definition.type === "gitea"
+  const firstStep = usesApiToken
+    ? t(
+        "Sign in to {{name}} and create an access token under Your account > Access tokens. Use an account that can only see the files you want to preview.",
+        { name },
+      )
+    : definition.type === "gitea"
       ? t(
           "On your Gitea server, open Settings > Applications and create a new OAuth2 application. Keep \"Confidential client\" ticked.",
         )
@@ -117,7 +126,7 @@ export default function IntegrationSetupModal({
           <Text size="sm">{definition.description}</Text>
           <Text size="sm" c="dimmed" mt={4}>
             {t(
-              "Paste a {{name}} link into a page and Docmost can show it as a card with its title, status and author, always up to date.",
+              "Paste a {{name}} link into a page and Docmost can show it as a card with its details, always up to date.",
               { name },
             )}
           </Text>
@@ -141,6 +150,7 @@ export default function IntegrationSetupModal({
                 </Anchor>
               )}
             </List.Item>
+            {!usesApiToken && (
             <List.Item>
               {t("Use this as the redirect (callback) URL:")}
               <Group gap={4} wrap="nowrap" mt={4}>
@@ -165,20 +175,27 @@ export default function IntegrationSetupModal({
                 </CopyButton>
               </Group>
             </List.Item>
+            )}
             <List.Item>
-              {t("Copy the client ID and client secret into the form below.")}
+              {usesApiToken
+                ? t("Paste the token into the form below.")
+                : t("Copy the client ID and client secret into the form below.")}
             </List.Item>
             <List.Item>
-              {t(
-                "Save, then press Install to authorize with your own {{name}} account.",
-                { name },
-              )}
+              {usesApiToken
+                ? t("Save, then press Install.")
+                : t(
+                    "Save, then press Install to authorize with your own {{name}} account.",
+                    { name },
+                  )}
             </List.Item>
-            <List.Item>
-              {t(
-                "Each member connects their own account in Settings > Connections.",
-              )}
-            </List.Item>
+            {!usesApiToken && (
+              <List.Item>
+                {t(
+                  "Each member connects their own account in Settings > Connections.",
+                )}
+              </List.Item>
+            )}
           </List>
 
           {!!oauth?.scopes?.length && (
@@ -194,6 +211,15 @@ export default function IntegrationSetupModal({
             </Group>
           )}
         </div>
+
+        {usesApiToken && (
+          <Alert color="blue">
+            {t(
+              "Everyone in this workspace shares this token. Any member who pastes a {{name}} link sees the file's name if the token's account can open it.",
+              { name },
+            )}
+          </Alert>
+        )}
 
         <Stack gap="xs">
           {baseUrlMode !== "none" && (
@@ -217,21 +243,25 @@ export default function IntegrationSetupModal({
               onChange={(e) => setBaseUrl(e.currentTarget.value)}
             />
           )}
-          <TextInput
-            label={t("Client ID")}
-            required
-            autoComplete="off"
-            value={clientId}
-            onChange={(e) => setClientId(e.currentTarget.value)}
-          />
+          {!usesApiToken && (
+            <TextInput
+              label={t("Client ID")}
+              required
+              autoComplete="off"
+              value={clientId}
+              onChange={(e) => setClientId(e.currentTarget.value)}
+            />
+          )}
           <PasswordInput
-            label={t("Client secret")}
+            label={usesApiToken ? t("Access token") : t("Client secret")}
             description={
-              config?.hasClientSecret
-                ? t("A secret is saved. Leave empty to keep it.")
-                : t("Stored encrypted and never shown again.")
+              baseUrlChanged
+                ? t("Enter it again because the server changed.")
+                : config?.hasClientSecret
+                  ? t("A secret is saved. Leave empty to keep it.")
+                  : t("Stored encrypted and never shown again.")
             }
-            required={!config?.hasClientSecret}
+            required={!config?.hasClientSecret || baseUrlChanged}
             autoComplete="new-password"
             value={clientSecret}
             onChange={(e) => setClientSecret(e.currentTarget.value)}

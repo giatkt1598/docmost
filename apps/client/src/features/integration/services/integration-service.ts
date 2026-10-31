@@ -28,6 +28,12 @@ export async function uninstallIntegration(data: {
   await api.post("/integrations/uninstall", data);
 }
 
+export async function installApiTokenIntegration(data: {
+  type: string;
+}): Promise<void> {
+  await api.post("/integrations/install-token", data);
+}
+
 export async function getIntegrationConfigs(): Promise<IntegrationConfig[]> {
   const req = await api.post<IntegrationConfig[]>("/integrations/config/list");
   return req.data;
@@ -36,7 +42,7 @@ export async function getIntegrationConfigs(): Promise<IntegrationConfig[]> {
 export async function saveIntegrationConfig(data: {
   type: string;
   baseUrl?: string;
-  clientId: string;
+  clientId?: string;
   clientSecret?: string;
 }): Promise<IntegrationConfig> {
   const req = await api.post<IntegrationConfig>(

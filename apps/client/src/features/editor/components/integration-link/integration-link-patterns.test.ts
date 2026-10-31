@@ -378,3 +378,26 @@ describe('gitea links', () => {
     ).toMatchObject({ title: 'Pull Request #7', description: 'o/r' });
   });
 });
+
+describe('penpot links', () => {
+  const FILE = '6f1c2a3b-1111-4222-8333-444455556666';
+  const HOSTS = { penpot: ['design.penpot.app'] };
+
+  it.each([
+    `https://design.penpot.app/#/workspace?team-id=${FILE}&file-id=${FILE}`,
+    `https://design.penpot.app/#/workspace/${FILE}/${FILE}?page-id=${FILE}`,
+    `https://design.penpot.app/#/view?file-id=${FILE}`,
+    `https://design.penpot.app/#/view/${FILE}`,
+  ])('matches %s on the reported host', (url) => {
+    expect(matchIntegrationLink(url, HOSTS)).toMatchObject({
+      provider: 'penpot',
+      type: 'penpot-file',
+    });
+  });
+
+  it('never matches without the host being reported', () => {
+    expect(
+      matchIntegrationLink(`https://design.penpot.app/#/view/${FILE}`),
+    ).toBeNull();
+  });
+});

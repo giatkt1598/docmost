@@ -57,6 +57,10 @@ export class UnfurlService {
       return null;
     }
 
+    if (provider.definition.setup?.auth === 'apiToken') {
+      return this.unfurlWithApiToken(resolved, url, userId, workspaceId);
+    }
+
     // Workspace-scoped providers (Slack) unfurl through one shared bot connection.
     const connectionScope =
       provider.definition.oauth?.connectionScope ?? 'user';
@@ -165,6 +169,58 @@ export class UnfurlService {
         );
       }
       this.logger.error(`Unfurl failed for ${url}: ${(err as Error).message}`);
+      await this.cacheNull(cacheKey, UNFURL_ERROR_CACHE_TTL);
+      return null;
+    }
+  }
+
+  // Every member reads through the workspace's one token, so they share the cached card.
+  private async unfurlWithApiToken(
+    resolved: {
+      provider: IntegrationProvider;
+      match: RegExpMatchArray;
+      patternType: string;
+      integration: { id: string; settings: unknown };
+    },
+    url: string,
+    userId: string,
+    workspaceId: string,
+  ): Promise<UnfurlResult | null> {
+    const { provider, match, patternType, integration } = resolved;
+    const credentials = await this.configService.findCredentials(
+      workspaceId,
+      provider.definition.type,
+    );
+    if (!credentials) {
+      return null;
+    }
+
+    const hash = crypto.createHash('sha256').update(url).digest('hex');
+    const cacheKey = `${UNFURL_CACHE_PREFIX}${workspaceId}:token:${hash}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    try {
+      const unfurlResult = await provider.unfurl({
+        url,
+        accessToken: credentials.clientSecret,
+        match,
+        patternType,
+        settings: (integration.settings as Record<string, any>) ?? {},
+        userId,
+        integrationId: integration.id,
+      });
+      await this.redis.set(
+        cacheKey,
+        JSON.stringify(unfurlResult),
+        'EX',
+        UNFURL_CACHE_TTL,
+      );
+      return unfurlResult;
+    } catch (err) {
+      this.logger.warn(`Unfurl failed for ${url}: ${(err as Error).message}`);
       await this.cacheNull(cacheKey, UNFURL_ERROR_CACHE_TTL);
       return null;
     }

@@ -22,12 +22,13 @@ export class SaveIntegrationConfigDto {
   @MaxLength(2048)
   baseUrl?: string;
 
-  @IsNotEmpty()
+  // Required for OAuth providers.
+  @IsOptional()
   @IsString()
   @MaxLength(512)
-  clientId: string;
+  clientId?: string;
 
-  // Left out to keep the stored secret.
+  // The client secret or API token; left out to keep the stored one.
   @IsOptional()
   @IsString()
   @MaxLength(1024)

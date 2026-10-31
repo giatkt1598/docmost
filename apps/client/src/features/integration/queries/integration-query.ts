@@ -39,6 +39,25 @@ export function useUninstallIntegration() {
   });
 }
 
+export function useInstallApiTokenIntegration() {
+  const qc = useQueryClient();
+  const { t } = useTranslation();
+  return useMutation({
+    mutationFn: integrationService.installApiTokenIntegration,
+    onSuccess: () => {
+      notifications.show({ message: t("Integration installed") });
+      qc.invalidateQueries({ queryKey: ["installed-integrations"] });
+    },
+    onError: (error) => {
+      const errorMessage = error["response"]?.data?.message;
+      notifications.show({
+        message: errorMessage || t("Failed to start installation"),
+        color: "red",
+      });
+    },
+  });
+}
+
 export function useIntegrationConfigs() {
   return useQuery({
     queryKey: ["integration-configs"],

@@ -15,6 +15,7 @@ import { IntegrationService } from './integration.service';
 import { IntegrationConnectionService } from './integration-connection.service';
 import { IntegrationConfigService } from './integration-config.service';
 import {
+  OAuthInstallDto,
   SaveIntegrationConfigDto,
   UninstallIntegrationDto,
 } from './dto/integration.dto';
@@ -47,6 +48,22 @@ export class IntegrationController {
     @AuthWorkspace() workspace: Workspace,
   ) {
     return this.integrationService.getInstalledIntegrations(workspace.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Post('install-token')
+  async installWithApiToken(
+    @Body() dto: OAuthInstallDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    this.assertCanManage(user, workspace);
+    return this.integrationService.installWithApiToken(
+      dto.type,
+      workspace.id,
+      user.id,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

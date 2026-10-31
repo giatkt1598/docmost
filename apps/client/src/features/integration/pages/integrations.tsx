@@ -11,6 +11,7 @@ import IntegrationSetupModal from "../components/integration-setup-modal";
 import {
   useAvailableIntegrations,
   useIntegrationConfigs,
+  useInstallApiTokenIntegration,
   useInstalledIntegrations,
   useUninstallIntegration,
 } from "../queries/integration-query";
@@ -25,11 +26,17 @@ export default function Integrations() {
     useInstalledIntegrations();
   const { data: configs } = useIntegrationConfigs();
   const uninstallMutation = useUninstallIntegration();
+  const installApiToken = useInstallApiTokenIntegration();
   const [setupType, setSetupType] = useState<string | null>(null);
   const setupDefinition = available?.find((d) => d.type === setupType);
 
   const handleInstall = useCallback(
     async (type: string) => {
+      const definition = available?.find((d) => d.type === type);
+      if (definition?.setup?.auth === "apiToken") {
+        installApiToken.mutate({ type });
+        return;
+      }
       try {
         const { authorizationUrl } = await getOAuthInstallUrl({ type });
         window.location.href = authorizationUrl;
@@ -41,7 +48,7 @@ export default function Integrations() {
         });
       }
     },
-    [t],
+    [t, available, installApiToken],
   );
 
   const handleUninstall = useCallback(
@@ -135,7 +142,9 @@ export default function Integrations() {
                 installation={installation}
                 configured={configs?.some(
                   (c) =>
-                    c.type === def.type && !!c.clientId && c.hasClientSecret,
+                    c.type === def.type &&
+                    c.hasClientSecret &&
+                    (!!c.clientId || def.setup?.auth === "apiToken"),
                 ) ?? false}
                 onConfigure={setSetupType}
                 onInstall={handleInstall}

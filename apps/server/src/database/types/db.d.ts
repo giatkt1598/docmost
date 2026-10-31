@@ -564,7 +564,7 @@ export interface IntegrationConfigs {
   workspaceId: string;
   type: string;
   baseUrl: string | null;
-  clientId: string;
+  clientId: string | null;
   clientSecret: string;
   updatedById: string | null;
   createdAt: Generated<Timestamp>;

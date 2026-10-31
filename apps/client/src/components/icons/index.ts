@@ -4,6 +4,7 @@ export { FigmaIcon } from "./figma-icon.tsx";
 export { GithubIcon } from "./github-icon.tsx";
 export { GitlabIcon } from "./gitlab-icon.tsx";
 export { GiteaIcon } from "./gitea-icon.tsx";
+export { PenpotIcon } from "./penpot-icon.tsx";
 export { GoogleDocsIcon } from "./google-docs-icon.tsx";
 export { GoogleDriveIcon } from "./google-drive-icon.tsx";
 export { GoogleSheetsIcon } from "./google-sheets-icon.tsx";

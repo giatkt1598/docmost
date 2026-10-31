@@ -2313,7 +2313,6 @@
   "Set up {{name}}": "Thiết lập {{name}}",
   "What it does": "Chức năng",
   "How to set it up": "Cách thiết lập",
-  "Paste a {{name}} link into a page and Docmost can show it as a card with its title, status and author, always up to date.": "Dán liên kết {{name}} vào trang, Docmost có thể hiển thị thành thẻ với tiêu đề, trạng thái và tác giả, luôn được cập nhật.",
   "On your Gitea server, open Settings > Applications and create a new OAuth2 application. Keep \"Confidential client\" ticked.": "Trên máy chủ Gitea, mở Settings > Applications và tạo một ứng dụng OAuth2 mới. Giữ nguyên lựa chọn \"Confidential client\".",
   "Create a new OAuth app in {{name}}.": "Tạo một ứng dụng OAuth mới trong {{name}}.",
   "Open {{name}}": "Mở {{name}}",
@@ -2327,5 +2326,13 @@
   "A secret is saved. Leave empty to keep it.": "Đã lưu secret. Để trống để giữ nguyên.",
   "Stored encrypted and never shown again.": "Được lưu mã hóa và không hiển thị lại.",
   "Changing the server or client ID disconnects every member from {{name}}. They will need to connect again.": "Đổi máy chủ hoặc client ID sẽ ngắt kết nối {{name}} của mọi thành viên. Họ sẽ cần kết nối lại.",
-  "Configured integration": "Đã cấu hình tích hợp"
+  "Configured integration": "Đã cấu hình tích hợp",
+  "Paste a {{name}} link into a page and Docmost can show it as a card with its details, always up to date.": "Dán liên kết {{name}} vào trang, Docmost có thể hiển thị thành thẻ kèm thông tin chi tiết, luôn được cập nhật.",
+  "Integration installed": "Đã cài đặt tích hợp",
+  "Paste the token into the form below.": "Dán token vào biểu mẫu bên dưới.",
+  "Save, then press Install.": "Lưu, rồi nhấn Cài đặt.",
+  "Sign in to {{name}} and create an access token under Your account > Access tokens. Use an account that can only see the files you want to preview.": "Đăng nhập {{name}} và tạo access token tại Your account > Access tokens. Hãy dùng tài khoản chỉ xem được những file bạn muốn hiển thị.",
+  "Everyone in this workspace shares this token. Any member who pastes a {{name}} link sees the file's name if the token's account can open it.": "Mọi người trong không gian làm việc dùng chung token này. Thành viên nào dán liên kết {{name}} cũng thấy tên file nếu tài khoản của token mở được file đó.",
+  "Access token": "Access token",
+  "Enter it again because the server changed.": "Hãy nhập lại vì máy chủ đã thay đổi."
 }

@@ -9,6 +9,7 @@ export type OAuthConfig = {
 };
 
 export type IntegrationSetup = {
+  auth?: "oauth" | "apiToken";
   baseUrl: "none" | "optional" | "required";
   defaultBaseUrl?: string;
   appRegistrationUrl?: string;

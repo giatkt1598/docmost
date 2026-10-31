@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { IntegrationConfigService } from './integration-config.service';
 import { OutboundUrlError } from '../../integrations/outbound/outbound-url.guard';
+import { TokenInvalidError } from './registry/integration-provider.interface';
 
 const workspaceId = 'w1';
 const userId = 'u1';
@@ -12,6 +13,8 @@ const definitions: Record<string, any> = {
   linear: { type: 'linear', oauth: {}, setup: { baseUrl: 'none' } },
   legacy: { type: 'legacy', oauth: {}, hidden: true },
 };
+
+const providerMethods: Record<string, any> = {};
 
 function build(existing?: Record<string, any>) {
   const configRepo = {
@@ -27,7 +30,9 @@ function build(existing?: Record<string, any>) {
   };
   const registry = {
     getProvider: (type: string) =>
-      definitions[type] ? { definition: definitions[type] } : undefined,
+      definitions[type]
+        ? { definition: definitions[type], ...providerMethods }
+        : undefined,
     getAvailableIntegrations: () =>
       Object.values(definitions).filter((d) => !d.hidden),
   };
@@ -164,7 +169,7 @@ describe('IntegrationConfigService.save', () => {
   });
 
   it.each([
-    ['base URL', { baseUrl: 'https://other.example', clientId: 'id' }],
+    ['base URL', { baseUrl: 'https://other.example', clientId: 'id', clientSecret: 'new' }],
     ['client ID', { baseUrl: stored.baseUrl, clientId: 'other' }],
   ])('drops connections when the %s changes', async (_label, change) => {
     const { service, connectionRepo } = build(stored);
@@ -211,6 +216,61 @@ describe('IntegrationConfigService.save', () => {
     );
 
     expect(JSON.stringify(auditService.log.mock.calls)).not.toContain('s3cret');
+  });
+});
+
+describe('IntegrationConfigService API tokens', () => {
+  const verifyApiToken = jest.fn();
+
+  beforeEach(() => {
+    verifyApiToken.mockReset();
+    definitions.penpot = {
+      type: 'penpot',
+      setup: { auth: 'apiToken', baseUrl: 'optional' },
+    };
+    providerMethods.verifyApiToken = verifyApiToken;
+  });
+
+  afterEach(() => {
+    delete definitions.penpot;
+    delete providerMethods.verifyApiToken;
+  });
+
+  it('stores the token encrypted, with no client ID', async () => {
+    const { service, configRepo } = build();
+
+    await service.save({ type: 'penpot', clientSecret: 'tok' }, workspaceId, userId);
+
+    expect(verifyApiToken).toHaveBeenCalledWith('tok', {});
+    expect(configRepo.upsert.mock.calls[0][0]).toMatchObject({
+      clientId: null,
+      clientSecret: 'enc:tok',
+    });
+  });
+
+  it('refuses a token the server rejects', async () => {
+    const { service, configRepo } = build();
+    verifyApiToken.mockRejectedValue(new TokenInvalidError());
+
+    await expect(
+      service.save({ type: 'penpot', clientSecret: 'bad' }, workspaceId, userId),
+    ).rejects.toThrow('The server rejected this token');
+    expect(configRepo.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe('IntegrationConfigService server changes', () => {
+  it('will not send a stored secret to a new server', async () => {
+    const { service, configRepo } = build(stored);
+
+    await expect(
+      service.save(
+        { type: 'gitea', baseUrl: 'https://other.example', clientId: 'id' },
+        workspaceId,
+        userId,
+      ),
+    ).rejects.toThrow('Enter the secret again');
+    expect(configRepo.upsert).not.toHaveBeenCalled();
   });
 });
 

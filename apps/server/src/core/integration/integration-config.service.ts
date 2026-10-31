@@ -1,4 +1,9 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@docmost/db/types/kysely.types';
 import { executeTx } from '@docmost/db/utils';
@@ -21,7 +26,12 @@ import { IntegrationRegistry } from './registry/integration-registry';
 import { IntegrationRepo } from './repos/integration.repo';
 import { IntegrationConfigRepo } from './repos/integration-config.repo';
 import { IntegrationConnectionRepo } from './repos/integration-connection.repo';
-import { OAuthConfig } from './registry/integration-provider.interface';
+import {
+  IntegrationDefinition,
+  IntegrationProvider,
+  OAuthConfig,
+  TokenInvalidError,
+} from './registry/integration-provider.interface';
 import { normalizeBaseUrl } from './utils/integration.utils';
 import { SaveIntegrationConfigDto } from './dto/integration.dto';
 
@@ -44,6 +54,8 @@ export type IntegrationConfigView = {
 
 @Injectable()
 export class IntegrationConfigService {
+  private readonly logger = new Logger(IntegrationConfigService.name);
+
   constructor(
     @InjectKysely() private readonly db: KyselyDB,
     private readonly configRepo: IntegrationConfigRepo,
@@ -86,7 +98,7 @@ export class IntegrationConfigService {
     );
     if (!config) return null;
     return {
-      clientId: config.clientId,
+      clientId: config.clientId ?? '',
       clientSecret: this.encryptionService.decrypt(
         config.clientSecret,
         EncryptionPurpose.INTEGRATION_CREDENTIALS,
@@ -114,7 +126,7 @@ export class IntegrationConfigService {
     const configs = await this.configRepo.findAllByWorkspace(workspaceId);
     return this.registry
       .getAvailableIntegrations()
-      .filter((definition) => definition.oauth)
+      .filter((definition) => this.isConfigurable(definition))
       .map(({ type }) =>
         this.toView(
           type,
@@ -129,21 +141,37 @@ export class IntegrationConfigService {
     userId: string,
   ): Promise<IntegrationConfigView> {
     const { type } = dto;
-    const definition = this.registry.getProvider(type)?.definition;
-    if (!definition || definition.hidden || !definition.oauth) {
+    const provider = this.registry.getProvider(type);
+    const definition = provider?.definition;
+    if (!definition || definition.hidden || !this.isConfigurable(definition)) {
       throw new BadRequestException(`Unknown integration type: ${type}`);
     }
+    const usesApiToken = definition.setup?.auth === 'apiToken';
 
     const baseUrl = await this.resolveBaseUrl(
       dto.baseUrl,
       definition.setup?.baseUrl ?? 'none',
     );
-    const clientId = dto.clientId.trim();
+    const clientId = usesApiToken ? null : (dto.clientId?.trim() ?? '');
+    if (clientId === '') {
+      throw new BadRequestException('Client ID is required');
+    }
 
     const existing = await this.configRepo.findByWorkspaceAndType(
       workspaceId,
       type,
     );
+    const baseUrlChanged = (existing?.baseUrl ?? null) !== baseUrl;
+    // The stored secret is only ever sent to the server it was saved for.
+    if (existing && baseUrlChanged && !dto.clientSecret) {
+      throw new BadRequestException(
+        'Enter the secret again when changing the server URL',
+      );
+    }
+    if (usesApiToken && dto.clientSecret) {
+      await this.verifyApiToken(provider, dto.clientSecret, baseUrl);
+    }
+
     const clientSecret = dto.clientSecret
       ? this.encryptionService.encrypt(
           dto.clientSecret,
@@ -156,7 +184,7 @@ export class IntegrationConfigService {
 
     // Tokens belong to one host and OAuth app, and must never be sent to another.
     const connectionsReset =
-      (existing?.baseUrl ?? null) !== baseUrl ||
+      baseUrlChanged ||
       (!!existing && existing.clientId !== clientId);
 
     const saved = await executeTx(this.db, async (trx) => {
@@ -192,6 +220,28 @@ export class IntegrationConfigService {
     });
 
     return this.toView(type, saved);
+  }
+
+  private isConfigurable(definition: IntegrationDefinition): boolean {
+    return !!definition.oauth || definition.setup?.auth === 'apiToken';
+  }
+
+  private async verifyApiToken(
+    provider: IntegrationProvider,
+    token: string,
+    baseUrl: string | null,
+  ): Promise<void> {
+    try {
+      await provider.verifyApiToken?.(token, baseUrl ? { baseUrl } : {});
+    } catch (err) {
+      if (err instanceof TokenInvalidError) {
+        throw new BadRequestException('The server rejected this token');
+      }
+      this.logger.warn(
+        `Could not verify ${provider.definition.type} token: ${(err as Error).message}`,
+      );
+      throw new BadRequestException('Could not reach the server');
+    }
   }
 
   private async resolveBaseUrl(

@@ -104,6 +104,8 @@ export type UnfurlResult = {
 
 // What an admin must enter on the settings page.
 export type IntegrationSetup = {
+  // 'apiToken': one token an admin saves for the workspace, for providers without OAuth.
+  auth?: 'oauth' | 'apiToken';
   baseUrl: 'none' | 'optional' | 'required';
   defaultBaseUrl?: string;
   // Where the OAuth app is created: absolute, or a path on the configured base URL.
@@ -234,6 +236,9 @@ export abstract class IntegrationProvider {
 
   // Maps an identity-flow token response to a provider account in the installed tenant.
   resolveIdentity?(opts: IdentityLinkEvent): Promise<ResolvedIdentity>;
+
+  // Checks a token an admin is saving; a throw refuses it.
+  verifyApiToken?(token: string, settings: Record<string, any>): Promise<void>;
 
   // Reads which account a fresh token belongs to; a throw only skips storing it.
   resolveAccount?(opts: ResolveAccountOpts): Promise<ProviderAccount>;

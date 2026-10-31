@@ -2496,7 +2496,6 @@
   "Set up {{name}}": "Set up {{name}}",
   "What it does": "What it does",
   "How to set it up": "How to set it up",
-  "Paste a {{name}} link into a page and Docmost can show it as a card with its title, status and author, always up to date.": "Paste a {{name}} link into a page and Docmost can show it as a card with its title, status and author, always up to date.",
   "On your Gitea server, open Settings > Applications and create a new OAuth2 application. Keep \"Confidential client\" ticked.": "On your Gitea server, open Settings > Applications and create a new OAuth2 application. Keep \"Confidential client\" ticked.",
   "Create a new OAuth app in {{name}}.": "Create a new OAuth app in {{name}}.",
   "Open {{name}}": "Open {{name}}",
@@ -2510,5 +2509,13 @@
   "A secret is saved. Leave empty to keep it.": "A secret is saved. Leave empty to keep it.",
   "Stored encrypted and never shown again.": "Stored encrypted and never shown again.",
   "Changing the server or client ID disconnects every member from {{name}}. They will need to connect again.": "Changing the server or client ID disconnects every member from {{name}}. They will need to connect again.",
-  "Configured integration": "Configured integration"
+  "Configured integration": "Configured integration",
+  "Paste a {{name}} link into a page and Docmost can show it as a card with its details, always up to date.": "Paste a {{name}} link into a page and Docmost can show it as a card with its details, always up to date.",
+  "Integration installed": "Integration installed",
+  "Paste the token into the form below.": "Paste the token into the form below.",
+  "Save, then press Install.": "Save, then press Install.",
+  "Sign in to {{name}} and create an access token under Your account > Access tokens. Use an account that can only see the files you want to preview.": "Sign in to {{name}} and create an access token under Your account > Access tokens. Use an account that can only see the files you want to preview.",
+  "Everyone in this workspace shares this token. Any member who pastes a {{name}} link sees the file's name if the token's account can open it.": "Everyone in this workspace shares this token. Any member who pastes a {{name}} link sees the file's name if the token's account can open it.",
+  "Access token": "Access token",
+  "Enter it again because the server changed.": "Enter it again because the server changed."
 }

@@ -9,6 +9,9 @@ export type IntegrationLinkPattern = {
 // Gitea repo prefix; a server under a sub-path puts extra segments before the owner.
 const GITEA_REPO = String.raw`^https?:\/\/(?![^?#]*(?:\/(?:\.|%2[eE]){1,2}(?:[\/?#]|$)|\\))[^\/]+(?:\/[^\/?#]+)*?\/([a-zA-Z0-9\-_.]+)\/([a-zA-Z0-9\-_.]+)`;
 
+const PENPOT_APP = String.raw`^https?:\/\/(?![^?#]*(?:\/(?:\.|%2[eE]){1,2}(?:[\/?#]|$)|\\))[^\/#?]+(?:\/[^\/?#]+)*\/?#\/`;
+const PENPOT_UUID = "[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}";
+
 export const integrationLinkPatterns: IntegrationLinkPattern[] = [
   // Slack message permalink (must precede the host-agnostic GitHub repo pattern)
   {
@@ -281,6 +284,29 @@ export const integrationLinkPatterns: IntegrationLinkPattern[] = [
     regex: new RegExp(String.raw`${GITEA_REPO}\/?$`),
     requiresProviderHost: true,
   },
+  // Penpot routes in the fragment; self-hosted servers report their host.
+  {
+    provider: "penpot",
+    type: "penpot-file",
+    regex: new RegExp(
+      String.raw`${PENPOT_APP}(?:workspace|view)\?(?:.*&)?file-id=(${PENPOT_UUID})`,
+    ),
+    requiresProviderHost: true,
+  },
+  {
+    provider: "penpot",
+    type: "penpot-file",
+    regex: new RegExp(
+      String.raw`${PENPOT_APP}workspace\/${PENPOT_UUID}\/(${PENPOT_UUID})`,
+    ),
+    requiresProviderHost: true,
+  },
+  {
+    provider: "penpot",
+    type: "penpot-file",
+    regex: new RegExp(String.raw`${PENPOT_APP}view\/(${PENPOT_UUID})`),
+    requiresProviderHost: true,
+  },
   // Google Docs
   {
     provider: "google_docs",
@@ -525,6 +551,8 @@ export function describeIntegrationLink(
     case "linear-view":
       return describe("View", match[1]);
 
+    case "penpot-file":
+      return describe("Penpot file", hostOf(url));
     case "slack-message":
       return describe("Slack message", hostOf(url));
     case "slack-channel":

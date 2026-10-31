@@ -27,6 +27,7 @@ import { GitHubModule } from './integration/providers/github/github.module';
 import { FigmaModule } from './integration/providers/figma/figma.module';
 import { LinearModule } from './integration/providers/linear/linear.module';
 import { GiteaModule } from './integration/providers/gitea/gitea.module';
+import { PenpotModule } from './integration/providers/penpot/penpot.module';
 import { FavoriteModule } from './favorite/favorite.module';
 import { SessionModule } from './session/session.module';
 import { McpModule } from './mcp/mcp.module';
@@ -65,6 +66,7 @@ import { ClsMiddleware } from 'nestjs-cls';
     FigmaModule,
     LinearModule,
     GiteaModule,
+    PenpotModule,
     SessionModule,
     McpModule,
     PageVerificationModule,

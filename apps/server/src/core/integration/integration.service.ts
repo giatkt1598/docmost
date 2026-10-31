@@ -1,11 +1,19 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@docmost/db/types/kysely.types';
 import { executeTx } from '@docmost/db/utils';
 import { IntegrationRepo } from './repos/integration.repo';
 import { IntegrationConnectionRepo } from './repos/integration-connection.repo';
 import { IntegrationRegistry } from './registry/integration-registry';
-import { IntegrationConfigService } from './integration-config.service';
+import {
+  IntegrationConfigService,
+  NOT_CONFIGURED_MESSAGE,
+} from './integration-config.service';
 import { Integration } from '@docmost/db/types/entity.types';
 import {
   AUDIT_SERVICE,
@@ -46,6 +54,37 @@ export class IntegrationService {
         });
       return unfurlHosts ? { ...integration, unfurlHosts } : integration;
     });
+  }
+
+  // API-token providers have no OAuth callback to create the row.
+  async installWithApiToken(
+    type: string,
+    workspaceId: string,
+    userId: string,
+  ): Promise<Integration> {
+    const definition = this.registry.getProvider(type)?.definition;
+    if (!definition || definition.hidden || definition.setup?.auth !== 'apiToken') {
+      throw new BadRequestException(`Unknown integration type: ${type}`);
+    }
+    if (await this.integrationRepo.findByWorkspaceAndType(workspaceId, type)) {
+      throw new BadRequestException(`Integration "${type}" is already installed`);
+    }
+    if (!(await this.configService.findCredentials(workspaceId, type))) {
+      throw new BadRequestException(NOT_CONFIGURED_MESSAGE);
+    }
+
+    const integration = await this.integrationRepo.insertOrRestore({
+      type,
+      workspaceId,
+      installedById: userId,
+    });
+    this.auditService.log({
+      event: AuditEvent.INTEGRATION_INSTALLED,
+      resourceType: AuditResource.INTEGRATION,
+      resourceId: integration.id,
+      changes: { after: { provider: type } },
+    });
+    return integration;
   }
 
   async uninstall(integrationId: string, workspaceId: string): Promise<void> {
