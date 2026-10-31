@@ -39,6 +39,7 @@ export const AuditEvent = {
   INTEGRATION_UNINSTALLED: 'integration.uninstalled',
   INTEGRATION_CONNECTED: 'integration.connected',
   INTEGRATION_DISCONNECTED: 'integration.disconnected',
+  INTEGRATION_CONFIGURED: 'integration.configured',
 
   // SCIM Tokens
   SCIM_TOKEN_CREATED: 'scim_token.created',

@@ -1,5 +1,6 @@
 import api from "@/lib/api-client";
 import {
+  IntegrationConfig,
   IntegrationDefinition,
   Integration,
   UserConnection,
@@ -25,6 +26,24 @@ export async function uninstallIntegration(data: {
   integrationId: string;
 }): Promise<void> {
   await api.post("/integrations/uninstall", data);
+}
+
+export async function getIntegrationConfigs(): Promise<IntegrationConfig[]> {
+  const req = await api.post<IntegrationConfig[]>("/integrations/config/list");
+  return req.data;
+}
+
+export async function saveIntegrationConfig(data: {
+  type: string;
+  baseUrl?: string;
+  clientId: string;
+  clientSecret?: string;
+}): Promise<IntegrationConfig> {
+  const req = await api.post<IntegrationConfig>(
+    "/integrations/config/save",
+    data,
+  );
+  return req.data;
 }
 
 export async function getMyConnections(): Promise<UserConnection[]> {

@@ -32,7 +32,10 @@ import {
 import { proxyFetch } from '../../../common/proxy-fetch';
 import { readCappedResponse } from '../utils/provider-fetch';
 import { isUserDisabled } from '../../../common/helpers/utils';
-import { credentialEnvKey } from './credential-env';
+import {
+  IntegrationConfigService,
+  NOT_CONFIGURED_MESSAGE,
+} from '../integration-config.service';
 import { supportsOAuthConnect } from './oauth-connect';
 import WorkspaceAbilityFactory from '../../casl/abilities/workspace-ability.factory';
 import {
@@ -124,6 +127,7 @@ export class OAuthService {
     private readonly workspaceAbility: WorkspaceAbilityFactory,
     @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
     private readonly redisService: RedisService,
+    private readonly configService: IntegrationConfigService,
   ) {
     this.refreshLock = new RefreshLock(this.redisService.getOrThrow());
   }
@@ -144,13 +148,21 @@ export class OAuthService {
       throw new BadRequestException('Integration does not support OAuth');
     }
 
-    const oauthConfig = provider.getOAuthConfig
-      ? provider.getOAuthConfig((integration.settings as Record<string, any>) ?? {})
-      : provider.definition.oauth;
+    const { oauthConfig } = await this.resolveOAuthConfig(
+      provider,
+      workspaceId,
+      integration.settings,
+    );
 
     if (!supportsOAuthConnect(oauthConfig)) {
       throw new BadRequestException(CONNECT_UNSUPPORTED_MESSAGE);
     }
+
+    const { clientId } = await this.configService.getCredentials(
+      workspaceId,
+      integration.type,
+      oauthConfig,
+    );
 
     // Workspace-scoped providers link a member's identity instead of re-running the install.
     const identity =
@@ -182,7 +194,7 @@ export class OAuthService {
 
     const params = new URLSearchParams({
       ...((identity ? identity.authParams : oauthConfig.authParams) ?? {}),
-      client_id: this.getClientId(integration.type, oauthConfig),
+      client_id: clientId,
       redirect_uri: callbackUrl,
       response_type: 'code',
       state,
@@ -222,9 +234,16 @@ export class OAuthService {
       );
     }
 
-    const oauthConfig = provider.getOAuthConfig
-      ? provider.getOAuthConfig({})
-      : provider.definition.oauth;
+    const { oauthConfig } = await this.resolveOAuthConfig(
+      provider,
+      workspaceId,
+      null,
+    );
+    const { clientId } = await this.configService.getCredentials(
+      workspaceId,
+      type,
+      oauthConfig,
+    );
 
     const callbackUrl = this.buildCallbackUrl(type);
 
@@ -249,7 +268,7 @@ export class OAuthService {
 
     const params = new URLSearchParams({
       ...(oauthConfig.authParams ?? {}),
-      client_id: this.getClientId(type, oauthConfig),
+      client_id: clientId,
       redirect_uri: callbackUrl,
       response_type: 'code',
       state,
@@ -387,14 +406,25 @@ export class OAuthService {
       throw new NotFoundException('Integration not found');
     }
 
-    const settings = (integration?.settings as Record<string, any>) ?? {};
-    const oauthConfig = provider.getOAuthConfig
-      ? provider.getOAuthConfig(settings)
-      : provider.definition.oauth;
+    const { oauthConfig, settings } = await this.resolveOAuthConfig(
+      provider,
+      workspaceId,
+      integration?.settings,
+    );
 
-    const tokenResponse = await this.requestTokens(oauthConfig, type, code);
+    const tokenResponse = await this.requestTokens(
+      oauthConfig,
+      type,
+      workspaceId,
+      code,
+    );
     // Read before the transaction so no provider call runs inside it.
-    const account = await this.resolveAccount(provider, type, tokenResponse);
+    const account = await this.resolveAccount(
+      provider,
+      type,
+      tokenResponse,
+      settings,
+    );
 
     // A failing onConnected must not leave the row and bot token behind.
     const connection = await executeTx(this.db, async (trx) => {
@@ -450,17 +480,28 @@ export class OAuthService {
       throw new NotFoundException('Integration not found');
     }
 
-    const settings = (integration.settings as Record<string, any>) ?? {};
-    const oauthConfig = provider.getOAuthConfig
-      ? provider.getOAuthConfig(settings)
-      : provider.definition.oauth;
+    const { oauthConfig, settings } = await this.resolveOAuthConfig(
+      provider,
+      workspaceId,
+      integration.settings,
+    );
     if (!supportsOAuthConnect(oauthConfig)) {
       throw new BadRequestException(CONNECT_UNSUPPORTED_MESSAGE);
     }
 
     if ((oauthConfig.connectionScope ?? 'user') === 'user') {
-      const tokenResponse = await this.requestTokens(oauthConfig, type, code);
-      const account = await this.resolveAccount(provider, type, tokenResponse);
+      const tokenResponse = await this.requestTokens(
+        oauthConfig,
+        type,
+        workspaceId,
+        code,
+      );
+      const account = await this.resolveAccount(
+        provider,
+        type,
+        tokenResponse,
+        settings,
+      );
       const connection = await this.storeConnection(
         integration.id,
         userId,
@@ -479,6 +520,7 @@ export class OAuthService {
     const tokenResponse = await this.requestTokens(
       oauthConfig,
       type,
+      workspaceId,
       code,
       identity.tokenUrl,
     );
@@ -574,12 +616,14 @@ export class OAuthService {
     provider: IntegrationProvider,
     type: string,
     tokenResponse: OAuthTokenResponse,
+    settings: Record<string, any>,
   ): Promise<ProviderAccount | undefined> {
     if (!provider.resolveAccount) return undefined;
     try {
       return await provider.resolveAccount({
         accessToken: tokenResponse.access_token,
         tokenResponse,
+        settings,
       });
     } catch (err) {
       this.logger.warn(
@@ -714,12 +758,17 @@ export class OAuthService {
       throw new BadRequestException('Integration does not support OAuth');
     }
 
-    const oauthConfig = provider.getOAuthConfig
-      ? provider.getOAuthConfig((integration.settings as Record<string, any>) ?? {})
-      : provider.definition.oauth;
+    const { oauthConfig } = await this.resolveOAuthConfig(
+      provider,
+      integration.workspaceId,
+      integration.settings,
+    );
 
-    const clientId = this.getClientId(integration.type, oauthConfig);
-    const clientSecret = this.getClientSecret(integration.type, oauthConfig);
+    const { clientId, clientSecret } = await this.configService.getCredentials(
+      integration.workspaceId,
+      integration.type,
+      oauthConfig,
+    );
 
     try {
       const current = await this.connectionRepo.findById(connection.id);
@@ -845,11 +894,15 @@ export class OAuthService {
   private async requestTokens(
     oauthConfig: OAuthConfig,
     type: string,
+    workspaceId: string,
     code: string,
     tokenUrl = oauthConfig.tokenUrl,
   ): Promise<OAuthTokenResponse> {
-    const clientId = this.getClientId(type, oauthConfig);
-    const clientSecret = this.getClientSecret(type, oauthConfig);
+    const { clientId, clientSecret } = await this.configService.getCredentials(
+      workspaceId,
+      type,
+      oauthConfig,
+    );
     const basicAuth = oauthConfig.clientAuth === 'basic';
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -950,23 +1003,25 @@ export class OAuthService {
     return `${data}.${signature}`;
   }
 
-  private getClientId(type: string, oauthConfig: OAuthConfig): string {
-    return this.requireEnv(credentialEnvKey('CLIENT_ID', type, oauthConfig));
-  }
-
-  private getClientSecret(type: string, oauthConfig: OAuthConfig): string {
-    return this.requireEnv(
-      credentialEnvKey('CLIENT_SECRET', type, oauthConfig),
-    );
-  }
-
-  private requireEnv(envKey: string): string {
-    const value = process.env[envKey];
-    if (!value) {
-      throw new BadRequestException(
-        `Missing environment variable: ${envKey}`,
-      );
+  // Adds the workspace's saved config to the settings the provider reads.
+  private async resolveOAuthConfig(
+    provider: IntegrationProvider,
+    workspaceId: string,
+    integrationSettings: unknown,
+  ): Promise<{ oauthConfig: OAuthConfig; settings: Record<string, any> }> {
+    const { type, oauth, setup } = provider.definition;
+    const settings = {
+      ...((integrationSettings as Record<string, any>) ?? {}),
+      ...(await this.configService.getSettings(workspaceId, type)),
+    };
+    if (setup?.baseUrl === 'required' && !settings.baseUrl) {
+      throw new BadRequestException(NOT_CONFIGURED_MESSAGE);
     }
-    return value;
+    return {
+      oauthConfig: provider.getOAuthConfig
+        ? provider.getOAuthConfig(settings)
+        : oauth,
+      settings,
+    };
   }
 }

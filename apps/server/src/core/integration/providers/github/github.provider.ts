@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   IntegrationProvider,
   IntegrationDefinition,
@@ -14,14 +14,11 @@ import {
 import { GitHubService } from './github.service';
 import { buildGitHubPatterns } from './github-patterns';
 import { normalizeBaseUrl } from '../../utils/integration.utils';
-import { credentialEnvKey } from '../../oauth/credential-env';
 
 const DEFAULT_BASE_URL = 'https://github.com';
 
 @Injectable()
 export class GitHubProvider extends IntegrationProvider {
-  private readonly logger = new Logger(GitHubProvider.name);
-
   definition: IntegrationDefinition = {
     type: 'github',
     name: 'GitHub',
@@ -33,20 +30,19 @@ export class GitHubProvider extends IntegrationProvider {
       tokenUrl: 'https://github.com/login/oauth/access_token',
       scopes: ['repo', 'read:user'],
     },
+    setup: {
+      baseUrl: 'optional',
+      defaultBaseUrl: DEFAULT_BASE_URL,
+      appRegistrationPath: '/settings/applications/new',
+    },
   };
 
   constructor(private readonly githubService: GitHubService) {
     super();
-    const configured = process.env.INTEGRATION_GITHUB_URL;
-    if (configured && !normalizeBaseUrl(configured)) {
-      this.logger.warn(
-        `INTEGRATION_GITHUB_URL is not a valid http(s) URL; falling back to ${DEFAULT_BASE_URL}`,
-      );
-    }
   }
 
   getOAuthConfig(settings: Record<string, any>): OAuthConfig {
-    const baseUrl = this.resolveBaseUrl();
+    const baseUrl = this.resolveBaseUrl(settings);
     return {
       authUrl: `${baseUrl}/login/oauth/authorize`,
       tokenUrl: `${baseUrl}/login/oauth/access_token`,
@@ -56,17 +52,17 @@ export class GitHubProvider extends IntegrationProvider {
 
   // Configured host only, so a GitHub Enterprise token never reaches github.com.
   getUnfurlPatterns(settings: Record<string, any>): UnfurlPattern[] {
-    return buildGitHubPatterns(this.resolveBaseUrl());
+    return buildGitHubPatterns(this.resolveBaseUrl(settings));
   }
 
   getUnfurlHosts(settings: Record<string, any>): string[] {
-    return [new URL(this.resolveBaseUrl()).hostname];
+    return [new URL(this.resolveBaseUrl(settings)).hostname];
   }
 
   async resolveAccount(opts: ResolveAccountOpts): Promise<ProviderAccount> {
     return this.githubService.getAccount(
       `Bearer ${opts.accessToken}`,
-      this.resolveApiBaseUrl(),
+      this.resolveApiBaseUrl(opts.settings),
     );
   }
 
@@ -76,13 +72,10 @@ export class GitHubProvider extends IntegrationProvider {
 
   // The OAuth app's own credentials only see public repos, so private ones 404.
   async unfurlPublic(opts: PublicUnfurlOpts): Promise<UnfurlResult> {
-    const clientId =
-      process.env[credentialEnvKey('CLIENT_ID', this.definition.type)];
-    const clientSecret =
-      process.env[credentialEnvKey('CLIENT_SECRET', this.definition.type)];
-    if (!clientId || !clientSecret) {
+    if (!opts.credentials) {
       throw new Error('GitHub client ID or secret is not set');
     }
+    const { clientId, clientSecret } = opts.credentials;
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
       'base64',
     );
@@ -94,7 +87,7 @@ export class GitHubProvider extends IntegrationProvider {
     opts: PublicUnfurlOpts,
   ): Promise<UnfurlResult> {
     const { match, patternType, url } = opts;
-    const apiBaseUrl = this.resolveApiBaseUrl();
+    const apiBaseUrl = this.resolveApiBaseUrl(opts.settings);
     const owner = match[1];
     const repo = match[2];
 
@@ -183,13 +176,13 @@ export class GitHubProvider extends IntegrationProvider {
     }
   }
 
-  private resolveBaseUrl(): string {
-    const baseUrl = process.env.INTEGRATION_GITHUB_URL;
+  private resolveBaseUrl(settings?: Record<string, any>): string {
+    const baseUrl = settings?.baseUrl;
     return (baseUrl && normalizeBaseUrl(baseUrl)) || DEFAULT_BASE_URL;
   }
 
-  private resolveApiBaseUrl(): string {
-    const baseUrl = this.resolveBaseUrl();
+  private resolveApiBaseUrl(settings?: Record<string, any>): string {
+    const baseUrl = this.resolveBaseUrl(settings);
     return baseUrl === DEFAULT_BASE_URL
       ? 'https://api.github.com'
       : `${baseUrl}/api/v3`;

@@ -137,20 +137,12 @@ describe('OAuthService', () => {
 
   beforeAll(async () => {
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
-    for (const type of ['ACME', 'CHAT', 'LEGACY', 'HIDDEN', 'ENTRA', 'DESIGN', 'TRACKER']) {
-      process.env[`INTEGRATION_${type}_CLIENT_ID`] = `${type.toLowerCase()}-client-id`;
-      process.env[`INTEGRATION_${type}_CLIENT_SECRET`] = `${type.toLowerCase()}-client-secret`;
-    }
     sink = await startServer((_req, res) => tokenJson(res, { access_token: 'stolen' }));
     tokenEndpoint = await startServer((req, res) => tokenEndpointReply(req, res));
   });
 
   afterAll(async () => {
     jest.restoreAllMocks();
-    for (const type of ['ACME', 'CHAT', 'LEGACY', 'HIDDEN', 'ENTRA', 'DESIGN', 'TRACKER']) {
-      delete process.env[`INTEGRATION_${type}_CLIENT_ID`];
-      delete process.env[`INTEGRATION_${type}_CLIENT_SECRET`];
-    }
     await Promise.all([stopServer(tokenEndpoint), stopServer(sink)]);
   });
 
@@ -303,6 +295,13 @@ describe('OAuthService', () => {
       new WorkspaceAbilityFactory(),
       auditService as any,
       { getOrThrow: () => redis } as any,
+      {
+        getSettings: async () => ({}),
+        getCredentials: async (_workspaceId: string, type: string) => ({
+          clientId: `${type}-client-id`,
+          clientSecret: `${type}-client-secret`,
+        }),
+      } as any,
     );
   });
 
@@ -563,6 +562,7 @@ describe('OAuthService', () => {
       expect(trackerResolveAccount).toHaveBeenCalledWith({
         accessToken: 'user-token',
         tokenResponse: { access_token: 'user-token' },
+        settings: {},
       });
       expect(connectionRepo.upsert).toHaveBeenCalledWith(
         expect.objectContaining({ userId, providerUserId: '583231', metadata: { account } }),

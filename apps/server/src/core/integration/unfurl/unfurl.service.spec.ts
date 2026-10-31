@@ -13,20 +13,6 @@ import {
 
 const GHE_BASE = 'https://github.acme.com';
 const CONNECTED_AT = new Date('2026-10-01T09:00:00Z');
-const ORIGINAL_ENV = process.env;
-
-// A configured server always has the app credentials, since GitHub cannot be installed without them.
-beforeEach(() => {
-  process.env = {
-    ...ORIGINAL_ENV,
-    INTEGRATION_GITHUB_CLIENT_ID: 'app-id',
-    INTEGRATION_GITHUB_CLIENT_SECRET: 'app-secret',
-  };
-});
-
-afterEach(() => {
-  process.env = ORIGINAL_ENV;
-});
 
 class WorkspaceScopedProvider extends IntegrationProvider {
   definition: IntegrationDefinition = {
@@ -41,7 +27,7 @@ class WorkspaceScopedProvider extends IntegrationProvider {
   unfurl = jest.fn().mockResolvedValue({ title: 'Message' });
 }
 
-function build() {
+function build(baseUrl?: string) {
   const unfurlPullRequest = jest.fn().mockResolvedValue({ title: 'PR' });
   const registry = new IntegrationRegistry();
   registry.register(new GitHubProvider({ unfurlPullRequest } as any));
@@ -66,12 +52,23 @@ function build() {
     set: jest.fn().mockResolvedValue('OK'),
   };
 
+  const settings = baseUrl ? { baseUrl } : {};
+  // A configured server always has the app credentials, since GitHub cannot be installed without them.
+  const configService = {
+    getSettings: jest.fn().mockResolvedValue(settings),
+    getSettingsMap: jest.fn().mockResolvedValue(new Map([['github', settings]])),
+    findCredentials: jest
+      .fn()
+      .mockResolvedValue({ clientId: 'app-id', clientSecret: 'app-secret' }),
+  };
+
   const service = new UnfurlService(
     registry,
     integrationRepo as any,
     connectionRepo as any,
     oauthService as any,
     { getOrThrow: () => redis } as any,
+    configService as any,
   );
   return {
     service,
@@ -85,16 +82,8 @@ function build() {
 }
 
 describe('UnfurlService provider resolution', () => {
-  const original = process.env.INTEGRATION_GITHUB_URL;
-
-  afterEach(() => {
-    if (original === undefined) delete process.env.INTEGRATION_GITHUB_URL;
-    else process.env.INTEGRATION_GITHUB_URL = original;
-  });
-
   it('returns null for github.com links when GitHub Enterprise is configured', async () => {
-    process.env.INTEGRATION_GITHUB_URL = GHE_BASE;
-    const { service, unfurlPullRequest, connectionRepo } = build();
+    const { service, unfurlPullRequest, connectionRepo } = build(GHE_BASE);
 
     await expect(
       service.unfurl('https://github.com/o/r/pull/1', 'u1', 'w1'),
@@ -110,9 +99,7 @@ describe('UnfurlService provider resolution', () => {
   ])(
     'resolves links on the configured host (%s) through the installed integration',
     async (configured, url, apiBaseUrl) => {
-      if (configured === undefined) delete process.env.INTEGRATION_GITHUB_URL;
-      else process.env.INTEGRATION_GITHUB_URL = configured;
-      const { service, unfurlPullRequest } = build();
+      const { service, unfurlPullRequest } = build(configured);
 
       await expect(service.unfurl(url, 'u1', 'w1')).resolves.toEqual({
         title: 'PR',
@@ -125,17 +112,7 @@ describe('UnfurlService provider resolution', () => {
 });
 
 describe('UnfurlService credential failures', () => {
-  const original = process.env.INTEGRATION_GITHUB_URL;
   const url = 'https://github.com/o/r/pull/1';
-
-  beforeEach(() => {
-    delete process.env.INTEGRATION_GITHUB_URL;
-  });
-
-  afterEach(() => {
-    if (original === undefined) delete process.env.INTEGRATION_GITHUB_URL;
-    else process.env.INTEGRATION_GITHUB_URL = original;
-  });
 
   it('shows no card for a token awaiting refresh, without caching or retiring', async () => {
     const { service, unfurlPullRequest, connectionRepo, oauthService, redis } =
@@ -203,19 +180,9 @@ describe('UnfurlService credential failures', () => {
 });
 
 describe('UnfurlService cache', () => {
-  const original = process.env.INTEGRATION_GITHUB_URL;
   const url = 'https://github.com/o/r/pull/1';
   const urlDigest = crypto.createHash('sha256').update(url).digest('hex');
   const cachedCard = JSON.stringify({ title: 'Cached PR' });
-
-  beforeEach(() => {
-    delete process.env.INTEGRATION_GITHUB_URL;
-  });
-
-  afterEach(() => {
-    if (original === undefined) delete process.env.INTEGRATION_GITHUB_URL;
-    else process.env.INTEGRATION_GITHUB_URL = original;
-  });
 
   it('serves a cached card only after finding the connection', async () => {
     const { service, unfurlPullRequest, connectionRepo, redis } = build();
@@ -370,7 +337,6 @@ describe('UnfurlService public cards', () => {
   let warn: jest.SpyInstance;
 
   beforeEach(() => {
-    delete process.env.INTEGRATION_GITHUB_URL;
     warn = jest
       .spyOn(Logger.prototype, 'warn')
       .mockImplementation(() => undefined);

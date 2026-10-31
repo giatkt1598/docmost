@@ -8,6 +8,22 @@ export type OAuthConfig = {
   credentialsKey?: string;
 };
 
+export type IntegrationSetup = {
+  baseUrl: "none" | "optional" | "required";
+  defaultBaseUrl?: string;
+  appRegistrationUrl?: string;
+  appRegistrationPath?: string;
+};
+
+// The client secret never leaves the server.
+export type IntegrationConfig = {
+  type: string;
+  baseUrl: string | null;
+  clientId: string | null;
+  hasClientSecret: boolean;
+  callbackUrl: string;
+};
+
 export type IntegrationDefinition = {
   type: string;
   name: string;
@@ -15,6 +31,7 @@ export type IntegrationDefinition = {
   icon: string;
   capabilities: IntegrationCapability[];
   oauth?: OAuthConfig;
+  setup?: IntegrationSetup;
   requiresFeature?: string;
 };
 

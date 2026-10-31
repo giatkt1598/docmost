@@ -95,8 +95,6 @@ describe('GitHubService API paths', () => {
 });
 
 describe('GitHub connected account', () => {
-  const original = process.env.INTEGRATION_GITHUB_URL;
-
   beforeEach(() => {
     fetchMock.mockReset();
     fetchMock.mockResolvedValue(
@@ -112,13 +110,7 @@ describe('GitHub connected account', () => {
     );
   });
 
-  afterEach(() => {
-    if (original === undefined) delete process.env.INTEGRATION_GITHUB_URL;
-    else process.env.INTEGRATION_GITHUB_URL = original;
-  });
-
   it('reads the account from api.github.com and keeps no email', async () => {
-    delete process.env.INTEGRATION_GITHUB_URL;
     const provider = new GitHubProvider(new GitHubService());
 
     await expect(
@@ -134,10 +126,13 @@ describe('GitHub connected account', () => {
   });
 
   it('reads the account from the GitHub Enterprise API', async () => {
-    process.env.INTEGRATION_GITHUB_URL = 'https://github.acme.com';
     const provider = new GitHubProvider(new GitHubService());
 
-    await provider.resolveAccount({ accessToken: 'token', tokenResponse: {} });
+    await provider.resolveAccount({
+      accessToken: 'token',
+      tokenResponse: {},
+      settings: { baseUrl: 'https://github.acme.com' },
+    });
 
     expect(fetchMock.mock.calls[0][0]).toBe(
       'https://github.acme.com/api/v3/user',
@@ -146,15 +141,7 @@ describe('GitHub connected account', () => {
 });
 
 describe('GitHub public unfurl', () => {
-  const originalEnv = process.env;
-
   beforeEach(() => {
-    process.env = {
-      ...originalEnv,
-      INTEGRATION_GITHUB_CLIENT_ID: 'app-id',
-      INTEGRATION_GITHUB_CLIENT_SECRET: 'app-secret',
-    };
-    delete process.env.INTEGRATION_GITHUB_URL;
     fetchMock.mockReset();
     fetchMock.mockImplementation(
       async () =>
@@ -165,16 +152,23 @@ describe('GitHub public unfurl', () => {
     );
   });
 
-  afterEach(() => {
-    process.env = originalEnv;
-  });
-
-  function unfurlPublic(url: string) {
+  function unfurlPublic(
+    url: string,
+    credentials: { clientId: string; clientSecret: string } | null = {
+      clientId: 'app-id',
+      clientSecret: 'app-secret',
+    },
+  ) {
     const provider = new GitHubProvider(new GitHubService());
     for (const pattern of provider.getUnfurlPatterns({})) {
       const match = url.match(pattern.regex);
       if (match) {
-        return provider.unfurlPublic({ url, match, patternType: pattern.type });
+        return provider.unfurlPublic({
+          url,
+          match,
+          patternType: pattern.type,
+          credentials,
+        });
       }
     }
     throw new Error(`No GitHub pattern matches ${url}`);
@@ -192,9 +186,7 @@ describe('GitHub public unfurl', () => {
   });
 
   it('never calls GitHub without the app credentials', async () => {
-    delete process.env.INTEGRATION_GITHUB_CLIENT_SECRET;
-
-    await expect(unfurlPublic(PAGE)).rejects.toThrow();
+    await expect(unfurlPublic(PAGE, null)).rejects.toThrow();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

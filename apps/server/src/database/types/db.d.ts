@@ -559,6 +559,18 @@ export interface Integrations {
   deletedAt: Timestamp | null;
 }
 
+export interface IntegrationConfigs {
+  id: Generated<string>;
+  workspaceId: string;
+  type: string;
+  baseUrl: string | null;
+  clientId: string;
+  clientSecret: string;
+  updatedById: string | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+}
+
 export interface IntegrationConnections {
   id: Generated<string>;
   integrationId: string;
@@ -842,6 +854,7 @@ export interface DB {
   groupUsers: GroupUsers;
   integrationConnections: IntegrationConnections;
   integrations: Integrations;
+  integrationConfigs: IntegrationConfigs;
   labels: Labels;
   mcpTokens: McpTokens;
   aiProviderConfigs: AiProviderConfigs;

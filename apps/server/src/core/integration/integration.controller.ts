@@ -13,7 +13,11 @@ import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator'
 import { User, Workspace } from '@docmost/db/types/entity.types';
 import { IntegrationService } from './integration.service';
 import { IntegrationConnectionService } from './integration-connection.service';
-import { UninstallIntegrationDto } from './dto/integration.dto';
+import { IntegrationConfigService } from './integration-config.service';
+import {
+  SaveIntegrationConfigDto,
+  UninstallIntegrationDto,
+} from './dto/integration.dto';
 import WorkspaceAbilityFactory from '../casl/abilities/workspace-ability.factory';
 import {
   WorkspaceCaslAction,
@@ -25,6 +29,7 @@ export class IntegrationController {
   constructor(
     private readonly integrationService: IntegrationService,
     private readonly connectionService: IntegrationConnectionService,
+    private readonly configService: IntegrationConfigService,
     private readonly workspaceAbility: WorkspaceAbilityFactory,
   ) {}
 
@@ -52,18 +57,33 @@ export class IntegrationController {
     @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
-    const ability = this.workspaceAbility.createForUser(user, workspace);
-    if (
-      ability.cannot(
-        WorkspaceCaslAction.Manage,
-        WorkspaceCaslSubject.Settings,
-      )
-    ) {
-      throw new ForbiddenException();
-    }
+    this.assertCanManage(user, workspace);
 
     await this.integrationService.uninstall(dto.integrationId, workspace.id);
     return { success: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Post('config/list')
+  async listConfigs(
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    this.assertCanManage(user, workspace);
+    return this.configService.list(workspace.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Post('config/save')
+  async saveConfig(
+    @Body() dto: SaveIntegrationConfigDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    this.assertCanManage(user, workspace);
+    return this.configService.save(dto, workspace.id, user.id);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -74,5 +94,17 @@ export class IntegrationController {
     @AuthWorkspace() workspace: Workspace,
   ) {
     return this.connectionService.getUserConnections(user.id, workspace.id);
+  }
+
+  private assertCanManage(user: User, workspace: Workspace): void {
+    const ability = this.workspaceAbility.createForUser(user, workspace);
+    if (
+      ability.cannot(
+        WorkspaceCaslAction.Manage,
+        WorkspaceCaslSubject.Settings,
+      )
+    ) {
+      throw new ForbiddenException();
+    }
   }
 }

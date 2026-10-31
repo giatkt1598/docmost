@@ -27,6 +27,8 @@ const MINIMUM_PLAN: Record<string, { selfHosted: string; cloud: string }> = {
 type IntegrationRowProps = {
   definition: IntegrationDefinition;
   installation?: Integration;
+  configured: boolean;
+  onConfigure: (type: string) => void;
   onInstall: (type: string) => void;
   onUninstall: (integrationId: string) => void;
 };
@@ -34,6 +36,8 @@ type IntegrationRowProps = {
 export default function IntegrationRow({
   definition,
   installation,
+  configured,
+  onConfigure,
   onInstall,
   onUninstall,
 }: IntegrationRowProps) {
@@ -67,6 +71,11 @@ export default function IntegrationRow({
                     : t("Paid")}
                 </Badge>
               )}
+              {!locked && !configured && (
+                <Badge size="xs" variant="light" color="gray">
+                  {t("Not configured")}
+                </Badge>
+              )}
             </Group>
             <Text size="xs" c="dimmed" truncate>
               {definition.description}
@@ -75,6 +84,14 @@ export default function IntegrationRow({
         </Group>
 
         <Group gap="sm" wrap="nowrap" style={{ flexShrink: 0 }}>
+          <Button
+            size="xs"
+            variant="default"
+            disabled={locked}
+            onClick={() => onConfigure(definition.type)}
+          >
+            {t("Configure")}
+          </Button>
           {isInstalled ? (
             <Button
               size="xs"
@@ -84,11 +101,14 @@ export default function IntegrationRow({
               {t("Uninstall")}
             </Button>
           ) : (
-            <Tooltip label={upgradeLabel} disabled={!locked}>
+            <Tooltip
+              label={locked ? upgradeLabel : t("Configure this integration first")}
+              disabled={!locked && configured}
+            >
               <Button
                 size="xs"
                 variant="light"
-                disabled={locked}
+                disabled={locked || !configured}
                 onClick={() => onInstall(definition.type)}
               >
                 {t("Install")}

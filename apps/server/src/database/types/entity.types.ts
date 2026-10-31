@@ -9,6 +9,7 @@ import {
   Comments,
   Groups,
   Integrations as _Integrations,
+  IntegrationConfigs as _IntegrationConfigs,
   IntegrationConnections as _IntegrationConnections,
   Labels,
   McpTokens,
@@ -227,6 +228,9 @@ export type UpdatableWatcher = Updateable<Omit<Watchers, 'id'>>;
 export type Integration = Selectable<_Integrations>;
 export type InsertableIntegration = Insertable<_Integrations>;
 export type UpdatableIntegration = Updateable<Omit<_Integrations, 'id'>>;
+
+export type IntegrationConfig = Selectable<_IntegrationConfigs>;
+export type InsertableIntegrationConfig = Insertable<_IntegrationConfigs>;
 
 // Integration Connection
 export type IntegrationConnection = Selectable<_IntegrationConnections>;

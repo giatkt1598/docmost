@@ -12,6 +12,28 @@ export class UninstallIntegrationDto {
   integrationId: string;
 }
 
+export class SaveIntegrationConfigDto {
+  @IsNotEmpty()
+  @IsString()
+  type: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  baseUrl?: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(512)
+  clientId: string;
+
+  // Left out to keep the stored secret.
+  @IsOptional()
+  @IsString()
+  @MaxLength(1024)
+  clientSecret?: string;
+}
+
 export class UnfurlDto {
   // Caps the input the unfurl regexes run on
   @IsNotEmpty()

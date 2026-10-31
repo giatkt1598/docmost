@@ -3,6 +3,7 @@ import { IntegrationRegistry } from '../registry/integration-registry';
 import { IntegrationConnectionRepo } from '../repos/integration-connection.repo';
 import { IntegrationRepo } from '../repos/integration.repo';
 import { OAuthService } from '../oauth/oauth.service';
+import { IntegrationConfigService } from '../integration-config.service';
 import {
   UnfurlResult,
   UnfurlNeedsConnection,
@@ -34,6 +35,7 @@ export class UnfurlService {
     private readonly connectionRepo: IntegrationConnectionRepo,
     private readonly oauthService: OAuthService,
     private readonly redisService: RedisService,
+    private readonly configService: IntegrationConfigService,
   ) {
     this.redis = this.redisService.getOrThrow();
   }
@@ -76,6 +78,8 @@ export class UnfurlService {
         patternType,
         match,
         url,
+        workspaceId,
+        (integration.settings as Record<string, any>) ?? {},
       );
       if (publicResult) {
         return publicResult;
@@ -176,6 +180,8 @@ export class UnfurlService {
     patternType: string,
     match: RegExpMatchArray,
     url: string,
+    workspaceId: string,
+    settings: Record<string, any>,
   ): Promise<UnfurlResult | null> {
     if (!provider.unfurlPublic) {
       return null;
@@ -193,6 +199,12 @@ export class UnfurlService {
         url,
         match,
         patternType,
+        settings,
+        credentials: await this.configService.findCredentials(
+          workspaceId,
+          provider.definition.type,
+          provider.definition.oauth,
+        ),
       });
       await this.redis.set(
         cacheKey,
@@ -262,24 +274,46 @@ export class UnfurlService {
         staticResult.provider.definition.type,
       );
       if (integration) {
-        return { ...staticResult, integration };
+        const configSettings = await this.configService.getSettings(
+          workspaceId,
+          integration.type,
+        );
+        return {
+          ...staticResult,
+          integration: {
+            ...integration,
+            settings: {
+              ...((integration.settings as Record<string, any>) ?? {}),
+              ...configSettings,
+            },
+          },
+        };
       }
     }
 
     const integrations =
       await this.integrationRepo.findAllByWorkspace(workspaceId);
+    const configSettings = await this.configService.getSettingsMap(workspaceId);
 
     for (const integration of integrations) {
       const provider = this.registry.getProvider(integration.type);
       if (!provider?.getUnfurlPatterns || !provider.unfurl) continue;
 
-      const settings = (integration.settings as Record<string, any>) ?? {};
+      const settings = {
+        ...((integration.settings as Record<string, any>) ?? {}),
+        ...configSettings.get(integration.type),
+      };
       const patterns = provider.getUnfurlPatterns(settings);
 
       for (const pattern of patterns) {
         const match = url.match(pattern.regex);
         if (match) {
-          return { provider, match, patternType: pattern.type, integration };
+          return {
+            provider,
+            match,
+            patternType: pattern.type,
+            integration: { ...integration, settings },
+          };
         }
       }
     }

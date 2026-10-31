@@ -6,6 +6,9 @@ export type IntegrationLinkPattern = {
   requiresProviderHost?: boolean;
 };
 
+// Gitea repo prefix; a server under a sub-path puts extra segments before the owner.
+const GITEA_REPO = String.raw`^https?:\/\/(?![^?#]*(?:\/(?:\.|%2[eE]){1,2}(?:[\/?#]|$)|\\))[^\/]+(?:\/[^\/?#]+)*?\/([a-zA-Z0-9\-_.]+)\/([a-zA-Z0-9\-_.]+)`;
+
 export const integrationLinkPatterns: IntegrationLinkPattern[] = [
   // Slack message permalink (must precede the host-agnostic GitHub repo pattern)
   {
@@ -221,6 +224,63 @@ export const integrationLinkPatterns: IntegrationLinkPattern[] = [
     regex:
       /^https?:\/\/(?![^?#]*(?:\/(?:\.|%2[eE]){1,2}(?:[\/?#]|$)|\\))[^\/]+\/([a-zA-Z0-9\-_.]+)\/([a-zA-Z0-9\-_]+)\/?$/,
   },
+  // Gitea reports its host, and its paths overlap GitHub's, so it only matches there.
+  {
+    provider: "gitea",
+    type: "gitea-pr-commit",
+    regex: new RegExp(String.raw`${GITEA_REPO}\/pulls\/(\d+)\/commits\/([a-f0-9]+)`),
+    requiresProviderHost: true,
+  },
+  {
+    provider: "gitea",
+    type: "gitea-pr",
+    regex: new RegExp(String.raw`${GITEA_REPO}\/pulls\/(\d+)`),
+    requiresProviderHost: true,
+  },
+  {
+    provider: "gitea",
+    type: "gitea-issue",
+    regex: new RegExp(String.raw`${GITEA_REPO}\/issues\/(\d+)`),
+    requiresProviderHost: true,
+  },
+  {
+    provider: "gitea",
+    type: "gitea-commit",
+    regex: new RegExp(String.raw`${GITEA_REPO}\/commit\/([a-f0-9]+)`),
+    requiresProviderHost: true,
+  },
+  {
+    provider: "gitea",
+    type: "gitea-file",
+    regex: new RegExp(
+      String.raw`${GITEA_REPO}\/src\/(?:branch|tag|commit)\/([^\/]+)\/(.+?)(?:#L(\d+)(?:-L(\d+))?)?$`,
+    ),
+    requiresProviderHost: true,
+  },
+  {
+    provider: "gitea",
+    type: "gitea-pulls-list",
+    regex: new RegExp(String.raw`${GITEA_REPO}\/pulls\/?(?:\?.*)?$`),
+    requiresProviderHost: true,
+  },
+  {
+    provider: "gitea",
+    type: "gitea-issues-list",
+    regex: new RegExp(String.raw`${GITEA_REPO}\/issues\/?(?:\?.*)?$`),
+    requiresProviderHost: true,
+  },
+  {
+    provider: "gitea",
+    type: "gitea-releases-list",
+    regex: new RegExp(String.raw`${GITEA_REPO}\/releases(?:[\/?].*)?$`),
+    requiresProviderHost: true,
+  },
+  {
+    provider: "gitea",
+    type: "gitea-repo",
+    regex: new RegExp(String.raw`${GITEA_REPO}\/?$`),
+    requiresProviderHost: true,
+  },
   // Google Docs
   {
     provider: "google_docs",
@@ -356,11 +416,17 @@ export type IntegrationLinkDescription = {
   description?: string;
 };
 
-// Static, offline description of an integration url
+// Static, offline description of an integration url. A known provider also
+// settles hosts the patterns alone can't place, such as a Gitea server.
 export function describeIntegrationLink(
   url: string,
+  knownProvider?: string,
 ): IntegrationLinkDescription | null {
-  const matched = matchIntegrationLink(url);
+  const hostname = knownProvider ? hostnameOf(url) : undefined;
+  const matched = matchIntegrationLink(
+    url,
+    knownProvider && hostname ? { [knownProvider]: [hostname] } : undefined,
+  );
   if (!matched) return null;
   const { provider, type, match } = matched;
 
@@ -405,6 +471,25 @@ export function describeIntegrationLink(
     case "github-releases-list":
       return describe("Releases", repo());
     case "github-repo":
+      return describe(repo());
+
+    case "gitea-pr":
+      return describe(`Pull Request #${match[3]}`, repo());
+    case "gitea-pr-commit":
+      return describe(`Commit ${match[4].slice(0, 7)}`, repo());
+    case "gitea-issue":
+      return describe(`Issue #${match[3]}`, repo());
+    case "gitea-commit":
+      return describe(`Commit ${match[3].slice(0, 7)}`, repo());
+    case "gitea-file":
+      return describe(match[4], repo());
+    case "gitea-pulls-list":
+      return describe("Pull Requests", repo());
+    case "gitea-issues-list":
+      return describe("Issues", repo());
+    case "gitea-releases-list":
+      return describe("Releases", repo());
+    case "gitea-repo":
       return describe(repo());
 
     case "gitlab-mr":
@@ -459,6 +544,14 @@ export function describeIntegrationLink(
 
     default:
       return null;
+  }
+}
+
+function hostnameOf(url: string): string | undefined {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return undefined;
   }
 }
 

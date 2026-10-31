@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import {
   AzureDevOpsIcon,
   FigmaIcon,
+  GiteaIcon,
   GithubIcon,
   GitlabIcon,
   GoogleDocsIcon,
@@ -14,6 +15,7 @@ import { IconPuzzle } from "@tabler/icons-react";
 const integrationIconMap: Record<string, (size: number) => ReactNode> = {
   github: (size) => <GithubIcon size={size} />,
   gitlab: (size) => <GitlabIcon size={size} />,
+  gitea: (size) => <GiteaIcon size={size} />,
   slack: (size) => <SlackIcon size={size} />,
   linear: (size) => <LinearIcon size={size} />,
   jira: (size) => <JiraIcon size={size} />,

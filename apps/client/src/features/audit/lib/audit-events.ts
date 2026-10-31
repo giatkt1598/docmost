@@ -55,6 +55,7 @@ export const AUDIT_EVENT_GROUPS: AuditEventGroup[] = [
       "integration.uninstalled": "Uninstalled integration",
       "integration.connected": "Connected integration account",
       "integration.disconnected": "Disconnected integration account",
+      "integration.configured": "Configured integration",
     },
   },
   {

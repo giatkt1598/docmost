@@ -114,7 +114,7 @@ function IntegrationMentionView(props: any) {
         {getIntegrationIcon(provider, 14)}
         <span className={classes.mentionText}>
           {needsConnection?.title ??
-            describeIntegrationLink(safeUrl)?.title ??
+            describeIntegrationLink(safeUrl, provider)?.title ??
             (safeUrl ? shortUrl(safeUrl) : url)}
         </span>
       </>

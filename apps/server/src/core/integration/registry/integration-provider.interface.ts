@@ -18,7 +18,7 @@ export type OAuthConfig = {
   scopes: string[];
   // 'workspace': one shared bot connection (Slack). 'user' (default): a token per Docmost user.
   connectionScope?: 'workspace' | 'user';
-  // Env credential prefix shared by products on one authorization server (atlassian, google).
+  // Config type whose credentials are shared by products on one authorization server (atlassian, google).
   credentialsKey?: string;
   // Repeat the scopes on refresh, for token endpoints that pick the resource from them (Microsoft Entra).
   scopeOnRefresh?: boolean;
@@ -58,6 +58,7 @@ export type ResolvedIdentity = {
 export type ResolveAccountOpts = {
   accessToken: string;
   tokenResponse: Record<string, any>;
+  settings?: Record<string, any>;
 };
 
 export class IdentityEmailMismatchError extends Error {
@@ -101,6 +102,15 @@ export type UnfurlResult = {
   metadata?: Record<string, any>;
 };
 
+// What an admin must enter on the settings page.
+export type IntegrationSetup = {
+  baseUrl: 'none' | 'optional' | 'required';
+  defaultBaseUrl?: string;
+  // Where the OAuth app is created: absolute, or a path on the configured base URL.
+  appRegistrationUrl?: string;
+  appRegistrationPath?: string;
+};
+
 export type IntegrationDefinition = {
   type: string;
   name: string;
@@ -108,6 +118,7 @@ export type IntegrationDefinition = {
   icon: string;
   capabilities: IntegrationCapability[];
   oauth?: OAuthConfig;
+  setup?: IntegrationSetup;
   unfurlPatterns?: UnfurlPattern[];
   // Not installable, but existing installations keep unfurling.
   hidden?: boolean;
@@ -140,7 +151,13 @@ export type UnfurlOpts = {
   integrationId: string;
 };
 
-export type PublicUnfurlOpts = Pick<UnfurlOpts, 'url' | 'match' | 'patternType'>;
+export type PublicUnfurlOpts = Pick<
+  UnfurlOpts,
+  'url' | 'match' | 'patternType' | 'settings'
+> & {
+  // The workspace's OAuth app, when it has one configured.
+  credentials?: { clientId: string; clientSecret: string } | null;
+};
 
 // UnfurlService shows no card for it instead of logging an error.
 export class UnfurlForbiddenError extends Error {

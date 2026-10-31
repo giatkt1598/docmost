@@ -39,6 +39,36 @@ export function useUninstallIntegration() {
   });
 }
 
+export function useIntegrationConfigs() {
+  return useQuery({
+    queryKey: ["integration-configs"],
+    queryFn: integrationService.getIntegrationConfigs,
+  });
+}
+
+export function useSaveIntegrationConfig() {
+  const qc = useQueryClient();
+  const { t } = useTranslation();
+  return useMutation({
+    mutationFn: integrationService.saveIntegrationConfig,
+    onSuccess: () => {
+      notifications.show({ message: t("Integration settings saved") });
+      qc.invalidateQueries({ queryKey: ["integration-configs"] });
+      qc.invalidateQueries({ queryKey: ["installed-integrations"] });
+      qc.invalidateQueries({ queryKey: ["my-connections"] });
+      // A new server or app can drop connections, so cached cards are stale.
+      qc.removeQueries({ queryKey: ["unfurl"] });
+    },
+    onError: (error) => {
+      const errorMessage = error["response"]?.data?.message;
+      notifications.show({
+        message: errorMessage || t("Failed to save integration settings"),
+        color: "red",
+      });
+    },
+  });
+}
+
 export function useMyConnections() {
   return useQuery({
     queryKey: ["my-connections"],

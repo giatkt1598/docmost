@@ -25,6 +25,10 @@ export class FigmaProvider extends IntegrationProvider {
       scopes: ['file_metadata:read', 'current_user:read'],
       clientAuth: 'basic',
     },
+    setup: {
+      baseUrl: 'none',
+      appRegistrationUrl: 'https://www.figma.com/developers/apps',
+    },
     unfurlPatterns: figmaPatterns,
   };
 

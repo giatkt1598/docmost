@@ -1,14 +1,16 @@
-import { Text, Alert, Stack, Anchor } from "@mantine/core";
+import { Text, Alert, Stack, List } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import { Helmet } from "react-helmet-async";
 import { useTranslation } from "react-i18next";
-import { useCallback } from "react";
-import { getAppName, isCloud } from "@/lib/config";
+import { useCallback, useState } from "react";
+import { getAppName } from "@/lib/config";
 import SettingsTitle from "@/components/settings/settings-title";
 import IntegrationRow from "../components/integration-row";
 import IntegrationListSkeleton from "../components/integration-list-skeleton";
+import IntegrationSetupModal from "../components/integration-setup-modal";
 import {
   useAvailableIntegrations,
+  useIntegrationConfigs,
   useInstalledIntegrations,
   useUninstallIntegration,
 } from "../queries/integration-query";
@@ -21,7 +23,10 @@ export default function Integrations() {
     useAvailableIntegrations();
   const { data: installed, isLoading: loadingInstalled } =
     useInstalledIntegrations();
+  const { data: configs } = useIntegrationConfigs();
   const uninstallMutation = useUninstallIntegration();
+  const [setupType, setSetupType] = useState<string | null>(null);
+  const setupDefinition = available?.find((d) => d.type === setupType);
 
   const handleInstall = useCallback(
     async (type: string) => {
@@ -78,22 +83,26 @@ export default function Integrations() {
 
       <SettingsTitle title={t("Integrations")} />
 
-      <Text size="sm" c="dimmed" mb="md">
-        {t("Manage workspace integrations.")}
-        {!isCloud() && (
-          <>
-            {" "}
-            <Anchor
-              href="https://docmost.com/docs/self-hosting/integrations"
-              target="_blank"
-              rel="noopener noreferrer"
-              size="sm"
-            >
-              {t("Setup guide")}
-            </Anchor>
-          </>
+      <Text size="sm" mb="xs">
+        {t(
+          "Integrations turn links from other apps into live previews. Paste a link to a pull request, issue or design into a page and it can show as a card with its current title, status and author.",
         )}
       </Text>
+      <List type="ordered" size="sm" c="dimmed" spacing={2} mb="md">
+        <List.Item>
+          {t(
+            "An admin creates an OAuth app in the other service and enters its details under Configure.",
+          )}
+        </List.Item>
+        <List.Item>
+          {t("An admin presses Install to enable it for this workspace.")}
+        </List.Item>
+        <List.Item>
+          {t(
+            "Each member connects their own account in Settings > Connections, so they only see what that account can open. Without it, only public items show a preview.",
+          )}
+        </List.Item>
+      </List>
 
       {error === "oauth_failed" && (
         <Alert color="red" mb="md">
@@ -124,12 +133,29 @@ export default function Integrations() {
                 key={def.type}
                 definition={def}
                 installation={installation}
+                configured={configs?.some(
+                  (c) =>
+                    c.type === def.type && !!c.clientId && c.hasClientSecret,
+                ) ?? false}
+                onConfigure={setSetupType}
                 onInstall={handleInstall}
                 onUninstall={handleUninstall}
               />
             );
           })}
         </Stack>
+      )}
+
+      {setupDefinition && (
+        <IntegrationSetupModal
+          opened
+          onClose={() => setSetupType(null)}
+          definition={setupDefinition}
+          config={configs?.find((c) => c.type === setupDefinition.type)}
+          installation={installed?.find(
+            (i) => i.type === setupDefinition.type,
+          )}
+        />
       )}
     </>
   );

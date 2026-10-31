@@ -99,7 +99,9 @@ export default function LinkView(props: MarkViewProps) {
       ? mark.attrs.integrationProvider
       : null;
   const { data: installedIntegrations } = useInstalledIntegrations(
-    Boolean(markIntegrationProvider || integrationMatch) && isEditable,
+    // A self-hosted link only matches once the installed hosts are known.
+    Boolean(markIntegrationProvider || integrationMatch || /^https?:/i.test(href)) &&
+      isEditable,
   );
   // Only hosts an installed provider unfurls get "Display as".
   const hostIntegrationProvider = useMemo(() => {

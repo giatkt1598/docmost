@@ -24,6 +24,10 @@ export class LinearProvider extends IntegrationProvider {
       tokenUrl: 'https://api.linear.app/oauth/token',
       scopes: ['read'],
     },
+    setup: {
+      baseUrl: 'none',
+      appRegistrationUrl: 'https://linear.app/settings/api/applications/new',
+    },
     unfurlPatterns: linearPatterns,
   };
 

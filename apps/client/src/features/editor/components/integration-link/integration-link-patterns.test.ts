@@ -343,3 +343,38 @@ describe("Jira Data Center context paths", () => {
     expect(matchIntegrationLink(url, JIRA_HOSTS)).toBeNull();
   });
 });
+
+describe('gitea links', () => {
+  const GITEA_HOSTS = { gitea: ['git.acme.com'] };
+
+  it.each([
+    ['https://git.acme.com/o/r', 'gitea-repo'],
+    ['https://git.acme.com/o/r/pulls/1', 'gitea-pr'],
+    ['https://git.acme.com/o/r/pulls', 'gitea-pulls-list'],
+    ['https://git.acme.com/o/r/issues/1', 'gitea-issue'],
+    ['https://git.acme.com/o/r/commit/abc1234', 'gitea-commit'],
+    ['https://git.acme.com/o/r/src/branch/main/a.ts#L2', 'gitea-file'],
+    ['https://git.acme.com/git/o/r/issues/1', 'gitea-issue'],
+  ])('matches %s on the configured host', (url, type) => {
+    expect(matchIntegrationLink(url, GITEA_HOSTS)).toMatchObject({
+      provider: 'gitea',
+      type,
+    });
+  });
+
+  it('never matches without the host being reported', () => {
+    expect(
+      matchIntegrationLink('https://git.acme.com/o/r/pull/1')?.provider,
+    ).toBe('github');
+    expect(
+      matchIntegrationLink('https://other.acme.com/o/r/pulls/1', GITEA_HOSTS)
+        ?.provider,
+    ).not.toBe('gitea');
+  });
+
+  it('describes a link once its provider is known', () => {
+    expect(
+      describeIntegrationLink('https://git.acme.com/o/r/pulls/7', 'gitea'),
+    ).toMatchObject({ title: 'Pull Request #7', description: 'o/r' });
+  });
+});
