@@ -76,6 +76,9 @@ describe("choice list edits", () => {
 
   it("finds blocking issues", () => {
     expect(choiceListIssues(opts())).toBeNull();
+    // the options popover renders once with an empty draft
+    expect(choiceListIssues({})).toBeNull();
+    expect(choiceListIssues(null)).toBeNull();
     expect(choiceListIssues(updateChoice(opts(), "a", { name: " " }))).toBe("empty-name");
     expect(choiceListIssues(updateChoice(opts(), "a", { name: "b " }))).toBe("duplicate-name");
   });

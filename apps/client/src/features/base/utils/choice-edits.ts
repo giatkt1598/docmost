@@ -76,8 +76,10 @@ export function removeChoice(opts: ChoiceOptions, id: string): ChoiceOptions {
 
 // Problems that block saving (the server would refuse or users would be
 // confused by two options with the same name).
-export function choiceListIssues(opts: ChoiceOptions): "empty-name" | "duplicate-name" | null {
-  const names = opts.choices.map((c) => c.name.trim().toLowerCase());
+export function choiceListIssues(
+  opts: Partial<ChoiceOptions> | null | undefined,
+): "empty-name" | "duplicate-name" | null {
+  const names = (opts?.choices ?? []).map((c) => c.name.trim().toLowerCase());
   if (names.some((n) => n === "")) return "empty-name";
   if (new Set(names).size !== names.length) return "duplicate-name";
   return null;
