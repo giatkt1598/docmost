@@ -7,11 +7,12 @@ import { IntegrationRepo } from '../../repos/integration.repo';
 import { IntegrationConfigService } from '../../integration-config.service';
 import { SprintBootService } from './sprint-boot.service';
 import { resolveSprintBootUrl, SPRINT_BOOT_TYPE } from './sprint-boot.provider';
-import { extractSprintBootUrls } from './sprint-boot-links';
+import { extractSprintBootUrls, filterSprintBootUrls } from './sprint-boot-links';
 
 export type SprintBootAccess = { token: string; baseUrl: string };
 
-type PageEvent = { pageIds?: string[]; pageId?: string; workspaceId: string };
+// urls: the page's ticket links as the collab server saw them, before they reached the stored content.
+type PageEvent = { pageIds?: string[]; pageId?: string; workspaceId: string; urls?: string[] };
 
 /**
  * Tells Sprint Boot which tickets each page mentions, so tickets list the pages about them. Sprint Boot replaces a
@@ -74,7 +75,7 @@ export class SprintBootSyncService {
       const access = await this.findAccess(event.workspaceId);
       if (!access) return;
       for (const pageId of pageIds) {
-        await this.reportPage(access, pageId, deleted);
+        await this.reportPage(access, pageId, deleted, event.urls);
       }
     } catch (err) {
       // The next save reports the page again.
@@ -84,7 +85,7 @@ export class SprintBootSyncService {
     }
   }
 
-  async reportPage(access: SprintBootAccess, pageId: string, deleted: boolean) {
+  async reportPage(access: SprintBootAccess, pageId: string, deleted: boolean, liveUrls?: string[]) {
     if (deleted) {
       await this.sprintBootService.setPageLinks(access.token, access.baseUrl, {
         pageId,
@@ -101,7 +102,9 @@ export class SprintBootSyncService {
 
     const space = (page as any).space as { slug?: string; name?: string } | undefined;
     const appUrl = this.environmentService.getAppUrl().replace(/\/+$/, '');
-    const urls = extractSprintBootUrls(page.content, access.baseUrl);
+    const urls = liveUrls
+      ? filterSprintBootUrls(liveUrls, access.baseUrl)
+      : extractSprintBootUrls(page.content, access.baseUrl);
     await this.sprintBootService.setPageLinks(access.token, access.baseUrl, {
       pageId: page.id,
       title: page.title || 'Untitled',

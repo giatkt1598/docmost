@@ -30,6 +30,12 @@ export function extractSprintBootUrls(content: unknown, baseUrl: string): string
   return [...urls].filter((url) => BROWSE.test(url));
 }
 
+// The ticket addresses among those the collab server saw that point at this Sprint Boot.
+export function filterSprintBootUrls(urls: string[], baseUrl: string): string[] {
+  const host = hostOf(baseUrl);
+  return [...new Set(urls)].filter((url) => hostOf(url) === host && BROWSE.test(url));
+}
+
 function hostOf(url: string): string | null {
   try {
     return new URL(url).host.toLowerCase();

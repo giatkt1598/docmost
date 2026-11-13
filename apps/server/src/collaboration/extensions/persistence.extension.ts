@@ -33,9 +33,14 @@ import {
 } from '../../integrations/queue/constants/queue.interface';
 import { Page } from '@docmost/db/types/entity.types';
 import { CollabHistoryService } from '../services/collab-history.service';
+import { extractBrowseUrls } from '../integration-links';
 
 // Long enough to fold a burst of saves into one report, short enough to feel live.
 const INTEGRATION_LINKS_DELAY_MS = 3000;
+// A pause in typing before the live check of a page's ticket links.
+const LIVE_LINKS_DELAY_MS = 700;
+
+type LinkWatch = { last: string | undefined; timer?: ReturnType<typeof setTimeout> };
 import {
   HISTORY_FAST_INTERVAL,
   HISTORY_FAST_THRESHOLD,
@@ -49,6 +54,7 @@ import { enqueueMediaLocalize } from '../../core/media-localize/media-localize.q
 export class PersistenceExtension implements Extension {
   private readonly logger = new Logger(PersistenceExtension.name);
   private contributors: Map<string, Set<string>> = new Map();
+  private linkWatches: Map<string, LinkWatch> = new Map();
 
   constructor(
     private readonly pageRepo: PageRepo,
@@ -292,6 +298,49 @@ export class PersistenceExtension implements Extension {
     const userId = data.context?.user?.id;
     if (!userId) return;
     this.trackContributor(data.documentName, userId);
+    this.watchIntegrationLinks(data.documentName, data.document, data.context.user.workspaceId);
+  }
+
+  /**
+   * Ticket links added or removed while someone edits reach the integrations within a second, without waiting for
+   * the document to be stored (up to 45 s). Only a change in the set of links queues a report, which carries the
+   * links themselves since the stored content is still the old one.
+   */
+  private watchIntegrationLinks(documentName: string, document: Y.Doc, workspaceId?: string) {
+    const watch = this.linkWatches.get(documentName) ?? { last: undefined };
+    this.linkWatches.set(documentName, watch);
+    clearTimeout(watch.timer);
+    watch.timer = setTimeout(() => {
+      void this.checkIntegrationLinks(documentName, document, watch, workspaceId).catch((err) =>
+        this.logger.warn(`Failed to check integration links of ${documentName}: ${err}`),
+      );
+    }, LIVE_LINKS_DELAY_MS);
+  }
+
+  private async checkIntegrationLinks(
+    documentName: string,
+    document: Y.Doc,
+    watch: LinkWatch,
+    workspaceId?: string,
+  ) {
+    const pageId = getPageId(documentName);
+    if (watch.last === undefined) {
+      // The links the page held when this editing session began.
+      const page = await this.pageRepo.findById(pageId, { includeContent: true });
+      watch.last = extractBrowseUrls(page?.content).join('|');
+      workspaceId ??= page?.workspaceId;
+    }
+
+    const urls = extractBrowseUrls(TiptapTransformer.fromYdoc(document, 'default'));
+    const signature = urls.join('|');
+    if (signature === watch.last || !workspaceId) return;
+    watch.last = signature;
+
+    await this.integrationQueue.add(
+      QueueJob.PAGE_INTEGRATION_LINKS,
+      { pageId, workspaceId, urls },
+      { removeOnComplete: true, removeOnFail: true },
+    );
   }
 
   private trackContributor(documentName: string, userId: string) {
@@ -305,6 +354,8 @@ export class PersistenceExtension implements Extension {
   async afterUnloadDocument(data: afterUnloadDocumentPayload) {
     const documentName = data.documentName;
     this.contributors.delete(documentName);
+    clearTimeout(this.linkWatches.get(documentName)?.timer);
+    this.linkWatches.delete(documentName);
   }
 
   private consumeContributors(documentName: string): string[] {
