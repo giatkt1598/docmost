@@ -4,12 +4,15 @@ import { IntegrationModule } from '../../integration.module';
 import { SprintBootProvider } from './sprint-boot.provider';
 import { SprintBootService } from './sprint-boot.service';
 import { SprintBootSyncService } from './sprint-boot-sync.service';
-import { SprintBootController } from './sprint-boot.controller';
+import { SprintBootController, SprintBootLinkController } from './sprint-boot.controller';
+import { SprintBootLinkService } from './sprint-boot-link.service';
+import { ApiKeyModule } from '../../../api-key/api-key.module';
+import { SpaceModule } from '../../../space/space.module';
 
 @Module({
-  imports: [IntegrationModule],
-  controllers: [SprintBootController],
-  providers: [SprintBootProvider, SprintBootService, SprintBootSyncService],
+  imports: [IntegrationModule, ApiKeyModule, SpaceModule],
+  controllers: [SprintBootController, SprintBootLinkController],
+  providers: [SprintBootProvider, SprintBootService, SprintBootSyncService, SprintBootLinkService],
   exports: [SprintBootProvider],
 })
 export class SprintBootModule implements OnModuleInit {

@@ -58,3 +58,31 @@ export const isSprintBootInstalled = () => {
   }
   return installed;
 };
+
+// Linking from Settings > Integrations: off to Sprint Boot to authorize, no secret to copy.
+export async function startSprintBootLink(sprintBootUrl: string): Promise<{ authorizeUrl: string }> {
+  const req = await api.post<{ authorizeUrl: string }>("/integrations/sprint-boot/start-link", { sprintBootUrl });
+  return req.data;
+}
+
+export async function previewSprintBootLink(data: {
+  sprintBootUrl: string;
+  state: string;
+}): Promise<{ sprintBootUrl: string; spaces: { key: string; name: string }[] }> {
+  const req = await api.post<{ sprintBootUrl: string; spaces: { key: string; name: string }[] }>(
+    "/integrations/sprint-boot/link-preview",
+    data,
+  );
+  return req.data;
+}
+
+export async function authorizeSprintBootLink(data: {
+  sprintBootUrl: string;
+  state: string;
+  spaceKey?: string;
+  docmostSpaceId?: string;
+  newSpaceName?: string;
+}): Promise<{ returnUrl: string }> {
+  const req = await api.post<{ returnUrl: string }>("/integrations/sprint-boot/authorize", data);
+  return req.data;
+}

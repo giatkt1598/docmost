@@ -2347,5 +2347,16 @@
   "Insert Sprint Boot ticket": "Chèn ticket Sprint Boot",
   "Sprint Boot ticket": "Ticket Sprint Boot",
   "Insert a live link to a Sprint Boot ticket.": "Chèn liên kết cập nhật trực tiếp tới một ticket Sprint Boot.",
-  "Linked tickets": "Ticket liên kết"
+  "Linked tickets": "Ticket liên kết",
+  "Connect Sprint Boot": "Kết nối Sprint Boot",
+  "Enter your Sprint Boot address. You will authorize the link in Sprint Boot and pick the spaces to connect, then come back here.": "Nhập địa chỉ Sprint Boot. Bạn sẽ authorize việc liên kết trong Sprint Boot và chọn space cần nối, rồi quay lại đây.",
+  "Sprint Boot address": "Địa chỉ Sprint Boot",
+  "This link request has expired. Start again from Sprint Boot's integrations page.": "Yêu cầu liên kết đã hết hạn. Hãy bắt đầu lại từ trang Tích hợp của Sprint Boot.",
+  "Sprint Boot at {{url}} wants to connect to Docmost. Pick the spaces to link, or link them later.": "Sprint Boot tại {{url}} muốn kết nối với Docmost. Chọn các space cần gắn, hoặc gắn sau.",
+  "Docmost space": "Docmost space",
+  "Link later": "Gắn sau",
+  "Create a new space": "Tạo space mới",
+  "New space name": "Tên space mới",
+  "Sprint Boot space": "Space của Sprint Boot",
+  "Pick both spaces, or neither.": "Chọn cả hai space, hoặc không chọn space nào."
 }

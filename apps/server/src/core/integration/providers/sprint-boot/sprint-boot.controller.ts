@@ -18,9 +18,15 @@ import {
   SprintBootSyncService,
 } from './sprint-boot-sync.service';
 import {
+  SprintBootAuthorizeDto,
   SprintBootCreateTicketDto,
+  SprintBootLinkCompleteDto,
+  SprintBootLinkPreviewDto,
+  SprintBootLinkStateDto,
   SprintBootSearchDto,
+  SprintBootStartLinkDto,
 } from './sprint-boot.dto';
+import { SprintBootLinkService } from './sprint-boot-link.service';
 
 const NOT_INSTALLED = 'Sprint Boot is not connected to this workspace';
 
@@ -31,7 +37,28 @@ export class SprintBootController {
   constructor(
     private readonly sync: SprintBootSyncService,
     private readonly sprintBootService: SprintBootService,
+    private readonly link: SprintBootLinkService,
   ) {}
+
+  // Settings > Integrations > Sprint Boot: off to Sprint Boot to authorize the link.
+  @HttpCode(HttpStatus.OK)
+  @Post('start-link')
+  startLink(@Body() dto: SprintBootStartLinkDto, @AuthUser() user: User, @AuthWorkspace() workspace: Workspace) {
+    return this.link.start(user, workspace, dto.sprintBootUrl);
+  }
+
+  // The authorize page for a link Sprint Boot started: its spaces.
+  @HttpCode(HttpStatus.OK)
+  @Post('link-preview')
+  linkPreview(@Body() dto: SprintBootLinkPreviewDto, @AuthUser() user: User, @AuthWorkspace() workspace: Workspace) {
+    return this.link.preview(user, workspace, dto.sprintBootUrl, dto.state);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('authorize')
+  authorize(@Body() dto: SprintBootAuthorizeDto, @AuthUser() user: User, @AuthWorkspace() workspace: Workspace) {
+    return this.link.authorize(user, workspace, dto);
+  }
 
   @HttpCode(HttpStatus.OK)
   @Post('spaces')
@@ -99,5 +126,23 @@ export class SprintBootController {
       }
       throw err;
     }
+  }
+}
+
+/** Sprint Boot's calls for a link started here. Public: the one-time state is the proof. */
+@Controller('integrations/sprint-boot/link')
+export class SprintBootLinkController {
+  constructor(private readonly link: SprintBootLinkService) {}
+
+  @HttpCode(HttpStatus.OK)
+  @Post('request')
+  request(@Body() dto: SprintBootLinkStateDto) {
+    return this.link.linkRequest(dto.state);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('complete')
+  complete(@Body() dto: SprintBootLinkCompleteDto) {
+    return this.link.completeFromSprintBoot(dto.state, dto.sprintBootUrl, dto.bridgeSecret);
   }
 }

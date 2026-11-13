@@ -2530,5 +2530,16 @@
   "Insert Sprint Boot ticket": "Insert Sprint Boot ticket",
   "Sprint Boot ticket": "Sprint Boot ticket",
   "Insert a live link to a Sprint Boot ticket.": "Insert a live link to a Sprint Boot ticket.",
-  "Linked tickets": "Linked tickets"
+  "Linked tickets": "Linked tickets",
+  "Connect Sprint Boot": "Connect Sprint Boot",
+  "Enter your Sprint Boot address. You will authorize the link in Sprint Boot and pick the spaces to connect, then come back here.": "Enter your Sprint Boot address. You will authorize the link in Sprint Boot and pick the spaces to connect, then come back here.",
+  "Sprint Boot address": "Sprint Boot address",
+  "This link request has expired. Start again from Sprint Boot's integrations page.": "This link request has expired. Start again from Sprint Boot's integrations page.",
+  "Sprint Boot at {{url}} wants to connect to Docmost. Pick the spaces to link, or link them later.": "Sprint Boot at {{url}} wants to connect to Docmost. Pick the spaces to link, or link them later.",
+  "Docmost space": "Docmost space",
+  "Link later": "Link later",
+  "Create a new space": "Create a new space",
+  "New space name": "New space name",
+  "Sprint Boot space": "Sprint Boot space",
+  "Pick both spaces, or neither.": "Pick both spaces, or neither."
 }

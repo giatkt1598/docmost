@@ -101,6 +101,9 @@ const OAuthConsent = lazyWithPrefetch(() => import("@/ee/oauth/pages/oauth-conse
 const Integrations = lazyWithPrefetch(
   () => import("@/features/integration/pages/integrations.tsx"),
 );
+const SprintBootAuthorize = lazyWithPrefetch(
+  () => import("@/features/integration/sprint-boot/sprint-boot-authorize-page.tsx"),
+);
 const Connections = lazyWithPrefetch(
   () => import("@/features/integration/pages/connections.tsx"),
 );
@@ -181,6 +184,10 @@ export default function App() {
 
         <Route element={<Layout />}>
           <Route path={"/home"} element={<Home />} />
+          <Route
+            path={"/integrations/sprint-boot/authorize"}
+            element={<SprintBootAuthorize />}
+          />
           <Route path={"/ai"} element={<AiChat />} />
           <Route path={"/ai/chat/:chatId"} element={<AiChat />} />
           <Route path={"/spaces"} element={<SpacesPage />} />

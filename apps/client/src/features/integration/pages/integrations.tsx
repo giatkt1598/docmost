@@ -8,6 +8,8 @@ import SettingsTitle from "@/components/settings/settings-title";
 import IntegrationRow from "../components/integration-row";
 import IntegrationListSkeleton from "../components/integration-list-skeleton";
 import IntegrationSetupModal from "../components/integration-setup-modal";
+import { SprintBootConnectModal } from "../sprint-boot/sprint-boot-connect-modal";
+import { SPRINT_BOOT_TYPE } from "../sprint-boot/sprint-boot-service";
 import {
   useAvailableIntegrations,
   useIntegrationConfigs,
@@ -29,10 +31,20 @@ export default function Integrations() {
   const installApiToken = useInstallApiTokenIntegration();
   const [setupType, setSetupType] = useState<string | null>(null);
   const setupDefinition = available?.find((d) => d.type === setupType);
+  // Sprint Boot links both ways from one authorize step instead of a pasted token.
+  const [linkingSprintBoot, setLinkingSprintBoot] = useState(false);
+  const configure = useCallback(
+    (type: string) => (type === SPRINT_BOOT_TYPE ? setLinkingSprintBoot(true) : setSetupType(type)),
+    [],
+  );
 
   const handleInstall = useCallback(
     async (type: string) => {
       const definition = available?.find((d) => d.type === type);
+      if (type === SPRINT_BOOT_TYPE) {
+        setLinkingSprintBoot(true);
+        return;
+      }
       if (definition?.setup?.auth === "apiToken") {
         installApiToken.mutate({ type });
         return;
@@ -140,19 +152,31 @@ export default function Integrations() {
                 key={def.type}
                 definition={def}
                 installation={installation}
-                configured={configs?.some(
-                  (c) =>
-                    c.type === def.type &&
-                    c.hasClientSecret &&
-                    (!!c.clientId || def.setup?.auth === "apiToken"),
-                ) ?? false}
-                onConfigure={setSetupType}
+                configured={
+                  def.type === SPRINT_BOOT_TYPE ||
+                  (configs?.some(
+                    (c) =>
+                      c.type === def.type &&
+                      c.hasClientSecret &&
+                      (!!c.clientId || def.setup?.auth === "apiToken"),
+                  ) ??
+                    false)
+                }
+                onConfigure={configure}
                 onInstall={handleInstall}
                 onUninstall={handleUninstall}
               />
             );
           })}
         </Stack>
+      )}
+
+      {linkingSprintBoot && (
+        <SprintBootConnectModal
+          opened
+          onClose={() => setLinkingSprintBoot(false)}
+          initialUrl={configs?.find((c) => c.type === SPRINT_BOOT_TYPE)?.baseUrl ?? undefined}
+        />
       )}
 
       {setupDefinition && (
