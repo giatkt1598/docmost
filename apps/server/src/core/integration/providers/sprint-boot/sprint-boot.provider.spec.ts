@@ -33,6 +33,12 @@ describe('Sprint Boot links', () => {
     expect(find(`${BASE}/browse/SB-12x`)).toBeNull();
   });
 
+  it('reads a pasted bridge address as the server it sits on', () => {
+    const pasted = { baseUrl: `${BASE}/api/v1/docs-bridge` };
+    expect(provider.getUnfurlHosts(pasted)).toEqual(['sprint.acme.com']);
+    expect(provider.getUnfurlPatterns(pasted)[0].regex.test(`${BASE}/browse/SB-1`)).toBe(true);
+  });
+
   it('offers nothing until a server is configured', () => {
     expect(provider.getUnfurlPatterns({})).toEqual([]);
     expect(provider.getUnfurlHosts({})).toEqual([]);

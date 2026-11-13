@@ -75,5 +75,7 @@ export function resolveSprintBootUrl(
   settings?: Record<string, any>,
 ): string | null {
   const baseUrl = settings?.baseUrl;
-  return (baseUrl && normalizeBaseUrl(baseUrl)) || null;
+  // The bridge address pasted whole still means the Sprint Boot server it sits on.
+  const normalized = (baseUrl && normalizeBaseUrl(baseUrl)) || null;
+  return normalized?.replace(/\/api\/v1\/docs-bridge$/i, '') ?? null;
 }
