@@ -244,6 +244,13 @@ export abstract class IntegrationProvider {
   // Maps an identity-flow token response to a provider account in the installed tenant.
   resolveIdentity?(opts: IdentityLinkEvent): Promise<ResolvedIdentity>;
 
+  // Runs before the integration is uninstalled, e.g. to tell the other service; a throw does not stop the uninstall.
+  onUninstall?(opts: {
+    integrationId: string;
+    workspaceId: string;
+    settings: Record<string, any>;
+  }): Promise<void>;
+
   // Checks a token an admin is saving; a throw refuses it.
   verifyApiToken?(token: string, settings: Record<string, any>): Promise<void>;
 

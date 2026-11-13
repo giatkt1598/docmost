@@ -11,19 +11,23 @@ const SB = 'https://sprint.acme.com';
 const user = { id: 'u1', email: 'admin@acme.com' } as any;
 const workspace = { id: 'w1' } as any;
 
-function create({ admin = true } = {}) {
+function create({ admin = true, installedAlready = false } = {}) {
   const store = new Map<string, string>();
   const redis = {
     set: jest.fn(async (key: string, value: string) => void store.set(key, value)),
     get: jest.fn(async (key: string) => store.get(key) ?? null),
     del: jest.fn(async (key: string) => void store.delete(key)),
   };
-  const apiKeyService = { create: jest.fn(async () => ({ token: 'docmost-api-key' })) };
+  const apiKeyService = { create: jest.fn(async () => ({ id: 'new-key', token: 'docmost-api-key' })) };
   const configService = { save: jest.fn(async () => ({})) };
   const integrationService = { installWithApiToken: jest.fn(async () => ({})) };
   const integrationRepo = { findByWorkspaceAndType: jest.fn(async () => undefined) };
   const spaceService = { createSpace: jest.fn(async (_u: any, _w: string, dto: any) => ({ id: 'space-new', ...dto })) };
   const spaceRepo = { slugExists: jest.fn(async () => false) };
+  const apiKeyRepo = { softDelete: jest.fn(async () => undefined) };
+  const integration = { id: 'i1', settings: { keyid: 'old-key' } };
+  integrationRepo.findByWorkspaceAndType = jest.fn(async () => (installedAlready ? integration : undefined)) as any;
+  (integrationRepo as any).update = jest.fn(async () => integration);
   const service = new SprintBootLinkService(
     { getOrThrow: () => redis } as any,
     { getAppUrl: () => 'https://docs.acme.com/' } as any,
@@ -36,9 +40,10 @@ function create({ admin = true } = {}) {
     { findById: jest.fn(async () => user) } as any,
     { findById: jest.fn(async () => workspace) } as any,
     spaceRepo as any,
+    apiKeyRepo as any,
     { createForUser: () => ({ cannot: () => !admin }) } as any,
   );
-  return { service, store, apiKeyService, configService, integrationService, spaceService };
+  return { service, store, apiKeyService, configService, integrationService, spaceService, apiKeyRepo, integrationRepo };
 }
 
 const stateOf = (authorizeUrl: string) => new URL(authorizeUrl).searchParams.get('state')!;
@@ -76,6 +81,24 @@ describe('SprintBootLinkService', () => {
     );
     expect(integrationService.installWithApiToken).toHaveBeenCalledWith('sprint-boot', 'w1', 'u1');
     await expect(service.completeFromSprintBoot(state, SB, 'sbd_secret')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('remembers the key Sprint Boot holds and revokes the one a new link replaces', async () => {
+    const { service, apiKeyRepo, integrationRepo } = create({ installedAlready: true });
+    const state = stateOf((await service.start(user, workspace, SB)).authorizeUrl);
+    await service.completeFromSprintBoot(state, SB, 'sbd_secret');
+
+    expect(apiKeyRepo.softDelete).toHaveBeenCalledWith('old-key', 'w1');
+    expect((integrationRepo as any).update).toHaveBeenCalledWith('i1', { settings: { keyid: 'new-key' } });
+  });
+
+  it('uninstalls without telling Sprint Boot back when Sprint Boot started it', async () => {
+    const { service, apiKeyRepo, integrationService } = create({ installedAlready: true });
+    (integrationService as any).uninstall = jest.fn(async () => undefined);
+
+    expect(await service.unlinkedBySprintBoot(user, workspace)).toEqual({ uninstalled: true });
+    expect(apiKeyRepo.softDelete).toHaveBeenCalledWith('old-key', 'w1');
+    expect((integrationService as any).uninstall).toHaveBeenCalledWith('i1', 'w1', { notifyProvider: false });
   });
 
   it('refuses a completion from another Sprint Boot than the one the admin named', async () => {

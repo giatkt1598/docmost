@@ -11,6 +11,7 @@ import { User, Workspace } from '@docmost/db/types/entity.types';
 import { UserRepo } from '@docmost/db/repos/user/user.repo';
 import { WorkspaceRepo } from '@docmost/db/repos/workspace/workspace.repo';
 import { SpaceRepo } from '@docmost/db/repos/space/space.repo';
+import { ApiKeyRepo } from '@docmost/db/repos/api-key/api-key.repo';
 import { EnvironmentService } from '../../../../integrations/environment/environment.service';
 import { ApiKeyService } from '../../../api-key/api-key.service';
 import { SpaceService } from '../../../space/services/space.service';
@@ -30,6 +31,8 @@ import { SPRINT_BOOT_TYPE } from './sprint-boot.provider';
 const STATE_PREFIX = 'sprint-boot-link:';
 const STATE_TTL_SECONDS = 15 * 60;
 const API_KEY_NAME = 'Sprint Boot';
+// integrations.settings key of the API key Sprint Boot holds; lowercase, so the camel-case plugin leaves it alone.
+export const LINK_KEY_SETTING = 'keyid';
 
 type LinkState = { workspaceId: string; userId: string; sprintBootUrl: string };
 
@@ -55,6 +58,7 @@ export class SprintBootLinkService {
     private readonly userRepo: UserRepo,
     private readonly workspaceRepo: WorkspaceRepo,
     private readonly spaceRepo: SpaceRepo,
+    private readonly apiKeyRepo: ApiKeyRepo,
     private readonly workspaceAbility: WorkspaceAbilityFactory,
   ) {
     this.redis = redisService.getOrThrow();
@@ -119,6 +123,7 @@ export class SprintBootLinkService {
 
     await this.install(user, workspace, link.sprintBootUrl, bridgeSecret);
     const apiKey = await this.apiKeyService.create(user, workspace, { name: API_KEY_NAME });
+    await this.rememberKey(workspace.id, apiKey.id);
     return { apiKey: apiKey.token, docmostUrl: this.appUrl };
   }
 
@@ -165,7 +170,37 @@ export class SprintBootLinkService {
     });
 
     await this.install(user, workspace, url, answer.bridgeSecret);
+    await this.rememberKey(workspace.id, apiKey.id);
     return { returnUrl: answer.returnUrl ?? `${url}/admin/integrations` };
+  }
+
+  // The integration keeps the id of the key Sprint Boot holds, so uninstalling revokes it; a new link revokes the old one.
+  private async rememberKey(workspaceId: string, apiKeyId: string) {
+    const integration = await this.integrationRepo.findByWorkspaceAndType(workspaceId, SPRINT_BOOT_TYPE);
+    if (!integration) return;
+    const settings = (integration.settings as Record<string, any>) ?? {};
+    const previous = settings[LINK_KEY_SETTING];
+    if (previous && previous !== apiKeyId) {
+      await this.apiKeyRepo.softDelete(previous, workspaceId).catch(() => undefined);
+    }
+    await this.integrationRepo.update(integration.id, { settings: { ...settings, [LINK_KEY_SETTING]: apiKeyId } } as any);
+  }
+
+  // Sprint Boot uninstalled its side, calling with the key it held: uninstall here without telling it back.
+  async unlinkedBySprintBoot(user: User, workspace: Workspace) {
+    this.assertAdmin(user, workspace);
+    const integration = await this.integrationRepo.findByWorkspaceAndType(workspace.id, SPRINT_BOOT_TYPE);
+    if (!integration) return { uninstalled: false };
+    await this.revokeKey(workspace.id, (integration.settings as Record<string, any>) ?? {});
+    await this.integrationService.uninstall(integration.id, workspace.id, { notifyProvider: false });
+    return { uninstalled: true };
+  }
+
+  async revokeKey(workspaceId: string, settings: Record<string, any>) {
+    const keyId = settings?.[LINK_KEY_SETTING];
+    if (keyId) {
+      await this.apiKeyRepo.softDelete(keyId, workspaceId).catch(() => undefined);
+    }
   }
 
   // Saves the Sprint Boot address and secret, which checks them with Sprint Boot, and installs once.

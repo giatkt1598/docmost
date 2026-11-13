@@ -10,6 +10,9 @@ import {
 import { normalizeBaseUrl } from '../../utils/integration.utils';
 import { SprintBootService } from './sprint-boot.service';
 import { buildSprintBootPatterns } from './sprint-boot-patterns';
+import { ModuleRef } from '@nestjs/core';
+import { SprintBootSyncService } from './sprint-boot-sync.service';
+import { SprintBootLinkService } from './sprint-boot-link.service';
 
 export const SPRINT_BOOT_TYPE = 'sprint-boot';
 
@@ -30,8 +33,23 @@ export class SprintBootProvider extends IntegrationProvider {
     },
   };
 
-  constructor(private readonly sprintBootService: SprintBootService) {
+  constructor(
+    private readonly sprintBootService: SprintBootService,
+    private readonly moduleRef: ModuleRef,
+  ) {
     super();
+  }
+
+  // Uninstalled here: Sprint Boot drops its side, and the API key it held is revoked.
+  async onUninstall(opts: { workspaceId: string; settings: Record<string, any> }): Promise<void> {
+    // Resolved late: both depend on the integration module this provider is registered with.
+    const sync = this.moduleRef.get(SprintBootSyncService, { strict: false });
+    const link = this.moduleRef.get(SprintBootLinkService, { strict: false });
+    await link.revokeKey(opts.workspaceId, opts.settings);
+    const access = await sync.findAccess(opts.workspaceId);
+    if (access) {
+      await this.sprintBootService.unlink(access.token, access.baseUrl);
+    }
   }
 
   getUnfurlPatterns(settings: Record<string, any>): UnfurlPattern[] {

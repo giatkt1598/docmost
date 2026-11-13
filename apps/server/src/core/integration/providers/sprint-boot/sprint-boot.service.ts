@@ -76,6 +76,11 @@ export class SprintBootService {
     await this.post(token, baseUrl, 'page-links', links);
   }
 
+  // Tells Sprint Boot the integration is gone, so it drops its side of the link.
+  async unlink(token: string, baseUrl: string): Promise<void> {
+    await this.post(token, baseUrl, 'unlink', {});
+  }
+
   async search(
     token: string,
     baseUrl: string,

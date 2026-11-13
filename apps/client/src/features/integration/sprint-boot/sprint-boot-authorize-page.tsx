@@ -54,7 +54,8 @@ export default function SprintBootAuthorizePage() {
   };
 
   return (
-    <Container size={520} py="xl">
+    // Centred on the screen, as a consent step.
+    <Container size={520} py="xl" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center" }}>
       <Paper withBorder p="lg" radius="md">
         <Stack gap="md">
           <Group gap="sm">

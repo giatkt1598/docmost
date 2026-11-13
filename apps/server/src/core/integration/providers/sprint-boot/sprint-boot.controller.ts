@@ -54,6 +54,13 @@ export class SprintBootController {
     return this.link.preview(user, workspace, dto.sprintBootUrl, dto.state);
   }
 
+  // Sprint Boot uninstalled its side; it calls with the API key it held.
+  @HttpCode(HttpStatus.OK)
+  @Post('unlinked')
+  unlinked(@AuthUser() user: User, @AuthWorkspace() workspace: Workspace) {
+    return this.link.unlinkedBySprintBoot(user, workspace);
+  }
+
   @HttpCode(HttpStatus.OK)
   @Post('authorize')
   authorize(@Body() dto: SprintBootAuthorizeDto, @AuthUser() user: User, @AuthWorkspace() workspace: Workspace) {

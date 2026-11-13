@@ -9,7 +9,7 @@ jest.mock('../../../../common/proxy-fetch', () => ({
 }));
 
 const BASE = 'https://sprint.acme.com';
-const provider = new SprintBootProvider(new SprintBootService());
+const provider = new SprintBootProvider(new SprintBootService(), {} as any);
 const settings = { baseUrl: BASE };
 
 function find(url: string) {

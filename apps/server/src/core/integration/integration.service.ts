@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectKysely } from 'nestjs-kysely';
@@ -26,6 +27,8 @@ import {
 
 @Injectable()
 export class IntegrationService {
+  private readonly logger = new Logger(IntegrationService.name);
+
   constructor(
     @InjectKysely() private readonly db: KyselyDB,
     private readonly integrationRepo: IntegrationRepo,
@@ -87,10 +90,27 @@ export class IntegrationService {
     return integration;
   }
 
-  async uninstall(integrationId: string, workspaceId: string): Promise<void> {
+  // notifyProvider: false when the other service started the uninstall, so it is not told back.
+  async uninstall(
+    integrationId: string,
+    workspaceId: string,
+    opts: { notifyProvider?: boolean } = {},
+  ): Promise<void> {
     const integration = await this.integrationRepo.findById(integrationId);
     if (!integration || integration.workspaceId !== workspaceId) {
       throw new NotFoundException('Integration not found');
+    }
+    const provider = this.registry.getProvider(integration.type);
+    if (opts.notifyProvider !== false && provider?.onUninstall) {
+      await provider
+        .onUninstall({
+          integrationId,
+          workspaceId,
+          settings: (integration.settings as Record<string, any>) ?? {},
+        })
+        .catch((err) =>
+          this.logger.warn(`Uninstall hook of ${integration.type} failed: ${(err as Error).message}`),
+        );
     }
     // Soft delete doesn't cascade to connections
     await executeTx(this.db, async (trx) => {
