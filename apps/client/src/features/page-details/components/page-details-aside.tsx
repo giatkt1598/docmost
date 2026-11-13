@@ -20,6 +20,7 @@ import { formattedDate } from "@/lib/time.ts";
 import { useTimeAgo } from "@/hooks/use-time-ago.tsx";
 import { CustomAvatar } from "@/components/ui/custom-avatar.tsx";
 import { LabelsSection } from "@/features/label/components/labels-section.tsx";
+import { LinkedTicketsSection } from "@/features/integration/sprint-boot/linked-tickets-section";
 
 export function PageDetailsAside() {
   const { pageSlug } = useParams();
@@ -63,6 +64,8 @@ export function PageDetailsAside() {
           isLoading={countsLoading}
           onClick={openModal}
         />
+
+        <LinkedTicketsSection editor={pageEditor} />
 
         <LabelsSection
           pageId={page.id}

@@ -66,6 +66,14 @@ export const integrationLinkPatterns: IntegrationLinkPattern[] = [
     regex:
       /^https:\/\/(?![^?#]*(?:\/(?:\.|%2[eE]){1,2}(?:[\/?#]|$)|\\))([A-Za-z0-9-]+)\.visualstudio\.com(?:\/DefaultCollection)?\/((?!_)[^\/?#]+)\/_(?:boards|backlogs|sprints)\/[^?#]*\?(?:[^#]*&)?workitem=(\d{1,10})(?=[&#]|$)/,
   },
+  // Sprint Boot ticket: /browse/KEY-12 on the host the integration reports, so it never takes Jira's links.
+  {
+    provider: "sprint-boot",
+    type: "sprint-boot-ticket",
+    regex:
+      /^https?:\/\/(?![^?#]*(?:\/(?:\.|%2[eE]){1,2}(?:[\/?#]|$)|\\))[^\/]+(?:\/[^\/?#]+)*?\/browse\/([A-Za-z][A-Za-z0-9]{1,9}-[1-9][0-9]*)(?![A-Za-z0-9])/,
+    requiresProviderHost: true,
+  },
   // Jira issue (cloud + self-hosted): /browse/KEY-123 (must precede the GitHub repo pattern)
   {
     provider: "jira",
@@ -466,6 +474,9 @@ export function describeIntegrationLink(
   switch (type) {
     case "jira-issue":
       return describe(match[1], hostOf(url));
+
+    case "sprint-boot-ticket":
+      return describe(match[1].toUpperCase(), "Sprint Boot");
 
     case "azure-devops-work-item":
       return describe(

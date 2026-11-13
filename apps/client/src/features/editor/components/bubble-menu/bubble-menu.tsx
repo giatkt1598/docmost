@@ -29,6 +29,7 @@ import {
   isTextSelected,
 } from "@docmost/editor-ext";
 import { LinkSelector } from "@/features/editor/components/bubble-menu/link-selector.tsx";
+import { SprintBootTicketButton } from "@/features/integration/sprint-boot/sprint-boot-ticket-button";
 import { useTranslation } from "react-i18next";
 import {
   showAiMenuAtom,
@@ -268,6 +269,8 @@ export const EditorBubbleMenu: FC<EditorBubbleMenuProps> = (props) => {
         )}
 
         <LinkSelector />
+
+        {!templateMode && <SprintBootTicketButton editor={props.editor} />}
 
         {!templateMode && (
           <Tooltip label={t(commentItem.name)} withArrow withinPortal={false}>

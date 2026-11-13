@@ -6,6 +6,8 @@ import { IntegrationConnectionRepo } from './repos/integration-connection.repo';
 import { OAuthService } from './oauth/oauth.service';
 import { RedisService } from '@nestjs-labs/nestjs-ioredis';
 import { RefreshLock } from './utils/refresh-lock';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventName } from '../../common/events/event.contants';
 
 const TOKEN_REFRESH_WINDOW_MS = 15 * 60 * 1000;
 // Even at 2 s per refresh, a full batch finishes inside JOB_TIMEOUT_MS.
@@ -22,6 +24,7 @@ export class IntegrationProcessor extends WorkerHost {
     private readonly connectionRepo: IntegrationConnectionRepo,
     private readonly oauthService: OAuthService,
     private readonly redisService: RedisService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     super();
     this.refreshLock = new RefreshLock(this.redisService.getOrThrow());
@@ -48,6 +51,10 @@ export class IntegrationProcessor extends WorkerHost {
     switch (job.name) {
       case QueueJob.INTEGRATION_TOKEN_REFRESH:
         await this.handleTokenRefresh(signal);
+        break;
+      case QueueJob.PAGE_INTEGRATION_LINKS:
+        // Providers listen for it; awaiting them keeps the job open while they report.
+        await this.eventEmitter.emitAsync(EventName.PAGE_HISTORY_SAVED, job.data);
         break;
       default:
         this.logger.warn(`Unknown job: ${job.name}`);

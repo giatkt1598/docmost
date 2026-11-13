@@ -49,6 +49,9 @@ import IconDrawio from "@/components/icons/icon-drawio";
 import { IconColumns4 } from "@/components/icons/icon-columns-4";
 import { IconColumns5 } from "@/components/icons/icon-columns-5";
 import i18n from "@/i18n.ts";
+import { SprintBootIcon } from "@/components/icons";
+import { openInsertTicketModal } from "@/features/integration/sprint-boot/sprint-boot-modals";
+import { isSprintBootInstalled } from "@/features/integration/sprint-boot/sprint-boot-service";
 import {
   AirtableIcon,
   FigmaIcon,
@@ -648,6 +651,14 @@ const CommandGroups: SlashMenuGroupedItemsType = {
           .deleteRange(range)
           .insertColumns({ layout: "five_equal" })
           .run(),
+    },
+    {
+      title: "Sprint Boot ticket",
+      description: "Insert a live link to a Sprint Boot ticket.",
+      searchTerms: ["sprint", "boot", "ticket", "issue", "jira"],
+      icon: SprintBootIcon,
+      disable: () => !isSprintBootInstalled(),
+      command: ({ editor, range }: CommandProps) => openInsertTicketModal(editor, range),
     },
     {
       title: "Iframe embed",

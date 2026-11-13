@@ -102,6 +102,8 @@ export enum QueueJob {
   PDF_EXPORT_CLEANUP = 'pdf-export-cleanup',
 
   INTEGRATION_TOKEN_REFRESH = 'integration-token-refresh',
+  // A page's content changed; integrations that track links in pages re-read it.
+  PAGE_INTEGRATION_LINKS = 'page-integration-links',
   SLACK_EVENT = 'slack-event',
   SLACK_ASK = 'slack-ask',
   SLACK_NOTIFICATION = 'slack-notification',

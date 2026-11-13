@@ -401,3 +401,27 @@ describe('penpot links', () => {
     ).toBeNull();
   });
 });
+
+describe("sprint boot links", () => {
+  const HOSTS = { "sprint-boot": ["sprint.acme.com"] };
+
+  it("matches a ticket on the host Sprint Boot reports", () => {
+    expect(matchIntegrationLink("https://sprint.acme.com/browse/SB-12", HOSTS)).toMatchObject({
+      provider: "sprint-boot",
+      type: "sprint-boot-ticket",
+    });
+    expect(matchIntegrationLink("https://sprint.acme.com/browse/SB-12", HOSTS)?.match[1]).toBe("SB-12");
+  });
+
+  it("leaves Jira its own browse links", () => {
+    expect(matchIntegrationLink("https://acme.atlassian.net/browse/SB-12", HOSTS)?.provider).toBe("jira");
+    expect(matchIntegrationLink("https://sprint.acme.com/browse/SB-12")?.provider).toBe("jira");
+  });
+
+  it("describes the ticket by its key", () => {
+    expect(describeIntegrationLink("https://sprint.acme.com/browse/sb-7", "sprint-boot")).toMatchObject({
+      provider: "sprint-boot",
+      title: "SB-7",
+    });
+  });
+});

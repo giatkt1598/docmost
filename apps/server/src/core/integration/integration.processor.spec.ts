@@ -34,6 +34,7 @@ describe('IntegrationProcessor token refresh', () => {
       connectionRepo as any,
       oauthService as any,
       { getOrThrow: () => redis } as any,
+      { emitAsync: jest.fn() } as any,
     );
     return { processor, connectionRepo, oauthService, locks };
   }

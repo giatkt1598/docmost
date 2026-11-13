@@ -7,6 +7,8 @@ export enum EventName {
   PAGE_DELETED = 'page.deleted',
   PAGE_SOFT_DELETED = 'page.soft_deleted',
   PAGE_RESTORED = 'page.restored',
+  // A page's changed content reached its history; fired on the main server, never the collab one.
+  PAGE_HISTORY_SAVED = 'page.history_saved',
 
   SPACE_CREATED = 'space.created',
   SPACE_UPDATED = 'space.updated',

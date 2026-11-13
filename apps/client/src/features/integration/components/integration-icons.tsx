@@ -10,6 +10,7 @@ import {
   LinearIcon,
   PenpotIcon,
   SlackIcon,
+  SprintBootIcon,
 } from "@/components/icons";
 import { IconPuzzle } from "@tabler/icons-react";
 
@@ -18,6 +19,7 @@ const integrationIconMap: Record<string, (size: number) => ReactNode> = {
   gitlab: (size) => <GitlabIcon size={size} />,
   gitea: (size) => <GiteaIcon size={size} />,
   penpot: (size) => <PenpotIcon size={size} />,
+  "sprint-boot": (size) => <SprintBootIcon size={size} />,
   slack: (size) => <SlackIcon size={size} />,
   linear: (size) => <LinearIcon size={size} />,
   jira: (size) => <JiraIcon size={size} />,
