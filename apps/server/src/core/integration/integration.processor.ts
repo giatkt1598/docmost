@@ -54,7 +54,7 @@ export class IntegrationProcessor extends WorkerHost {
         break;
       case QueueJob.PAGE_INTEGRATION_LINKS:
         // Providers listen for it; awaiting them keeps the job open while they report.
-        await this.eventEmitter.emitAsync(EventName.PAGE_HISTORY_SAVED, job.data);
+        await this.eventEmitter.emitAsync(EventName.PAGE_CONTENT_SAVED, job.data);
         break;
       default:
         this.logger.warn(`Unknown job: ${job.name}`);

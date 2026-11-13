@@ -31,7 +31,6 @@ export class HistoryProcessor extends WorkerHost implements OnModuleDestroy {
     private readonly watcherService: WatcherService,
     @InjectQueue(QueueName.NOTIFICATION_QUEUE) private notificationQueue: Queue,
     @InjectQueue(QueueName.GENERAL_QUEUE) private generalQueue: Queue,
-    @InjectQueue(QueueName.INTEGRATION_QUEUE) private integrationQueue: Queue,
   ) {
     super();
   }
@@ -100,18 +99,6 @@ export class HistoryProcessor extends WorkerHost implements OnModuleDestroy {
           .catch((err) => {
             this.logger.error(
               `Failed to queue backlinks for ${pageId}: ${err.message}`,
-            );
-          });
-
-        // Picked up on the main server, where the integrations live.
-        await this.integrationQueue
-          .add(QueueJob.PAGE_INTEGRATION_LINKS, {
-            pageId,
-            workspaceId: page.workspaceId,
-          })
-          .catch((err) => {
-            this.logger.error(
-              `Failed to queue integration links for ${pageId}: ${err.message}`,
             );
           });
 

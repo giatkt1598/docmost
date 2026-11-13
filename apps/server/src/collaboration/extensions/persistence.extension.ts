@@ -33,6 +33,9 @@ import {
 } from '../../integrations/queue/constants/queue.interface';
 import { Page } from '@docmost/db/types/entity.types';
 import { CollabHistoryService } from '../services/collab-history.service';
+
+// Long enough to fold a burst of saves into one report, short enough to feel live.
+const INTEGRATION_LINKS_DELAY_MS = 3000;
 import {
   HISTORY_FAST_INTERVAL,
   HISTORY_FAST_THRESHOLD,
@@ -56,6 +59,7 @@ export class PersistenceExtension implements Extension {
     private readonly collabHistory: CollabHistoryService,
     private readonly transclusionService: TransclusionService,
     @InjectQueue(QueueName.MEDIA_QUEUE) private mediaQueue: Queue,
+    @InjectQueue(QueueName.INTEGRATION_QUEUE) private integrationQueue: Queue,
     private readonly environmentService: EnvironmentService,
   ) {}
 
@@ -236,6 +240,8 @@ export class PersistenceExtension implements Extension {
 
       await this.enqueuePageHistory(page);
 
+      await this.enqueueIntegrationLinks(page, tiptapJson);
+
       // pasted or API-written media that still points at another site
       await enqueueMediaLocalize(
         this.mediaQueue,
@@ -307,6 +313,34 @@ export class PersistenceExtension implements Extension {
     const userIds = [...contributorSet];
     this.contributors.delete(documentName);
     return userIds;
+  }
+
+  /**
+   * Integrations that track the links in pages (Sprint Boot) re-read the page a few seconds after a save, on the
+   * main server where they live. Not tied to history, which waits minutes and skips saves it folds together. Only
+   * pages that hold or held such a link are queued, and saves close together share one job.
+   */
+  private async enqueueIntegrationLinks(page: Page, content: unknown): Promise<void> {
+    const holdsLinks = (value: unknown) =>
+      Boolean(value) && JSON.stringify(value).includes('/browse/');
+    if (!holdsLinks(content) && !holdsLinks(page.content)) return;
+
+    await this.integrationQueue
+      .add(
+        QueueJob.PAGE_INTEGRATION_LINKS,
+        { pageId: page.id, workspaceId: page.workspaceId },
+        {
+          jobId: `integration-links-${page.id}`,
+          delay: INTEGRATION_LINKS_DELAY_MS,
+          removeOnComplete: true,
+          removeOnFail: true,
+        },
+      )
+      .catch((err) =>
+        this.logger.warn(
+          `Failed to queue integration links for page ${page.id}: ${err}`,
+        ),
+      );
   }
 
   private async enqueuePageHistory(page: Page): Promise<void> {

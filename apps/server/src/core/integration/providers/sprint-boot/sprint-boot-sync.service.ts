@@ -45,9 +45,9 @@ export class SprintBootSyncService {
       : null;
   }
 
-  // Emitted after a page's changed content is saved to its history.
-  @OnEvent(EventName.PAGE_HISTORY_SAVED)
-  async onHistorySaved(event: PageEvent) {
+  // Emitted a few seconds after a page's content is saved.
+  @OnEvent(EventName.PAGE_CONTENT_SAVED)
+  async onContentSaved(event: PageEvent) {
     await this.report(event, false);
   }
 
@@ -101,6 +101,7 @@ export class SprintBootSyncService {
 
     const space = (page as any).space as { slug?: string; name?: string } | undefined;
     const appUrl = this.environmentService.getAppUrl().replace(/\/+$/, '');
+    const urls = extractSprintBootUrls(page.content, access.baseUrl);
     await this.sprintBootService.setPageLinks(access.token, access.baseUrl, {
       pageId: page.id,
       title: page.title || 'Untitled',
@@ -108,7 +109,10 @@ export class SprintBootSyncService {
         ? `${appUrl}/s/${encodeURIComponent(space.slug)}/p/${page.slugId}`
         : `${appUrl}/p/${page.slugId}`,
       spaceName: space?.name,
-      urls: extractSprintBootUrls(page.content, access.baseUrl),
+      urls,
     });
+    this.logger.log(
+      `Reported ${urls.length} Sprint Boot link(s) of page ${page.id}`,
+    );
   }
 }
