@@ -89,8 +89,8 @@ export class PublicSpaceService {
       spaceSlug,
       workspace,
     );
-    const pageTree = await this.pageRepo.getSpacePagesExcludingRestricted(
-      space.id,
+    const pageTree = await this.pageLock.hideLockedSubPages(
+      await this.pageRepo.getSpacePagesExcludingRestricted(space.id),
     );
     return {
       space: this.toPublicSpaceFields(space),

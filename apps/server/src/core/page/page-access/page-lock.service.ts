@@ -156,6 +156,32 @@ export class PageLockService {
     }
   }
 
+  // A flat page tree without the sub-pages of pages this request has not
+  // unlocked; the locked pages themselves stay, showing only their title.
+  async hideLockedSubPages<T extends { id: string; parentPageId?: string | null }>(
+    pages: T[],
+  ): Promise<T[]> {
+    if (pages.length === 0) return pages;
+    const locked = await this.lockedPageIds(pages.map((p) => p.id));
+    if (locked.size === 0) return pages;
+    const byId = new Map(pages.map((p) => [p.id, p]));
+    const hidden = (page: T): boolean => {
+      let parentId = page.parentPageId;
+      for (let depth = 0; parentId && depth < 100; depth++) {
+        if (locked.has(parentId)) return true;
+        parentId = byId.get(parentId)?.parentPageId;
+      }
+      return false;
+    };
+    return pages
+      .filter((p) => !hidden(p))
+      .map((p) =>
+        locked.has(p.id) && 'hasChildren' in p
+          ? { ...p, hasChildren: false }
+          : p,
+      );
+  }
+
   // The passwords a page placed under `parentPageId` would be covered by.
   async sourcesForChildOf(parentPageId: string | null): Promise<LockSource[]> {
     if (!parentPageId) return [];

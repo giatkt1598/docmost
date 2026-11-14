@@ -2,6 +2,9 @@ import api from "@/lib/api-client";
 import { getDefaultStore } from "jotai";
 import { treeDataAtom } from "@/features/page/tree/atoms/tree-data-atom.ts";
 import type { SpaceTreeNode } from "@/features/page/tree/types.ts";
+import { treeModel } from "@/features/page/tree/model/tree-model";
+import { queryClient } from "@/main.tsx";
+import { fetchAllAncestorChildren } from "@/features/page/queries/page-query.ts";
 
 // Password protection of a page. The server keeps each unlock in an
 // httpOnly cookie, so these calls only need the page id.
@@ -41,6 +44,32 @@ export function isInvalidPasswordError(error: unknown): boolean {
 export async function unlockPage(pageId: string, password: string) {
   await api.post("/pages/unlock", { pageId, password });
   markTreeUnlocked(pageId);
+  // a locked page hides its sub-pages: show them now
+  void revealSubPages(pageId);
+  queryClient.invalidateQueries({ queryKey: ["shared-page-tree"] });
+  queryClient.invalidateQueries({ queryKey: ["public-space-tree"] });
+}
+
+// Loads the sub-pages the sidebar hid while the page was locked.
+async function revealSubPages(pageId: string) {
+  const store = getDefaultStore();
+  const node = treeModel.find(store.get(treeDataAtom), pageId);
+  if (!node) return;
+  const params = { pageId, spaceId: node.spaceId };
+  queryClient.removeQueries({ queryKey: ["sidebar-pages", params] });
+  try {
+    const children = await fetchAllAncestorChildren(params);
+    if (children.length === 0) return;
+    store.set(treeDataAtom, (prev) =>
+      treeModel.update(
+        treeModel.appendChildren(prev, pageId, children),
+        pageId,
+        { hasChildren: true } as Partial<SpaceTreeNode>,
+      ),
+    );
+  } catch {
+    // the tree loads them on the next visit
+  }
 }
 
 export async function setPagePassword(

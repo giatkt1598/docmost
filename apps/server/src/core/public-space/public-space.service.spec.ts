@@ -82,7 +82,10 @@ function makeService(overrides: any = {}) {
     transclusionService as any,
     licenseCheckService as any,
     environmentService as any,
-    { assertUnlocked: jest.fn().mockResolvedValue(undefined) } as any,
+    {
+      assertUnlocked: jest.fn().mockResolvedValue(undefined),
+      hideLockedSubPages: jest.fn(async (pages) => pages),
+    } as any,
   );
   return {
     service,

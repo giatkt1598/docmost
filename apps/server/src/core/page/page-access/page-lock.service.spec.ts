@@ -136,6 +136,27 @@ describe('PageLockService', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('hides the sub-pages of a locked page from a tree, keeping its title', async () => {
+    const GRANDCHILD = '0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5e';
+    const tree = [
+      { id: PAGE, parentPageId: null, hasChildren: true },
+      { id: CHILD, parentPageId: PAGE, hasChildren: true },
+      { id: GRANDCHILD, parentPageId: CHILD, hasChildren: false },
+      { id: OTHER, parentPageId: null, hasChildren: false },
+    ];
+    const locked = makeService({ versions: { [PAGE]: 1 } });
+    await expect(locked.hideLockedSubPages(tree)).resolves.toEqual([
+      { id: PAGE, parentPageId: null, hasChildren: false },
+      { id: OTHER, parentPageId: null, hasChildren: false },
+    ]);
+
+    const unlocked = makeService({
+      versions: { [PAGE]: 1 },
+      cookies: { [PAGE]: `${PAGE}:1` },
+    });
+    await expect(unlocked.hideLockedSubPages(tree)).resolves.toHaveLength(4);
+  });
+
   it('reports the code and the title, never the content', async () => {
     const service = makeService({ versions: { [PAGE]: 1 } });
     const error = await service

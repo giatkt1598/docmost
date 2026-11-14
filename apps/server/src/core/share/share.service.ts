@@ -56,11 +56,12 @@ export class ShareService {
     }
 
     if (share.includeSubPages) {
-      const pageTree =
+      const pageTree = await this.pageLock.hideLockedSubPages(
         await this.pageRepo.getPageAndDescendantsExcludingRestricted(
           share.pageId,
           { includeContent: false },
-        );
+        ),
+      );
 
       return { share, pageTree };
     } else {

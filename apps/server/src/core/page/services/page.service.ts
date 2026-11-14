@@ -327,7 +327,7 @@ export class PageService {
 
   // Shown in the tree: whether a page is password protected (by itself or
   // an ancestor covering sub-pages), and whether this request has unlocked
-  // it, so the lock shows open.
+  // it, so the lock shows open. A locked page shows no sub-pages.
   private async markPasswordState(items: any[]): Promise<void> {
     if (items.length === 0) return;
     const ids = items.map((p) => p.id);
@@ -338,6 +338,7 @@ export class PageService {
       if (!sources.has(item.id)) continue;
       item.hasPassword = true;
       item.passwordUnlocked = !locked.has(item.id);
+      if (locked.has(item.id)) item.hasChildren = false;
     }
   }
 
@@ -392,7 +393,11 @@ export class PageService {
       }),
     });
 
-    await this.markPasswordState(result.items as any[]);
+    // the sub-pages of a locked page stay hidden until it is unlocked
+    if (pageId && (await this.pageLock.isLocked(pageId))) {
+      result.items = [];
+      return result;
+    }
 
     if (userId && result.items.length > 0) {
       const hasRestrictions =
@@ -445,6 +450,7 @@ export class PageService {
       }
     }
 
+    await this.markPasswordState(result.items as any[]);
     return result;
   }
 
