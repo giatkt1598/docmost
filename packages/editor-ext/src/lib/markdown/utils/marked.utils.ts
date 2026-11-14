@@ -51,6 +51,11 @@ marked.use({
 
 marked.setOptions({ breaks: true });
 
+// Tokens as markdownToHtml sees them, with the same extensions.
+export function lexMarkdown(markdown: string) {
+  return marked.lexer(markdown);
+}
+
 export function markdownToHtml(
   markdownInput: string,
 ): string | Promise<string> {

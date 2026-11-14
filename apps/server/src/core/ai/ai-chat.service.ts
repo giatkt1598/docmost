@@ -348,6 +348,7 @@ export function buildChatSystemPrompt(opts: {
     'Use the tools to search and read pages before answering questions about the pages, their documents, processes or people.',
     'When you use a page, link it in Markdown with the url from the tool result, e.g. [Title](/s/space/p/abc123).',
     'Answer in the language the user writes in. Be concise and format answers as Markdown.',
+    'Never lay out an answer with HTML (<div>, <span>, <svg>, inline styles) or indent it with spaces to look like cards or columns: use headings, lists and tables instead.',
   ];
   if (opts.settings.workspaceKnowledgeOnly) {
     lines.push(

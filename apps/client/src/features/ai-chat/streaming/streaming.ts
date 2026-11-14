@@ -1,5 +1,5 @@
 import DOMPurify from "dompurify";
-import { markdownToHtml } from "@docmost/editor-ext";
+import { flattenHtmlBlocks, markdownToHtml } from "@docmost/editor-ext";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./streaming.css";
 
@@ -30,6 +30,8 @@ export function closeOpenMarkdown(text: string): string {
   }
 
   let closed = lines.join("\n");
+  // a tag still being written would show as text until its ">" arrives
+  closed = closed.replace(/<\/?[A-Za-z][^<>\n]*$/, "");
   // a link still being written would flash as brackets before turning into
   // a link: hold it back until it closes
   const openLink = /\[[^\]\n]*(\]\([^)\s]*)?$/.exec(closed);
@@ -62,7 +64,7 @@ export interface RevealMark {
 // Model output is untrusted (page content can steer it): always sanitized.
 function markdownFragment(text: string): DocumentFragment {
   const html = text.trim()
-    ? (markdownToHtml(closeOpenMarkdown(text)) as string)
+    ? (markdownToHtml(flattenHtmlBlocks(closeOpenMarkdown(text))) as string)
     : "";
   return DOMPurify.sanitize(html, {
     USE_PROFILES: { html: true },
@@ -76,20 +78,23 @@ export const renderedLength = (text: string) =>
 
 // The answer so far as safe HTML. Text in `marks` is wrapped to fade in; each
 // wrapper starts its animation part way in, by how long ago its words
-// appeared, so rebuilding the HTML every frame never restarts a fade.
+// appeared, so rebuilding the HTML every frame never restarts a fade. "Ago"
+// is measured from `now`, the time of the rebuild: measured from the newest
+// mark instead, a rebuild that adds no words (a chunk ending mid-word) would
+// fade the latest words in again from nothing, and the answer would flicker.
 export function renderStreamingMarkdown(
   text: string,
   marks: RevealMark[] = [],
+  now: number = performance.now(),
 ): string {
   const root = markdownFragment(text);
-  if (marks.length > 0) fadeIn(root, marks);
+  if (marks.length > 0) fadeIn(root, marks, now);
   const holder = document.createElement("div");
   holder.append(root);
   return holder.innerHTML;
 }
 
-function fadeIn(root: DocumentFragment, marks: RevealMark[]) {
-  const now = marks[marks.length - 1].at;
+function fadeIn(root: DocumentFragment, marks: RevealMark[], now: number) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const texts: Text[] = [];
   while (walker.nextNode()) texts.push(walker.currentNode as Text);
@@ -182,10 +187,12 @@ export function useSmoothText(target: string, finished: boolean, skip = false) {
         at,
       };
       rendered.current = shownRendered;
-      setMarks((list) => [
-        ...list.filter((item) => at - item.at < REVEAL_MS),
-        ...(mark.to > mark.from ? [mark] : []),
-      ]);
+      // the same list when nothing changed, so the HTML is not rebuilt
+      setMarks((list) => {
+        const kept = list.filter((item) => at - item.at < REVEAL_MS);
+        if (mark.to > mark.from) return [...kept, mark];
+        return kept.length === list.length ? list : kept;
+      });
       // while the model writes, the last word waits for the space after it
       if (next < (finished ? target.length : safeEnd(target))) {
         frame = requestAnimationFrame(tick);
