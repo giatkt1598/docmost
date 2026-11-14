@@ -156,6 +156,17 @@ export class PageLockService {
     }
   }
 
+  // For each protected page among `pageIds`: whether this request has
+  // unlocked it (every password covering it). Unprotected pages are absent.
+  async lockState(pageIds: string[]): Promise<Record<string, boolean>> {
+    const state: Record<string, boolean> = {};
+    const all = await this.pagePasswordRepo.getLockSources(pageIds);
+    for (const [pageId, sources] of all) {
+      state[pageId] = (await this.lockedSources(sources)).length === 0;
+    }
+    return state;
+  }
+
   // A flat page tree without the sub-pages of pages this request has not
   // unlocked; the locked pages themselves stay, showing only their title.
   async hideLockedSubPages<T extends { id: string; parentPageId?: string | null }>(

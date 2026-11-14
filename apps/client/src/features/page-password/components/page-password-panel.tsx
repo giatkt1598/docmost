@@ -14,14 +14,11 @@ import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSetAtom } from "jotai";
 import {
+  refreshTreeLockState,
   removePagePassword,
   setPagePassword,
 } from "@/features/page-password/page-password";
-import { treeDataAtom } from "@/features/page/tree/atoms/tree-data-atom.ts";
-import { treeModel } from "@/features/page/tree/model/tree-model";
-import type { SpaceTreeNode } from "@/features/page/tree/types.ts";
 
 const MIN_LENGTH = 4;
 
@@ -45,7 +42,6 @@ export function PagePasswordPanel({
 }: PagePasswordPanelProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const setTreeData = useSetAtom(treeDataAtom);
   const [editing, setEditing] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -58,21 +54,10 @@ export function PagePasswordPanel({
     setIncludeSubPages(savedIncludeSubPages);
   }, [savedIncludeSubPages]);
 
-  // the locks in the page tree: this page, and its loaded sub-pages when the
-  // password covers them (whoever sets it holds the unlock, so they show open)
-  const refresh = (protectedNow: boolean, coversSubPages: boolean) => {
-    const mark = (node: SpaceTreeNode, isRoot: boolean): SpaceTreeNode => ({
-      ...node,
-      ...(isRoot
-        ? { hasPassword: protectedNow, passwordUnlocked: true }
-        : { hasPassword: protectedNow && coversSubPages, passwordUnlocked: true }),
-      children: node.children?.map((c) => mark(c, false)) ?? [],
-    });
-    setTreeData((prev) => {
-      const node = treeModel.find(prev, pageId);
-      if (!node) return prev;
-      return treeModel.update(prev, pageId, mark(node, true));
-    });
+  // the locks in the page tree: this page and its loaded sub-pages, as the
+  // server sees them now
+  const refresh = () => {
+    void refreshTreeLockState(pageId);
     return Promise.all([
       queryClient.invalidateQueries({ queryKey: ["pages"] }),
       queryClient.invalidateQueries({ queryKey: ["sidebar-pages"] }),
@@ -102,7 +87,7 @@ export function PagePasswordPanel({
     setSaving(true);
     try {
       await setPagePassword(pageId, { password, includeSubPages });
-      await refresh(true, includeSubPages);
+      await refresh();
       notifications.show({
         message: hasPassword ? t("Password changed") : t("Password set"),
       });
@@ -122,7 +107,7 @@ export function PagePasswordPanel({
     setSavingSubPages(true);
     try {
       await setPagePassword(pageId, { includeSubPages: next });
-      await refresh(true, next);
+      await refresh();
       notifications.show({
         message: next
           ? t("Sub-pages are now locked with this password")
@@ -154,7 +139,7 @@ export function PagePasswordPanel({
       onConfirm: async () => {
         try {
           await removePagePassword(pageId);
-          await refresh(false, false);
+          await refresh();
           notifications.show({ message: t("Password removed") });
         } catch (err: any) {
           notifications.show({

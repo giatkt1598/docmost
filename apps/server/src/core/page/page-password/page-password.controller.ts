@@ -30,6 +30,7 @@ import {
 } from '../../../common/events/audit-events';
 import { PagePasswordService } from './page-password.service';
 import {
+  PageLockStateDto,
   PagePasswordPageIdDto,
   SetPagePasswordDto,
   UnlockPageDto,
@@ -109,6 +110,16 @@ export class PagePasswordController {
     });
 
     return { hasPassword: false };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('password/lock-state')
+  async lockState(
+    @Body() dto: PageLockStateDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.pagePasswordService.lockState(dto.pageIds, user, workspace.id);
   }
 
   // Public for share and public-space visitors; throttled against guessing.

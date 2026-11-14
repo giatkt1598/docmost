@@ -42,6 +42,9 @@ function makeService(opts: {
     pageLock as any,
     tokenService as any,
     collab as any,
+    {} as any,
+    {} as any,
+    {} as any,
   );
   return { service, pagePasswordRepo, pageAccessService, pageLock, collab };
 }

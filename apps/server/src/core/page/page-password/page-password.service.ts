@@ -19,6 +19,10 @@ import {
   PAGE_PASSWORD_INVALID,
   PAGE_UNLOCK_TTL,
 } from '../page-access/page-lock.constants';
+import { InjectKysely } from 'nestjs-kysely';
+import { KyselyDB } from '@docmost/db/types/kysely.types';
+import { SpaceMemberRepo } from '@docmost/db/repos/space/space-member.repo';
+import { PagePermissionRepo } from '@docmost/db/repos/page/page-permission.repo';
 
 @Injectable()
 export class PagePasswordService {
@@ -29,7 +33,37 @@ export class PagePasswordService {
     private readonly pageLock: PageLockService,
     private readonly tokenService: TokenService,
     private readonly collabAccessService: CollabAccessService,
+    @InjectKysely() private readonly db: KyselyDB,
+    private readonly spaceMemberRepo: SpaceMemberRepo,
+    private readonly pagePermissionRepo: PagePermissionRepo,
   ) {}
+
+  // The lock state of pages the user can see, for the sidebar after an
+  // unlock: { pageId: unlocked } for each protected one.
+  async lockState(
+    pageIds: string[],
+    user: User,
+    workspaceId: string,
+  ): Promise<Record<string, boolean>> {
+    if (pageIds.length === 0) return {};
+    const rows = await this.db
+      .selectFrom('pages')
+      .select('id')
+      .where('id', 'in', pageIds)
+      .where('workspaceId', '=', workspaceId)
+      .where('deletedAt', 'is', null)
+      .where(
+        'spaceId',
+        'in',
+        this.spaceMemberRepo.getUserSpaceIdsQuery(user.id),
+      )
+      .execute();
+    const readable = await this.pagePermissionRepo.filterAccessiblePageIds({
+      pageIds: rows.map((r) => r.id),
+      userId: user.id,
+    });
+    return this.pageLock.lockState(readable);
+  }
 
   private async findPage(pageId: string, workspaceId: string): Promise<Page> {
     const page = await this.pageRepo.findById(pageId);

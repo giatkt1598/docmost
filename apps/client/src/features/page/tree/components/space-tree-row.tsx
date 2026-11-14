@@ -198,7 +198,11 @@ export function SpaceTreeRow({
             size={12}
             stroke={1.8}
             aria-label={t("Password protected, unlocked")}
-            style={{ flexShrink: 0, opacity: 0.6, marginLeft: 4 }}
+            style={{
+              flexShrink: 0,
+              marginLeft: 4,
+              color: "var(--mantine-color-blue-6)",
+            }}
           />
         ) : (
           <IconLock

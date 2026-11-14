@@ -43,9 +43,9 @@ export function isInvalidPasswordError(error: unknown): boolean {
 
 export async function unlockPage(pageId: string, password: string) {
   await api.post("/pages/unlock", { pageId, password });
-  markTreeUnlocked(pageId);
-  // a locked page hides its sub-pages: show them now
-  void revealSubPages(pageId);
+  // a locked page hides its sub-pages: show them, then the real lock of
+  // each (a sub-page with a password of its own stays locked)
+  void revealSubPages(pageId).then(() => refreshTreeLockState(pageId));
   queryClient.invalidateQueries({ queryKey: ["shared-page-tree"] });
   queryClient.invalidateQueries({ queryKey: ["public-space-tree"] });
 }
@@ -93,21 +93,42 @@ export function collabTokenFor(
   return [collabToken, ...unlockTokens].join("|");
 }
 
-// Shows the lock open on an unlocked page and on its loaded sub-pages in
-// the sidebar. A sub-page with a password of its own may still be locked;
-// the server corrects that on the next load of the tree.
-function markTreeUnlocked(pageId: string) {
+// Asks the server for the lock of a page and its loaded sub-pages in the
+// sidebar, and shows each lock closed, open, or gone.
+export async function refreshTreeLockState(pageId: string) {
   const store = getDefaultStore();
-  const openAll = (node: SpaceTreeNode): SpaceTreeNode => ({
-    ...node,
-    ...(node.hasPassword && { passwordUnlocked: true }),
-    children: node.children?.map(openAll) ?? [],
+  const node = treeModel.find(store.get(treeDataAtom), pageId);
+  if (!node) return;
+  const ids: string[] = [];
+  const collect = (n: SpaceTreeNode) => {
+    ids.push(n.id);
+    n.children?.forEach(collect);
+  };
+  collect(node);
+  let state: Record<string, boolean>;
+  try {
+    const res = await api.post<Record<string, boolean>>(
+      "/pages/password/lock-state",
+      { pageIds: ids.slice(0, 500) },
+    );
+    state = res.data ?? {};
+  } catch {
+    return;
+  }
+  const known = new Set(ids);
+  const apply = (n: SpaceTreeNode): SpaceTreeNode => ({
+    ...n,
+    ...(known.has(n.id) && {
+      hasPassword: n.id in state,
+      passwordUnlocked: state[n.id] === true,
+    }),
+    children: n.children?.map(apply) ?? [],
   });
   const walk = (nodes: SpaceTreeNode[]): SpaceTreeNode[] =>
-    nodes.map((node) =>
-      node.id === pageId
-        ? openAll(node)
-        : { ...node, children: node.children ? walk(node.children) : [] },
+    nodes.map((n) =>
+      n.id === pageId
+        ? apply(n)
+        : { ...n, children: n.children ? walk(n.children) : [] },
     );
   store.set(treeDataAtom, walk(store.get(treeDataAtom)));
 }

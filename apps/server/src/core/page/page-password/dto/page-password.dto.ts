@@ -1,4 +1,6 @@
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsNotEmpty,
   IsOptional,
@@ -28,6 +30,13 @@ export class SetPagePasswordDto {
 export class PagePasswordPageIdDto {
   @IsUUID()
   pageId: string;
+}
+
+export class PageLockStateDto {
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsUUID('all', { each: true })
+  pageIds: string[];
 }
 
 export class UnlockPageDto {
