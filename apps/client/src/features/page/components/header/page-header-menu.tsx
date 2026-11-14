@@ -6,6 +6,7 @@ import {
   IconEye,
   IconEyeOff,
   IconFileExport,
+  IconFileImport,
   IconHistory,
   IconLink,
   IconList,
@@ -49,6 +50,7 @@ import {
 import { formattedDate } from "@/lib/time.ts";
 import { PageEditModeToggle } from "@/features/user/components/page-state-pref.tsx";
 import MovePageModal from "@/features/page/components/move-page-modal.tsx";
+import PageImportModal from "@/features/page/components/page-import-modal.tsx";
 import PageAttachmentsModal from "@/features/attachments/components/page-attachments-modal.tsx";
 import PresentationModal from "@/features/editor/components/presentation/presentation-modal.tsx";
 import { useTimeAgo } from "@/hooks/use-time-ago.tsx";
@@ -184,6 +186,11 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
     presentationOpened,
     { open: openPresentationModal, close: closePresentationModal },
   ] = useDisclosure(false);
+  const [importOpened, { open: openImportModal, close: closeImportModal }] =
+    useDisclosure(false);
+  // mounted on first open and kept, so a zip import keeps polling after
+  // the modal closes
+  const [importUsed, setImportUsed] = useState(false);
   const [pageEditor] = useAtom(pageEditorAtom);
   const pageUpdatedAt = useTimeAgo(page?.updatedAt);
   const favoriteIds = useFavoriteIds("page", page?.spaceId);
@@ -377,6 +384,18 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
             </Menu.Item>
           )}
 
+          {!readOnly && !page?.isBase && (
+            <Menu.Item
+              leftSection={<IconFileImport size={16} />}
+              onClick={() => {
+                setImportUsed(true);
+                openImportModal();
+              }}
+            >
+              {t("Import pages")}
+            </Menu.Item>
+          )}
+
           <Menu.Item
             leftSection={<IconFileExport size={16} />}
             onClick={openExportModal}
@@ -484,6 +503,15 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
         opened={presentationOpened}
         onClose={closePresentationModal}
       />
+
+      {importUsed && (
+        <PageImportModal
+          spaceId={page.spaceId}
+          parentPageId={page.id}
+          open={importOpened}
+          onClose={closeImportModal}
+        />
+      )}
     </>
   );
 }

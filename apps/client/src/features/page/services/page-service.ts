@@ -152,9 +152,15 @@ export async function exportPageToDocx(data: { pageId: string }): Promise<void> 
   saveAs(req.data, decodedFileName);
 }
 
-export async function importPage(file: File, spaceId: string) {
+// Fields go before the file part: the server reads only those sent before it.
+export async function importPage(
+  file: File,
+  spaceId: string,
+  parentPageId?: string,
+) {
   const formData = new FormData();
   formData.append("spaceId", spaceId);
+  if (parentPageId) formData.append("parentPageId", parentPageId);
   formData.append("file", file);
 
   const req = await api.post<IPage>("/pages/import", formData, {
@@ -170,11 +176,13 @@ export async function importWebPage(
   url: string,
   spaceId: string,
   mode: "article" | "full",
+  parentPageId?: string,
 ): Promise<IPage> {
   const req = await api.post<IPage>("/pages/import-url", {
     url,
     spaceId,
     mode,
+    ...(parentPageId ? { parentPageId } : {}),
   });
   return req.data;
 }
@@ -183,10 +191,12 @@ export async function importZip(
   file: File,
   spaceId: string,
   source?: string,
+  parentPageId?: string,
 ): Promise<IFileTask> {
   const formData = new FormData();
   formData.append("spaceId", spaceId);
   formData.append("source", source);
+  if (parentPageId) formData.append("parentPageId", parentPageId);
   formData.append("file", file);
 
   const req = await api.post<any>("/pages/import-zip", formData, {

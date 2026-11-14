@@ -9,6 +9,7 @@ import {
   IconCopy,
   IconDotsVertical,
   IconFileExport,
+  IconFileImport,
   IconLink,
   IconStar,
   IconStarFilled,
@@ -16,7 +17,9 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 
+import { useState } from "react";
 import ExportModal from "@/components/common/export-modal";
+import PageImportModal from "@/features/page/components/page-import-modal.tsx";
 import MovePageModal from "@/features/page/components/move-page-modal.tsx";
 import CopyPageModal from "@/features/page/components/copy-page-modal.tsx";
 import { NewPageFromTemplateModal } from "@/features/template/components/new-page-from-template-modal";
@@ -70,6 +73,11 @@ export function NodeMenu({ node, canEdit }: NodeMenuProps) {
     templateModalOpened,
     { open: openTemplateModal, close: closeTemplateModal },
   ] = useDisclosure(false);
+  const [importOpened, { open: openImportModal, close: closeImportModal }] =
+    useDisclosure(false);
+  // mounted on first open and kept, so a zip import keeps polling after
+  // the modal closes
+  const [importUsed, setImportUsed] = useState(false);
   const favoriteIds = useFavoriteIds("page", node.spaceId);
   const addFavorite = useAddFavoriteMutation();
   const removeFavorite = useRemoveFavoriteMutation();
@@ -243,6 +251,20 @@ export function NodeMenu({ node, canEdit }: NodeMenuProps) {
                 {t("New page from template")}
               </Menu.Item>
 
+              {!node.isBase && (
+                <Menu.Item
+                  leftSection={<IconFileImport size={16} />}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setImportUsed(true);
+                    openImportModal();
+                  }}
+                >
+                  {t("Import pages")}
+                </Menu.Item>
+              )}
+
               <Menu.Divider />
               <Menu.Item
                 c="red"
@@ -291,6 +313,15 @@ export function NodeMenu({ node, canEdit }: NodeMenuProps) {
         open={exportOpened}
         onClose={closeExportModal}
       />
+
+      {importUsed && (
+        <PageImportModal
+          spaceId={node.spaceId}
+          parentPageId={node.id}
+          open={importOpened}
+          onClose={closeImportModal}
+        />
+      )}
     </>
   );
 }

@@ -28,8 +28,16 @@ import {
 } from "@/features/page/services/page-service.ts";
 import { notifications } from "@mantine/notifications";
 import { treeDataAtom } from "@/features/page/tree/atoms/tree-data-atom.ts";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom, useStore } from "jotai";
 import { buildTree } from "@/features/page/tree/utils";
+import { treeModel } from "@/features/page/tree/model/tree-model";
+import {
+  spaceRoots,
+  updateSpaceRoots,
+} from "@/features/page/tree/utils/utils.ts";
+import { openTreeNodesAtom } from "@/features/page/tree/atoms/open-tree-nodes-atom.ts";
+import type { SpaceTreeNode } from "@/features/page/tree/types.ts";
+import { fetchAllAncestorChildren } from "@/features/page/queries/page-query.ts";
 import { IPage } from "@/features/page/types/page.types.ts";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -43,12 +51,15 @@ import bytes from "bytes";
 
 interface PageImportModalProps {
   spaceId: string;
+  // imports under this page; the space root when left out
+  parentPageId?: string;
   open: boolean;
   onClose: () => void;
 }
 
 export default function PageImportModal({
   spaceId,
+  parentPageId,
   open,
   onClose,
 }: PageImportModalProps) {
@@ -74,6 +85,7 @@ export default function PageImportModal({
           <Modal.Body>
             <ImportFormatSelection
               spaceId={spaceId}
+              parentPageId={parentPageId}
               open={open}
               onClose={onClose}
             />
@@ -86,16 +98,20 @@ export default function PageImportModal({
 
 interface ImportFormatSelection {
   spaceId: string;
+  parentPageId?: string;
   open: boolean;
   onClose: () => void;
 }
 function ImportFormatSelection({
   spaceId,
+  parentPageId,
   open,
   onClose,
 }: ImportFormatSelection) {
   const { t } = useTranslation();
   const [treeData, setTreeData] = useAtom(treeDataAtom);
+  const setOpenTreeNodes = useSetAtom(openTreeNodesAtom);
+  const store = useStore();
   const [fileTaskId, setFileTaskId] = useState<string | null>(null);
   const [showWebForm, setShowWebForm] = useState(false);
   const emit = useQueryEmit();
@@ -113,6 +129,46 @@ function ImportFormatSelection({
   const confluenceFileRef = useRef<() => void>(null);
   const zipFileRef = useRef<() => void>(null);
 
+  // Shows pages imported under a parent page: reloads the parent's children
+  // (it may never have been expanded), opens it, and tells other clients
+  // about each new child.
+  const showImportedChildren = async (parentId: string) => {
+    queryClient.removeQueries({
+      queryKey: ["sidebar-pages", { pageId: parentId, spaceId }],
+    });
+    const children = await fetchAllAncestorChildren({
+      pageId: parentId,
+      spaceId,
+    });
+    const before = treeModel.find(
+      spaceRoots(store.get(treeDataAtom), spaceId),
+      parentId,
+    );
+    const known = new Set((before?.children ?? []).map((c) => c.id));
+    const loaded = known.size > 0;
+
+    setTreeData((prev) =>
+      updateSpaceRoots(prev, spaceId, (roots) =>
+        treeModel.update(
+          treeModel.appendChildren(roots, parentId, children),
+          parentId,
+          { hasChildren: true } as Partial<SpaceTreeNode>,
+        ),
+      ),
+    );
+    setOpenTreeNodes((prev) => ({ ...prev, [parentId]: true }));
+
+    const fresh = loaded ? children.filter((c) => !known.has(c.id)) : children;
+    setTimeout(() => {
+      fresh.forEach((child, i) => {
+        emit({
+          operation: "addTreeNode",
+          spaceId,
+          payload: { parentId, index: known.size + i, data: child },
+        });
+      });
+    }, 50);
+  };
 
   const handleZipUpload = async (selectedFile: File, source: string) => {
     if (!selectedFile) {
@@ -142,7 +198,12 @@ function ImportFormatSelection({
         autoClose: false,
       });
 
-      const importTask = await importZip(selectedFile, spaceId, source);
+      const importTask = await importZip(
+        selectedFile,
+        spaceId,
+        source,
+        parentPageId,
+      );
       notifications.update({
         id: "import",
         title: t("Importing pages"),
@@ -201,20 +262,24 @@ function ImportFormatSelection({
           clearInterval(intervalId);
           setFileTaskId(null);
 
-          await queryClient.refetchQueries({
-            queryKey: ["root-sidebar-pages", fileTask.spaceId],
-          });
-
           await queryClient.invalidateQueries({
             queryKey: ["recent-changes", fileTask.spaceId],
           });
 
-          setTimeout(() => {
-            emit({
-              operation: "refetchRootTreeNodeEvent",
-              spaceId: spaceId,
+          if (parentPageId) {
+            await showImportedChildren(parentPageId);
+          } else {
+            await queryClient.refetchQueries({
+              queryKey: ["root-sidebar-pages", fileTask.spaceId],
             });
-          }, 50);
+
+            setTimeout(() => {
+              emit({
+                operation: "refetchRootTreeNodeEvent",
+                spaceId: spaceId,
+              });
+            }, 50);
+          }
         }
 
         if (status === "failed") {
@@ -294,7 +359,7 @@ function ImportFormatSelection({
 
     for (const file of selectedFiles) {
       try {
-        const page = await importPage(file, spaceId);
+        const page = await importPage(file, spaceId, parentPageId);
         pages.push(page);
         pageCount += 1;
       } catch (err) {
@@ -303,11 +368,17 @@ function ImportFormatSelection({
     }
 
     if (pages?.length > 0 && pageCount > 0) {
-      const newTreeNodes = buildTree(pages);
-      const fullTree = treeData.concat(newTreeNodes);
+      if (parentPageId) {
+        await showImportedChildren(parentPageId).catch((err) =>
+          console.error("Failed to show imported pages", err),
+        );
+      } else {
+        const newTreeNodes = buildTree(pages);
+        const fullTree = treeData.concat(newTreeNodes);
 
-      if (newTreeNodes?.length && fullTree?.length > 0) {
-        setTreeData(fullTree);
+        if (newTreeNodes?.length && fullTree?.length > 0) {
+          setTreeData(fullTree);
+        }
       }
 
       // Reset file inputs after successful upload
@@ -352,10 +423,16 @@ function ImportFormatSelection({
     });
 
     try {
-      const page = await importWebPage(url, spaceId, mode);
-      const newTreeNodes = buildTree([page]);
-      if (newTreeNodes?.length) {
-        setTreeData(treeData.concat(newTreeNodes));
+      const page = await importWebPage(url, spaceId, mode, parentPageId);
+      if (parentPageId) {
+        await showImportedChildren(parentPageId).catch((err) =>
+          console.error("Failed to show imported pages", err),
+        );
+      } else {
+        const newTreeNodes = buildTree([page]);
+        if (newTreeNodes?.length) {
+          setTreeData(treeData.concat(newTreeNodes));
+        }
       }
 
       notifications.update({
