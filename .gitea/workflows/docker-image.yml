@@ -58,15 +58,34 @@ jobs:
             --file Dockerfile \
             .
 
+      # The registry (Gitea) sometimes answers a blob request too slowly while
+      # it is busy ("timeout awaiting response headers"), and a rerun then
+      # goes through. Retry each push with a growing pause; layers already
+      # uploaded are skipped on the next attempt.
       - name: Push Docker image
         if: gitea.event_name != 'pull_request'
+        shell: bash
         run: |
-          docker push "${IMAGE_NAME}:${{ steps.image.outputs.tag }}"
-          docker push "${IMAGE_NAME}:sha-${GITHUB_SHA::12}"
+          push() {
+            local ref="$1" attempt=1 max=5 delay=15
+            until docker push "$ref"; do
+              if (( attempt >= max )); then
+                echo "::error::docker push $ref failed after $max attempts"
+                return 1
+              fi
+              echo "::warning::docker push $ref failed (attempt $attempt/$max), retrying in ${delay}s"
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+
+          push "${IMAGE_NAME}:${{ steps.image.outputs.tag }}"
+          push "${IMAGE_NAME}:sha-${GITHUB_SHA::12}"
 
           if [[ "${{ gitea.ref_name }}" == "main" ]]; then
             docker tag "${IMAGE_NAME}:${{ steps.image.outputs.tag }}" "${IMAGE_NAME}:latest"
-            docker push "${IMAGE_NAME}:latest"
+            push "${IMAGE_NAME}:latest"
           fi
 
   # Deploy: write the new tag (main-<run>) into base/kustomization.yaml of giatk-k8s so Argo CD rolls it out.
