@@ -43,6 +43,7 @@ export function PropertyField({ pageId, property, row, references, editable, onS
     value,
     references,
     pageId,
+    alignStart: true,
     commit: (v: unknown) => {
       setEditing(false);
       onSave(property.id, v);
@@ -70,7 +71,13 @@ export function PropertyField({ pageId, property, row, references, editable, onS
       onKeyDown={(e) => e.stopPropagation()}
     >
       {Cell ? (
-        <Cell property={property} row={row} value={value} references={references} />
+        <Cell
+          property={property}
+          row={row}
+          value={value}
+          references={references}
+          alignStart
+        />
       ) : null}
       {!Cell && (
         <Text size="sm" c="dimmed">

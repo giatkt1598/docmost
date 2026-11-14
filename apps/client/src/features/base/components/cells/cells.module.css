@@ -23,6 +23,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
 .muted {
   color: var(--mantine-color-dimmed);
 }

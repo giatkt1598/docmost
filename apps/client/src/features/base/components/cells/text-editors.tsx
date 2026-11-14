@@ -120,7 +120,7 @@ export function NumberEditor(props: CellEditorProps) {
     <InlineEditor
       {...props}
       inputMode="decimal"
-      align="right"
+      align={props.alignStart ? "left" : "right"}
       toValue={(t) => parseNumberInput(t)}
     />
   );

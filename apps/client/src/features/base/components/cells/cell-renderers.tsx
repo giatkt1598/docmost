@@ -48,7 +48,7 @@ export function LongTextValue({ value }: CellRendererProps) {
   );
 }
 
-export function NumberValue({ value, property }: CellRendererProps) {
+export function NumberValue({ value, property, alignStart }: CellRendererProps) {
   const { i18n } = useTranslation();
   const opts = (property.typeOptions ?? {}) as NumberOptions;
   const text = formatNumberValue(value, opts, i18n.language);
@@ -66,7 +66,11 @@ export function NumberValue({ value, property }: CellRendererProps) {
       </div>
     );
   }
-  return <div className={`${classes.value} ${classes.number}`}>{text}</div>;
+  return (
+    <div className={`${classes.value} ${alignStart ? classes.tabular : classes.number}`}>
+      {text}
+    </div>
+  );
 }
 
 export function ChoiceValue({ value, property }: CellRendererProps) {
@@ -99,9 +103,12 @@ export function DateValue({ value, property }: CellRendererProps) {
   );
 }
 
-export function CheckboxValue({ value }: CellRendererProps) {
+export function CheckboxValue({ value, alignStart }: CellRendererProps) {
   return (
-    <div className={classes.value} style={{ justifyContent: "center" }}>
+    <div
+      className={classes.value}
+      style={{ justifyContent: alignStart ? "flex-start" : "center" }}
+    >
       <span
         role="checkbox"
         aria-checked={value === true}
@@ -236,7 +243,9 @@ export function FormulaValue(props: CellRendererProps) {
   switch (opts.resultType) {
     case "number":
       return (
-        <div className={`${classes.value} ${classes.number}`}>
+        <div
+          className={`${classes.value} ${props.alignStart ? classes.tabular : classes.number}`}
+        >
           {formatNumberValue(value, (opts.formatOptions ?? {}) as NumberOptions, i18n.language)}
         </div>
       );

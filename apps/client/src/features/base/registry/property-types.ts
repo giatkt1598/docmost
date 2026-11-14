@@ -312,6 +312,9 @@ export type CellRendererProps = {
   row: BaseRow;
   value: unknown;
   references: RowReferenceMap;
+  // left-align every value, as in the row detail where values line up
+  // under each other instead of in grid columns
+  alignStart?: boolean;
 };
 
 // How the active cell leaves edit mode after a commit.
