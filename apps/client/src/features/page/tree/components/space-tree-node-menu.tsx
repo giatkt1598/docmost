@@ -334,12 +334,20 @@ export function NodeMenu({ node, canEdit, onCreateChild }: NodeMenuProps) {
       />
 
       {importUsed && (
-        <PageImportModal
-          spaceId={node.spaceId}
-          parentPageId={node.id}
-          open={importOpened}
-          onClose={closeImportModal}
-        />
+        // The row is a router <Link>, and React bubbles clicks from the
+        // modal's portal up to it: the Link then cancels them (no form
+        // submit, no file picker) and navigates. Stop them here.
+        <div
+          style={{ display: "contents" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <PageImportModal
+            spaceId={node.spaceId}
+            parentPageId={node.id}
+            open={importOpened}
+            onClose={closeImportModal}
+          />
+        </div>
       )}
     </>
   );
