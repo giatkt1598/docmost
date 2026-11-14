@@ -11,6 +11,7 @@ import {
   IconFileExport,
   IconFileImport,
   IconLink,
+  IconPlus,
   IconStar,
   IconStarFilled,
   IconTemplate,
@@ -49,9 +50,11 @@ import classes from "@/features/page/tree/styles/tree.module.css";
 export interface NodeMenuProps {
   node: SpaceTreeNode;
   canEdit: boolean;
+  // creates a page under this one
+  onCreateChild?: () => void;
 }
 
-export function NodeMenu({ node, canEdit }: NodeMenuProps) {
+export function NodeMenu({ node, canEdit, onCreateChild }: NodeMenuProps) {
   const { t } = useTranslation();
   const clipboard = useClipboard({ timeout: 500 });
   const { spaceSlug } = useParams();
@@ -166,6 +169,22 @@ export function NodeMenu({ node, canEdit }: NodeMenuProps) {
         </Menu.Target>
 
         <Menu.Dropdown>
+          {canEdit && onCreateChild && (
+            <>
+              <Menu.Item
+                leftSection={<IconPlus size={16} />}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onCreateChild();
+                }}
+              >
+                {t("New page")}
+              </Menu.Item>
+              <Menu.Divider />
+            </>
+          )}
+
           <Menu.Item
             leftSection={<IconLink size={16} />}
             onClick={(e) => {

@@ -2,13 +2,12 @@ import { useRef } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAtom } from "jotai";
 import { useTranslation } from "react-i18next";
-import { ActionIcon, rem } from "@mantine/core";
+import { ActionIcon } from "@mantine/core";
 import {
   IconChevronDown,
   IconChevronRight,
   IconFileDescription,
   IconLock,
-  IconPlus,
   IconPointFilled,
   IconTable,
 } from "@tabler/icons-react";
@@ -54,6 +53,7 @@ export function SpaceTreeRow({
   const updatePageMutation = useUpdatePageMutation();
   const [, setTreeData] = useAtom(treeDataAtom);
   const emit = useQueryEmit();
+  const { handleCreate } = useTreeMutation(node.spaceId);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mobileSidebarOpened] = useAtom(mobileSidebarAtom);
   const toggleMobileSidebar = useToggleSidebar(mobileSidebarAtom);
@@ -138,6 +138,18 @@ export function SpaceTreeRow({
       console.error("Failed to fetch children:", error);
     }
   };
+  // New page from the row menu: expand the row, loading its children first
+  // so the new page lands after them
+  const handleCreateChild = async () => {
+    if (node.hasChildren && !hasChildren) {
+      if (!isOpen) toggleOpen();
+      await handleLoadChildren();
+    } else if (!isOpen) {
+      toggleOpen();
+    }
+    handleCreate(node.id);
+  };
+
 
   return (
     <Link
@@ -189,17 +201,11 @@ export function SpaceTreeRow({
       )}
 
       <div className={classes.actions}>
-        <NodeMenu node={node} canEdit={canEdit} />
-
-        {canEdit && (
-          <CreateNode
-            node={node}
-            isOpen={isOpen}
-            hasChildren={hasChildren}
-            onToggle={toggleOpen}
-            onExpandTree={handleLoadChildren}
-          />
-        )}
+        <NodeMenu
+          node={node}
+          canEdit={canEdit}
+          onCreateChild={handleCreateChild}
+        />
       </div>
     </Link>
   );
@@ -253,55 +259,6 @@ function PageArrow({ isOpen, hasChildren, onToggle }: PageArrowProps) {
       ) : (
         <IconChevronRight stroke={2} size={18} />
       )}
-    </ActionIcon>
-  );
-}
-
-interface CreateNodeProps {
-  node: SpaceTreeNode;
-  isOpen: boolean;
-  hasChildren: boolean;
-  onToggle: () => void;
-  onExpandTree: () => Promise<void> | void;
-}
-
-function CreateNode({
-  node,
-  isOpen,
-  hasChildren,
-  onToggle,
-  onExpandTree,
-}: CreateNodeProps) {
-  const { t } = useTranslation();
-  const { handleCreate } = useTreeMutation(node.spaceId);
-
-  async function handleClickCreate() {
-    if (node.hasChildren && !hasChildren) {
-      // Expand and lazy-load before creating a child. handleCreate reads the
-      // latest tree imperatively (via useStore) so we no longer need a
-      // setTimeout to wait for React to rerun the closure with fresh data.
-      if (!isOpen) onToggle();
-      await onExpandTree();
-    } else if (!isOpen) {
-      onToggle();
-    }
-    handleCreate(node.id);
-  }
-
-  return (
-    <ActionIcon
-      variant="subtle"
-      color="gray"
-      className={classes.actionIcon}
-      aria-label={t("Create subpage of {{name}}", { name: node.name || t("untitled") })}
-      tabIndex={-1}
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        handleClickCreate();
-      }}
-    >
-      <IconPlus style={{ width: rem(20), height: rem(20) }} stroke={2} />
     </ActionIcon>
   );
 }
