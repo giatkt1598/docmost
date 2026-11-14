@@ -8,6 +8,13 @@ import {
 } from '../../casl/interfaces/space-ability.type';
 import { SpaceRepo } from '@docmost/db/repos/space/space.repo';
 import { CacheOptions } from '../../../common/helpers/with-cache';
+import { PageLockService } from './page-lock.service';
+
+export type ViewOptions = CacheOptions & {
+  // the caller reads only the title or metadata, never the content, so a
+  // password-protected page need not be unlocked
+  allowLocked?: boolean;
+};
 
 @Injectable()
 export class PageAccessService {
@@ -15,17 +22,19 @@ export class PageAccessService {
     private readonly pagePermissionRepo: PagePermissionRepo,
     private readonly spaceAbility: SpaceAbilityFactory,
     private readonly spaceRepo: SpaceRepo,
+    private readonly pageLock: PageLockService,
   ) {}
 
   /**
    * Validate user can view page, throws ForbiddenException if not.
    * If page has restrictions: page-level permission determines access.
    * If no restrictions: space-level permission determines access.
+   * A password-protected page must also be unlocked, unless `allowLocked`.
    */
   async validateCanView(
     page: Page,
     user: User,
-    opts?: CacheOptions,
+    opts?: ViewOptions,
   ): Promise<void> {
     // TODO: cache by pageId and userId.
     const ability = await this.spaceAbility.createForUser(
@@ -47,6 +56,10 @@ export class PageAccessService {
     if (!canAccess) {
       throw new ForbiddenException();
     }
+
+    if (!opts?.allowLocked) {
+      await this.pageLock.assertUnlocked(page);
+    }
   }
 
   /**
@@ -56,6 +69,7 @@ export class PageAccessService {
   async validateCanViewWithPermissions(
     page: Page,
     user: User,
+    opts?: { allowLocked?: boolean },
   ): Promise<{ canEdit: boolean; hasRestriction: boolean }> {
     const ability = await this.spaceAbility.createForUser(user, page.spaceId);
 
@@ -68,6 +82,10 @@ export class PageAccessService {
 
     if (hasAnyRestriction && !canAccess) {
       throw new ForbiddenException();
+    }
+
+    if (!opts?.allowLocked) {
+      await this.pageLock.assertUnlocked(page);
     }
 
     return {
@@ -128,6 +146,9 @@ export class PageAccessService {
     user: User,
     workspaceId: string,
   ): Promise<void> {
+    // comments quote the page text, so a locked page takes none
+    await this.pageLock.assertUnlocked(page);
+
     try {
       await this.validateCanEdit(page, user);
       return;

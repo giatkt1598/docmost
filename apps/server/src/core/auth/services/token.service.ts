@@ -15,6 +15,7 @@ import {
   JwtPayload,
   JwtPdfExportDownloadPayload,
   JwtPdfRenderPayload,
+  JwtPageUnlockPayload,
   JwtType,
 } from '../dto/jwt-payload';
 import { User } from '@docmost/db/types/entity.types';
@@ -139,6 +140,21 @@ export class TokenService {
       type: JwtType.PDF_EXPORT_DOWNLOAD,
     };
     return this.jwtService.sign(payload, { expiresIn: '1h' });
+  }
+
+  async generatePageUnlockToken(opts: {
+    pageId: string;
+    workspaceId: string;
+    version: number;
+    expiresIn: StringValue;
+  }): Promise<string> {
+    const payload: JwtPageUnlockPayload = {
+      pageId: opts.pageId,
+      workspaceId: opts.workspaceId,
+      pv: opts.version,
+      type: JwtType.PAGE_UNLOCK,
+    };
+    return this.jwtService.sign(payload, { expiresIn: opts.expiresIn });
   }
 
   async verifyJwt(token: string, tokenType: string) {

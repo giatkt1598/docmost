@@ -64,6 +64,7 @@ import { BaseRowRepo } from '@docmost/db/repos/base/base-row.repo';
 import { BaseViewRepo } from '@docmost/db/repos/base/base-view.repo';
 import { WsService } from '../../../ws/ws.service';
 import { CollabAccessService } from '../../../collaboration/services/collab-access.service';
+import { PagePasswordRepo } from '@docmost/db/repos/page/page-password.repo';
 
 @Injectable()
 export class PageService {
@@ -90,6 +91,7 @@ export class PageService {
     private readonly collabAccessService: CollabAccessService,
     @InjectQueue(QueueName.MEDIA_QUEUE) private mediaQueue: Queue,
     private readonly environmentService: EnvironmentService,
+    private readonly pagePasswordRepo: PagePasswordRepo,
   ) {}
 
   async findById(
@@ -344,6 +346,17 @@ export class PageService {
         'deletedAt',
       ])
       .select((eb) => this.pageRepo.withHasChildren(eb))
+      // shown as a lock in the tree
+      .select((eb) =>
+        eb
+          .exists(
+            eb
+              .selectFrom('pagePasswords')
+              .select('pagePasswords.id')
+              .whereRef('pagePasswords.pageId', '=', 'pages.id'),
+          )
+          .as('hasPassword'),
+      )
       .where('deletedAt', 'is', null)
       .where('spaceId', '=', spaceId);
 
@@ -757,6 +770,16 @@ export class PageService {
       await trx.insertInto('pages').values(insertablePages).execute();
       await this.labelRepo.copyLabelsToPages(
         new Map([...pageMap].map(([oldId, entry]) => [oldId, entry.newPageId])),
+        trx,
+      );
+      // copies of password-protected pages keep the password
+      await this.pagePasswordRepo.copyToPages(
+        [...pageMap].map(([fromPageId, entry]) => ({
+          fromPageId,
+          toPageId: entry.newPageId,
+        })),
+        { workspaceId: rootPage.workspaceId, spaceId },
+        authUser.id,
         trx,
       );
 

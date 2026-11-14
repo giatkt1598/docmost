@@ -13,6 +13,7 @@ import {
 import { PageService } from './services/page.service';
 import { BacklinkService } from './services/backlink.service';
 import { PageAccessService } from './page-access/page-access.service';
+import { PageLockService } from './page-access/page-lock.service';
 import { CreatePageDto } from './dto/create-page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
 import { MovePageDto, MovePageToSpaceDto } from './dto/move-page.dto';
@@ -63,6 +64,7 @@ export class PageController {
     private readonly pageHistoryService: PageHistoryService,
     private readonly spaceAbility: SpaceAbilityFactory,
     private readonly pageAccessService: PageAccessService,
+    private readonly pageLock: PageLockService,
     private readonly backlinkService: BacklinkService,
     private readonly labelService: LabelService,
     @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
@@ -88,7 +90,15 @@ export class PageController {
     const { canEdit, hasRestriction } =
       await this.pageAccessService.validateCanViewWithPermissions(page, user);
 
-    const permissions = { canEdit, hasRestriction };
+    // past the check above, a protected page is unlocked: the editor needs
+    // the unlock token for the collaboration socket, which gets no cookies
+    const hasPassword = await this.pageLock.hasPassword(page.id);
+    const permissions = {
+      canEdit,
+      hasRestriction,
+      hasPassword,
+      ...(hasPassword && { unlockToken: this.pageLock.contextToken(page.id) }),
+    };
 
     if (dto.format && dto.format !== 'json' && page.content) {
       const contentOutput =
@@ -117,7 +127,9 @@ export class PageController {
       throw new NotFoundException('Page not found');
     }
 
-    await this.pageAccessService.validateCanView(page, user);
+    await this.pageAccessService.validateCanView(page, user, {
+      allowLocked: true,
+    });
 
     return this.labelService.getPageLabels(page.id, pagination);
   }
@@ -173,7 +185,9 @@ export class PageController {
     if (!page) {
       throw new NotFoundException('Page not found');
     }
-    await this.pageAccessService.validateCanView(page, user);
+    await this.pageAccessService.validateCanView(page, user, {
+      allowLocked: true,
+    });
 
     return this.backlinkService.countByPageId(page.id, user.id);
   }
@@ -189,7 +203,9 @@ export class PageController {
     if (!page) {
       throw new NotFoundException('Page not found');
     }
-    await this.pageAccessService.validateCanView(page, user);
+    await this.pageAccessService.validateCanView(page, user, {
+      allowLocked: true,
+    });
 
     return this.backlinkService.findByPageId(
       page.id,
@@ -284,6 +300,9 @@ export class PageController {
       page,
       user,
     );
+    if (updatePageDto.content !== undefined) {
+      await this.pageLock.assertUnlocked(page);
+    }
 
     const updatedPage = await this.pageService.update(
       page,
@@ -753,7 +772,9 @@ export class PageController {
       throw new NotFoundException('Page not found');
     }
 
-    await this.pageAccessService.validateCanView(page, user);
+    await this.pageAccessService.validateCanView(page, user, {
+      allowLocked: true,
+    });
 
     return this.pageService.getPageBreadCrumbs(page.id);
   }

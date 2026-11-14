@@ -17,6 +17,7 @@ import { CaslModule } from './casl/casl.module';
 import { PageAccessModule } from './page/page-access/page-access.module';
 import { DomainMiddleware } from '../common/middlewares/domain.middleware';
 import { AuditContextMiddleware } from '../common/middlewares/audit-context.middleware';
+import { PageUnlockMiddleware } from './page/page-access/page-unlock.middleware';
 import { ShareModule } from './share/share.module';
 import { PublicSpaceModule } from './public-space/public-space.module';
 import { LabelModule } from './label/label.module';
@@ -103,5 +104,7 @@ export class CoreModule implements NestModule {
       .apply(AuditContextMiddleware)
       .exclude(...excludedRoutes)
       .forRoutes('*');
+
+    consumer.apply(PageUnlockMiddleware).forRoutes('*');
   }
 }

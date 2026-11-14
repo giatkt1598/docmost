@@ -7,6 +7,7 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconFileDescription,
+  IconLock,
   IconPlus,
   IconPointFilled,
   IconTable,
@@ -178,6 +179,14 @@ export function SpaceTreeRow({
       </div>
 
       <span className={classes.text}>{getPageTitle(node.name, node.isBase, t)}</span>
+      {node.hasPassword && (
+        <IconLock
+          size={12}
+          stroke={1.8}
+          aria-label={t("Password protected")}
+          style={{ flexShrink: 0, opacity: 0.6, marginLeft: 4 }}
+        />
+      )}
 
       <div className={classes.actions}>
         <NodeMenu node={node} canEdit={canEdit} />

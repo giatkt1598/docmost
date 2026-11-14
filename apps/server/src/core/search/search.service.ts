@@ -8,6 +8,7 @@ import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { SpaceMemberRepo } from '@docmost/db/repos/space/space-member.repo';
 import { ShareRepo } from '@docmost/db/repos/share/share.repo';
 import { PagePermissionRepo } from '@docmost/db/repos/page/page-permission.repo';
+import { PagePasswordRepo } from '@docmost/db/repos/page/page-password.repo';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const tsquery = require('pg-tsquery')();
@@ -20,7 +21,15 @@ export class SearchService {
     private shareRepo: ShareRepo,
     private spaceMemberRepo: SpaceMemberRepo,
     private pagePermissionRepo: PagePermissionRepo,
+    private pagePasswordRepo: PagePasswordRepo,
   ) {}
+
+  // Pages with a password among `ids`. Search finds them by title only and
+  // never shows a snippet of their content.
+  async protectedPageIds(ids: string[]): Promise<Set<string>> {
+    const versions = await this.pagePasswordRepo.getVersions(ids);
+    return new Set(versions.keys());
+  }
 
   // Pages visible within the scope of the request (space membership, share,
   // public space), before any page-level permission filtering. Null when the
@@ -205,11 +214,26 @@ export class SearchService {
     const queryResults = base
       .select(rankColumn)
       .$if(!browseByFilters && !titleOnly, (qb) =>
-        qb.where(
-          'tsv',
-          '@@',
-          sql<string>`to_tsquery('simple', f_unaccent(${searchQuery}))`,
-        ),
+        qb
+          .where(
+            'tsv',
+            '@@',
+            sql<string>`to_tsquery('simple', f_unaccent(${searchQuery}))`,
+          )
+          // a password-protected page matches by its title only
+          .where((eb) =>
+            eb.or([
+              eb.not(
+                eb.exists(
+                  eb
+                    .selectFrom('pagePasswords')
+                    .select('pagePasswords.id')
+                    .whereRef('pagePasswords.pageId', '=', 'pages.id'),
+                ),
+              ),
+              sql<boolean>`to_tsvector('simple', f_unaccent(coalesce(pages.title, ''))) @@ to_tsquery('simple', f_unaccent(${searchQuery}))`,
+            ]),
+          ),
       )
       .$if(!browseByFilters && titleOnly, (qb) =>
         qb.where((eb) =>
@@ -267,6 +291,7 @@ export class SearchService {
 
   private async addHighlights(results: any[], searchQuery: string) {
     if (results.length === 0) return;
+    const protectedIds = await this.protectedPageIds(results.map((r) => r.id));
     const highlights = await this.db
       .selectFrom('pages')
       .select([
@@ -283,7 +308,9 @@ export class SearchService {
       .execute();
     const highlightById = new Map(highlights.map((h) => [h.id, h.highlight]));
     for (const result of results) {
-      result.highlight = highlightById.get(result.id) ?? '';
+      result.highlight = protectedIds.has(result.id)
+        ? ''
+        : (highlightById.get(result.id) ?? '');
     }
   }
 

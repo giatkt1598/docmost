@@ -26,6 +26,7 @@ import { validate as isValidUUID } from 'uuid';
 import { sql } from 'kysely';
 import { TransclusionService } from '../page/transclusion/transclusion.service';
 import { TransclusionLookup } from '../page/transclusion/transclusion.types';
+import { PageLockService } from '../page/page-access/page-lock.service';
 
 @Injectable()
 export class ShareService {
@@ -38,6 +39,7 @@ export class ShareService {
     @InjectKysely() private readonly db: KyselyDB,
     private readonly tokenService: TokenService,
     private readonly transclusionService: TransclusionService,
+    private readonly pageLock: PageLockService,
   ) {}
 
   async getShareTree(shareId: string, workspaceId: string) {
@@ -145,6 +147,9 @@ export class ShareService {
     }
 
     if (includeContent) {
+      // a visitor unlocks a password-protected page like anyone else; the
+      // public attachment tokens below are minted only once it is unlocked
+      await this.pageLock.assertUnlocked(page);
       page.content = await this.updatePublicAttachments(page);
     }
 

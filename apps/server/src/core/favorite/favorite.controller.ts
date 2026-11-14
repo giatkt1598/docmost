@@ -112,7 +112,9 @@ export class FavoriteController {
       if (!dto.pageId) throw new BadRequestException('pageId is required');
       const page = await this.pageRepo.findById(dto.pageId);
       if (!page) throw new NotFoundException('Page not found');
-      await this.pageAccessService.validateCanView(page, user);
+      await this.pageAccessService.validateCanView(page, user, {
+        allowLocked: true,
+      });
       return { spaceId: page.spaceId, page };
     }
 

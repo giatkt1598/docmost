@@ -9,6 +9,7 @@ import { usePageQuery } from "@/features/page/queries/page-query.ts";
 import { useShareForPageQuery } from "@/features/share/queries/share-query.ts";
 import { SharePublishPanel } from "@/features/share/components/share-publish-panel.tsx";
 import { PageAccessTab } from "@/features/page-permission/components/page-access-tab";
+import { PagePasswordPanel } from "@/features/page-password/components/page-password-panel";
 
 interface PageShareModalProps {
   readOnly?: boolean;
@@ -67,6 +68,18 @@ export function PageShareModal({ readOnly }: PageShareModalProps) {
             >
               {t("Publish")}
             </Tabs.Tab>
+            {!page?.isBase && (
+              <Tabs.Tab
+                value="password"
+                rightSection={
+                  page?.permissions?.hasPassword ? (
+                    <Indicator color="orange" size={8} />
+                  ) : null
+                }
+              >
+                {t("Password")}
+              </Tabs.Tab>
+            )}
           </Tabs.List>
 
           <Tabs.Panel value="access">
@@ -79,6 +92,17 @@ export function PageShareModal({ readOnly }: PageShareModalProps) {
               isRestricted={isRestricted}
             />
           </Tabs.Panel>
+          {!page?.isBase && (
+            <Tabs.Panel value="password">
+              {page?.id && (
+                <PagePasswordPanel
+                  pageId={page.id}
+                  hasPassword={page.permissions?.hasPassword ?? false}
+                  readOnly={readOnly}
+                />
+              )}
+            </Tabs.Panel>
+          )}
         </Tabs>
       </Modal>
     </>

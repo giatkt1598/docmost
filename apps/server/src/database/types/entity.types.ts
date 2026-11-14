@@ -19,6 +19,7 @@ import {
   Notifications,
   PageLabels,
   PageAccess as _PageAccess,
+  PagePasswords as _PagePasswords,
   PageTransclusions,
   PageTransclusionReferences,
   PagePermissions as _PagePermissions,
@@ -266,6 +267,10 @@ export type InsertablePageLabel = Insertable<PageLabels>;
 export type PageAccess = Selectable<_PageAccess>;
 export type InsertablePageAccess = Insertable<_PageAccess>;
 export type UpdatablePageAccess = Updateable<Omit<_PageAccess, 'id'>>;
+
+// Page Password
+export type PagePassword = Selectable<_PagePasswords>;
+export type InsertablePagePassword = Insertable<_PagePasswords>;
 
 // Page Permission
 export type PagePermission = Selectable<_PagePermissions>;

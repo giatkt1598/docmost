@@ -13,12 +13,14 @@ import { CustomAvatar } from "@/components/ui/custom-avatar.tsx";
 import { timeAgo } from "@/lib/time.ts";
 import styles from "@/features/public-space/components/docs/docs.module.css";
 import { PublicBaseView } from "@/features/base-public/components/public-base-view";
+import { lockedPageFromError } from "@/features/page-password/page-password";
+import { PageUnlockForm } from "@/features/page-password/components/page-unlock-form";
 
 export default function PublicSpacePage() {
   const { t } = useTranslation();
   const { spaceSlug, pageSlug } = useParams();
 
-  const { data, isLoading, isError, error } = usePublicSpacePageQuery({
+  const { data, isLoading, isError, error, refetch } = usePublicSpacePageQuery({
     spaceSlug,
     pageSlugId: pageSlug ? extractPageSlugId(pageSlug) : undefined,
   });
@@ -37,6 +39,18 @@ export default function PublicSpacePage() {
   }
 
   if (isError || !data) {
+    const lockedPage = lockedPageFromError(error);
+    if (lockedPage) {
+      return (
+        <>
+          <DocumentTitle
+            title={lockedPage.title || t("untitled")}
+            withAppName={false}
+          />
+          <PageUnlockForm page={lockedPage} onUnlocked={() => refetch()} />
+        </>
+      );
+    }
     if ([401, 403, 404].includes(error?.["status"])) {
       return <Error404 />;
     }

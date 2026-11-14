@@ -403,7 +403,12 @@ export class PageRepo {
     const query = this.db
       .selectFrom('pages')
       .select(this.baseFields)
-      .select('content')
+      // the trash previews content, except of password-protected pages
+      .select(
+        sql<any>`case when exists (select 1 from page_passwords pp where pp.page_id = pages.id) then null else pages.content end`.as(
+          'content',
+        ),
+      )
       .select((eb) => this.withSpace(eb))
       .select((eb) => this.withDeletedBy(eb))
       .where('spaceId', '=', spaceId)

@@ -37,7 +37,7 @@ export class WatcherController {
       throw new NotFoundException('Page not found');
     }
 
-    await this.pageAccessService.validateCanView(page, user);
+    await this.pageAccessService.validateCanView(page, user, { allowLocked: true });
 
     await this.watcherService.watchPage(
       user.id,
@@ -57,7 +57,7 @@ export class WatcherController {
       throw new NotFoundException('Page not found');
     }
 
-    await this.pageAccessService.validateCanView(page, user);
+    await this.pageAccessService.validateCanView(page, user, { allowLocked: true });
 
     await this.watcherService.unwatchPage(
       user.id,
@@ -77,7 +77,7 @@ export class WatcherController {
       throw new NotFoundException('Page not found');
     }
 
-    await this.pageAccessService.validateCanView(page, user);
+    await this.pageAccessService.validateCanView(page, user, { allowLocked: true });
 
     const watching = await this.watcherService.isWatchingPage(user.id, page.id);
 

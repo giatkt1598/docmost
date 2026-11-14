@@ -20,6 +20,7 @@ import { PublicSpaceAppearanceDto } from './dto/public-space.dto';
 import { LicenseCheckService } from '../../integrations/environment/license-check.service';
 import { EnvironmentService } from '../../integrations/environment/environment.service';
 import { Feature, FeatureKey } from '../../common/features';
+import { PageLockService } from '../page/page-access/page-lock.service';
 
 @Injectable()
 export class PublicSpaceService {
@@ -32,6 +33,7 @@ export class PublicSpaceService {
     private readonly transclusionService: TransclusionService,
     private readonly licenseCheckService: LicenseCheckService,
     private readonly environmentService: EnvironmentService,
+    private readonly pageLock: PageLockService,
   ) {}
 
   hasFeature(workspace: Workspace, feature: FeatureKey): boolean {
@@ -160,6 +162,7 @@ export class PublicSpaceService {
     }
 
     if (includeContent) {
+      await this.pageLock.assertUnlocked(page);
       page.content = await this.shareService.updatePublicAttachments(page);
     }
 

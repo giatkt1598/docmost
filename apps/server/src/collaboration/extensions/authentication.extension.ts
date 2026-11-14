@@ -19,6 +19,7 @@ import { UserRepo } from '@docmost/db/repos/user/user.repo';
 import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { SpaceMemberRepo } from '@docmost/db/repos/space/space-member.repo';
 import { PagePermissionRepo } from '@docmost/db/repos/page/page-permission.repo';
+import { PagePasswordRepo } from '@docmost/db/repos/page/page-password.repo';
 import { findHighestUserSpaceRole } from '@docmost/db/repos/space/utils';
 import { Page, User } from '@docmost/db/types/entity.types';
 import { SpaceRole } from '../../common/helpers/types/permission';
@@ -42,6 +43,7 @@ export class AuthenticationExtension implements Extension {
     private pageRepo: PageRepo,
     private readonly spaceMemberRepo: SpaceMemberRepo,
     private readonly pagePermissionRepo: PagePermissionRepo,
+    private readonly pagePasswordRepo: PagePasswordRepo,
     private readonly redisService: RedisService,
   ) {}
 
@@ -71,8 +73,11 @@ export class AuthenticationExtension implements Extension {
   }
 
   async onAuthenticate(data: onAuthenticatePayload) {
-    const { documentName, token } = data;
+    const { documentName } = data;
     const pageId = getPageId(documentName);
+    // "<collab token>|<page unlock token>" for a password-protected page:
+    // the socket carries no cookies, so the client passes the unlock along
+    const [token, unlockToken] = (data.token ?? '').split('|');
 
     let jwtPayload: JwtCollabPayload;
 
@@ -99,7 +104,7 @@ export class AuthenticationExtension implements Extension {
       throw new NotFoundException('Page not found');
     }
 
-    const access = await this.getAccess(user, page);
+    const access = await this.getAccess(user, page, unlockToken);
 
     if (access === 'none') {
       this.logger.warn(`User ${user.id} not authorized to access page: ${pageId}`);
@@ -114,6 +119,7 @@ export class AuthenticationExtension implements Extension {
 
     return {
       user,
+      unlockToken,
     };
   }
 
@@ -167,15 +173,29 @@ export class AuthenticationExtension implements Extension {
 
     let access: CollabAccess = 'none';
     if (user && !isUserDisabled(user) && page) {
-      access = await this.getAccess(user, page);
+      access = await this.getAccess(
+        user,
+        page,
+        connection.context?.unlockToken,
+      );
     }
 
     if (access === 'write' || (access === 'read' && connection.readOnly)) {
       return;
     }
 
+    // a changed password is told apart, so the client asks for it again
+    // instead of reporting the page as gone
+    const passwordLocked =
+      access === 'none' &&
+      !!page &&
+      (await this.isLocked(page.id, connection.context?.unlockToken));
     connection.sendStateless(
-      JSON.stringify({ type: 'page.permissions', access }),
+      JSON.stringify({
+        type: 'page.permissions',
+        access,
+        ...(passwordLocked && { reason: 'password' }),
+      }),
     );
     connection.readOnly = true;
     if (access === 'none') {
@@ -184,7 +204,13 @@ export class AuthenticationExtension implements Extension {
   }
 
   // a connection outlives this check, so it must not see a stale cached allow
-  private async getAccess(user: User, page: Page): Promise<CollabAccess> {
+  private async getAccess(
+    user: User,
+    page: Page,
+    unlockToken?: string,
+  ): Promise<CollabAccess> {
+    if (await this.isLocked(page.id, unlockToken)) return 'none';
+
     const [spaceRoles, { hasAnyRestriction, canAccess, canEdit }] =
       await Promise.all([
         this.spaceMemberRepo.getUserSpaceRoles(user.id, page.spaceId, {
@@ -203,5 +229,25 @@ export class AuthenticationExtension implements Extension {
       ? canEdit
       : userSpaceRole !== SpaceRole.READER;
     return canWrite && !page.deletedAt ? 'write' : 'read';
+  }
+
+  // A password-protected page needs an unlock for its current password.
+  private async isLocked(
+    pageId: string,
+    unlockToken?: string,
+  ): Promise<boolean> {
+    const versions = await this.pagePasswordRepo.getVersions([pageId]);
+    const version = versions.get(pageId);
+    if (version === undefined) return false;
+    if (!unlockToken) return true;
+    try {
+      const payload = await this.tokenService.verifyJwt(
+        unlockToken,
+        JwtType.PAGE_UNLOCK,
+      );
+      return payload.pageId !== pageId || payload.pv !== version;
+    } catch {
+      return true;
+    }
   }
 }

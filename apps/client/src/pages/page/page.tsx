@@ -21,6 +21,8 @@ import { useViewFullWidth } from "@/features/base/hooks/use-view-full-width";
 import { PageWidthContainer } from "@/features/base/components/common/page-width-container";
 import { getPageTitle } from "@/features/page/page.utils";
 import { DocumentTitle } from "@/components/ui/document-title.tsx";
+import { lockedPageFromError } from "@/features/page-password/page-password";
+import { PageUnlockForm } from "@/features/page-password/components/page-unlock-form";
 const MemoizedFullEditor = React.memo(FullEditor);
 const MemoizedTitleEditor = React.memo(TitleEditor);
 const MemoizedPageHeader = React.memo(PageHeader);
@@ -58,6 +60,7 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
     isLoading,
     isError,
     error,
+    refetch,
   } = usePageQuery({ pageId: extractPageSlugId(pageSlug) });
   const { data: space } = useGetSpaceBySlugQuery(page?.space?.slug);
   const setAsideState = useSetAtom(asideStateAtom);
@@ -84,6 +87,20 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
   }
 
   if (isError || !page) {
+    // a password-protected page: ask for the password, the editor stays
+    // unmounted until then
+    const lockedPage = lockedPageFromError(error);
+    if (lockedPage) {
+      return (
+        <>
+          <DocumentTitle
+            title={`${lockedPage.icon || ""}  ${getPageTitle(lockedPage.title, false, t)}`}
+            withAppName={false}
+          />
+          <PageUnlockForm page={lockedPage} onUnlocked={() => refetch()} />
+        </>
+      );
+    }
     if ([401, 403, 404].includes(error?.["status"])) {
       return (
         <EmptyState

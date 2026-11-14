@@ -41,6 +41,16 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+// Lowercase without accents, to compare a query with a title.
+function foldText(text: string | null | undefined): string {
+  return (text ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+}
+
 function snippet(content: string): string {
   const flat = content.replace(/\s+/g, ' ').trim();
   const cut = flat.slice(0, SNIPPET_CHARS);
@@ -163,11 +173,25 @@ export class HybridSearchService {
       scope,
     );
     const highlights = new Map(hits.map((h) => [h.id, h.highlight]));
-    const items = pages.slice(0, limit).map((page, index) =>
+    // the index holds the content of password-protected pages too: keep
+    // them only when their title matches, and without a highlight
+    const protectedIds = await this.searchService.protectedPageIds(
+      pages.map((p) => p.id),
+    );
+    const needle = foldText(query);
+    const items = pages
+      .filter(
+        (page) =>
+          !protectedIds.has(page.id) || foldText(page.title).includes(needle),
+      )
+      .slice(0, limit)
+      .map((page, index) =>
       this.searchService.toSearchResult({
         ...page,
         rank: 1 - index / limit,
-        highlight: highlights.get(page.id) ?? '',
+        highlight: protectedIds.has(page.id)
+          ? ''
+          : (highlights.get(page.id) ?? ''),
       }),
     );
     return { items };
@@ -209,8 +233,12 @@ export class HybridSearchService {
       best.set(pageId, { content: hit.content, distance: hit.distance });
     }
 
+    // a passage match is a content match: never for a password-protected page
+    const protectedIds = await this.searchService.protectedPageIds([
+      ...best.keys(),
+    ]);
     const pages = await this.searchService.hydrateReadablePages(
-      [...best.keys()],
+      [...best.keys()].filter((id) => !protectedIds.has(id)),
       params,
       scope,
     );
@@ -323,8 +351,14 @@ export class HybridSearchService {
         spaceId: params.spaceId,
       }),
     );
-    const readable = order.filter((id) =>
-      accessible.has(rowById.get(id).pageId),
+    // files on password-protected pages are part of their content
+    const protectedIds = await this.searchService.protectedPageIds([
+      ...accessible,
+    ]);
+    const readable = order.filter(
+      (id) =>
+        accessible.has(rowById.get(id).pageId) &&
+        !protectedIds.has(rowById.get(id).pageId),
     );
 
     const highlights = new Map<string, string>();

@@ -666,6 +666,19 @@ export interface PageAccess {
   updatedAt: Generated<Timestamp>;
 }
 
+export interface PagePasswords {
+  id: Generated<string>;
+  pageId: string;
+  workspaceId: string;
+  spaceId: string;
+  passwordHash: string;
+  version: Generated<number>;
+  creatorId: string | null;
+  updatedById: string | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+}
+
 export interface PageLabels {
   id: Generated<string>;
   pageId: string;
@@ -865,6 +878,7 @@ export interface DB {
   pageTransclusionReferences: PageTransclusionReferences;
   pageTransclusions: PageTransclusions;
   pagePermissions: PagePermissions;
+  pagePasswords: PagePasswords;
   pageHistory: PageHistory;
   pageLabels: PageLabels;
   pageVerifications: PageVerifications;

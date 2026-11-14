@@ -47,6 +47,7 @@ import {
   BASE_DATA_EXTENSION,
   BaseTransferService,
 } from '../../core/base/base-transfer.service';
+import { PageLockService } from '../../core/page/page-access/page-lock.service';
 
 type AllowedAttachment = { id: string; fileName: string; filePath: string };
 
@@ -62,6 +63,7 @@ export class ExportService {
     private readonly environmentService: EnvironmentService,
     private readonly domainService: DomainService,
     private readonly baseTransferService: BaseTransferService,
+    private readonly pageLock: PageLockService,
   ) {}
 
   async exportPage(
@@ -649,6 +651,16 @@ export class ExportService {
       }
     }
 
-    return pages.filter((p) => includedIds.has(p.id));
+    const included = pages.filter((p) => includedIds.has(p.id));
+
+    // a password-protected page the exporter has not unlocked keeps its
+    // place in the tree, so its children still export, but not its content
+    const locked = await this.pageLock.lockedPageIds(included.map((p) => p.id));
+    for (const page of included) {
+      if (!locked.has(page.id)) continue;
+      page.content = { type: 'doc', content: [] };
+      if ('textContent' in page) page.textContent = null;
+    }
+    return included;
   }
 }

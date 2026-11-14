@@ -23,6 +23,7 @@ import { rewriteAttachmentsForUnsync } from './utils/transclusion-unsync.util';
 import { TransclusionLookup } from './transclusion.types';
 import { Page, User } from '@docmost/db/types/entity.types';
 import { PageAccessService } from '../page-access/page-access.service';
+import { PageLockService } from '../page-access/page-lock.service';
 
 type ReferencingPageInfo = {
   id: string;
@@ -47,6 +48,7 @@ export class TransclusionService {
     private readonly attachmentRepo: AttachmentRepo,
     private readonly storageService: StorageService,
     private readonly pageAccessService: PageAccessService,
+    private readonly pageLock: PageLockService,
   ) {}
 
   async syncPageTransclusions(
@@ -288,8 +290,14 @@ export class TransclusionService {
     const items: TransclusionLookup[] = new Array(references.length).fill(null);
     const pendingIdx = references.map((_, i) => i);
 
-    const accessiblePending = pendingIdx.filter((i) =>
-      accessibleSet.has(references[i].sourcePageId),
+    // a synced block shows source content: none from a locked page
+    const locked = await this.pageLock.lockedPageIds(
+      references.map((r) => r.sourcePageId),
+    );
+    const accessiblePending = pendingIdx.filter(
+      (i) =>
+        accessibleSet.has(references[i].sourcePageId) &&
+        !locked.has(references[i].sourcePageId),
     );
     const rows = await this.pageTransclusionsRepo.findManyByPageAndTransclusion(
       accessiblePending.map((i) => ({

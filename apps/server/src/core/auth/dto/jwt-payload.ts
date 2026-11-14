@@ -8,6 +8,7 @@ export enum JwtType {
   PDF_RENDER = 'pdf_render',
   PDF_EXPORT_DOWNLOAD = 'pdf_export_download',
   OAUTH_ACCESS = 'oauth_access',
+  PAGE_UNLOCK = 'page_unlock',
 }
 export type JwtPayload = {
   sub: string;
@@ -70,4 +71,13 @@ export type JwtOAuthPayload = {
   iss: string;
   jti: string;
   type: JwtType.OAUTH_ACCESS;
+};
+
+// Proof that the password of a protected page was entered. `pv` is the
+// password version it was issued for; changing the password makes it stale.
+export type JwtPageUnlockPayload = {
+  pageId: string;
+  workspaceId: string;
+  pv: number;
+  type: 'page_unlock';
 };

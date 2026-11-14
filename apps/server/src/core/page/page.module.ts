@@ -11,15 +11,23 @@ import { TransclusionModule } from './transclusion/transclusion.module';
 import { LabelModule } from '../label/label.module';
 import { PagePermissionController } from './page-permission/page-permission.controller';
 import { PagePermissionService } from './page-permission/page-permission.service';
+import { PagePasswordController } from './page-password/page-password.controller';
+import { PagePasswordService } from './page-password/page-password.service';
+import { TokenModule } from '../auth/token.module';
 
 @Module({
-  controllers: [PageController, PagePermissionController],
+  controllers: [
+    PageController,
+    PagePermissionController,
+    PagePasswordController,
+  ],
   providers: [
     PageService,
     PageHistoryService,
     TrashCleanupService,
     BacklinkService,
     PagePermissionService,
+    PagePasswordService,
   ],
   exports: [PageService, PageHistoryService],
   imports: [
@@ -28,6 +36,7 @@ import { PagePermissionService } from './page-permission/page-permission.service
     WatcherModule,
     TransclusionModule,
     LabelModule,
+    TokenModule,
   ],
 })
 export class PageModule {}

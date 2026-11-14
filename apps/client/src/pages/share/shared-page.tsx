@@ -14,6 +14,8 @@ import DocsBreadcrumbs from "@/features/public-space/components/docs/docs-breadc
 import DocsPageNav from "@/features/public-space/components/docs/docs-page-nav.tsx";
 import DocsFooterBranding from "@/features/public-space/components/docs/docs-footer-branding.tsx";
 import { PublicBaseView } from "@/features/base-public/components/public-base-view";
+import { lockedPageFromError } from "@/features/page-password/page-password";
+import { PageUnlockForm } from "@/features/page-password/components/page-unlock-form";
 
 export default function SharedPage() {
   const { t } = useTranslation();
@@ -21,7 +23,7 @@ export default function SharedPage() {
   const { shareId } = useParams();
   const navigate = useNavigate();
 
-  const { data, isLoading, isError, error } = useSharePageQuery({
+  const { data, isLoading, isError, error, refetch } = useSharePageQuery({
     pageId: extractPageSlugId(pageSlug),
   });
 
@@ -56,6 +58,18 @@ export default function SharedPage() {
   }
 
   if (isError || !data) {
+    const lockedPage = lockedPageFromError(error);
+    if (lockedPage) {
+      return (
+        <>
+          <DocumentTitle
+            title={lockedPage.title || t("untitled")}
+            withAppName={false}
+          />
+          <PageUnlockForm page={lockedPage} onUnlocked={() => refetch()} />
+        </>
+      );
+    }
     if ([401, 403, 404].includes(error?.["status"])) {
       return <Error404 />;
     }

@@ -10,6 +10,7 @@ import {
 } from '../embedding/vector-search.service';
 import { fuseRankings } from '../search/rrf';
 import { bestPassages, orTsQuery, questionTerms } from './ai-retrieval';
+import { PageLockService } from '../page/page-access/page-lock.service';
 
 export type AiSource = {
   index: number;
@@ -41,6 +42,7 @@ export class AiSearchService {
     private readonly spaceMemberRepo: SpaceMemberRepo,
     private readonly pagePermissionRepo: PagePermissionRepo,
     private readonly vectors: VectorSearchService,
+    private readonly pageLock: PageLockService,
   ) {}
 
   async retrieve(opts: {
@@ -72,8 +74,10 @@ export class AiSearchService {
           }),
         )
       : new Set<string>();
+    // password-protected pages the asker has not unlocked give no passages
+    const locked = await this.pageLock.lockedPageIds([...readable]);
     const pages = ranked
-      .filter((id) => readable.has(id))
+      .filter((id) => readable.has(id) && !locked.has(id))
       .map((id) => byId.get(id))
       .slice(0, MAX_SOURCES);
     if (pages.length === 0) return { sources: [], context: '' };

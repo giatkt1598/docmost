@@ -65,6 +65,8 @@ import {
 import ExcalidrawMenu from "./components/excalidraw/excalidraw-menu-lazy";
 import DrawioMenu from "./components/drawio/drawio-menu";
 import { useCollabToken } from "@/features/auth/queries/auth-query.tsx";
+import { usePageQuery } from "@/features/page/queries/page-query.ts";
+import { collabTokenFor } from "@/features/page-password/page-password";
 import SearchAndReplaceDialog from "@/features/editor/components/search-and-replace/search-and-replace-dialog.tsx";
 import SearchNavigationDialog from "@/features/editor/components/search-and-replace/search-navigation-dialog.tsx";
 import { useSearchNavigationParams } from "@/features/editor/components/search-and-replace/use-search-navigation-params.ts";
@@ -113,6 +115,10 @@ export default function PageEditor({
   const slugId = extractPageSlugId(pageSlug);
   const [socket] = useState(getCollabSocket);
   const hasCollabToken = !!collabQuery?.token;
+  // a password-protected page sends its unlock along with the collab token
+  const { data: pageData } = usePageQuery({ pageId: slugId });
+  const unlockToken =
+    pageData?.id === pageId ? pageData.permissions?.unlockToken : undefined;
 
   useEffect(() => {
     if (!hasCollabToken) return;
@@ -123,6 +129,14 @@ export default function PageEditor({
   const handleStateless = ({ payload }: onStatelessParameters) => {
     try {
       const message = JSON.parse(payload);
+      if (message?.type === "page.permissions" && message.reason === "password") {
+        // the password changed: load the page again, which asks for it, or
+        // brings a fresh unlock to whoever just set it
+        for (const key of [slugId, pageId]) {
+          queryClient.invalidateQueries({ queryKey: ["pages", key] });
+        }
+        return;
+      }
       if (message?.type === "page.permissions") {
         // applied locally, a refetch can still read the old access from the server cache
         for (const key of [slugId, pageId]) {
@@ -178,8 +192,10 @@ export default function PageEditor({
       {collabQuery?.token ? (
         <HocuspocusProviderWebsocketComponent websocketProvider={socket}>
           <HocuspocusRoom
+            // a new unlock (password changed) needs a new connection
+            key={unlockToken ?? "open"}
             name={`page.${pageId}`}
-            token={collabQuery.token}
+            token={collabTokenFor(collabQuery.token, unlockToken)}
             flushDelay={500}
             onStateless={handleStateless}
             onAuthenticationFailed={handleAuthenticationFailed}
