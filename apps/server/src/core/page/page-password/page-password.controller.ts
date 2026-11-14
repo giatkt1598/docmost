@@ -70,11 +70,11 @@ export class PagePasswordController {
   ) {
     const { page, unlockToken } = await this.pagePasswordService.setPassword(
       dto.pageId,
-      dto.password,
+      { password: dto.password, includeSubPages: dto.includeSubPages },
       user,
       workspace.id,
     );
-    this.setUnlockCookie(res, page.id, unlockToken);
+    if (unlockToken) this.setUnlockCookie(res, page.id, unlockToken);
 
     this.auditService.log({
       event: AuditEvent.PAGE_PASSWORD_SET,

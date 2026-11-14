@@ -2563,5 +2563,12 @@
   "Set a password": "Set a password",
   "Remove password": "Remove password",
   "Set page password": "Set page password",
-  "Removed page password": "Removed page password"
+  "Removed page password": "Removed page password",
+  "Enter the password": "Enter the password",
+  "This page is protected by the password of “{{title}}”.": "This page is protected by the password of “{{title}}”.",
+  "Password protected, unlocked": "Password protected, unlocked",
+  "Sub-pages are now locked with this password": "Sub-pages are now locked with this password",
+  "Sub-pages are no longer locked with this password": "Sub-pages are no longer locked with this password",
+  "This page is also locked by the password of “{{title}}”.": "This page is also locked by the password of “{{title}}”.",
+  "Make sub-pages locked with password too": "Make sub-pages locked with password too"
 }

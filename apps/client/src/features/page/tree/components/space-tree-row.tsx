@@ -8,6 +8,7 @@ import {
   IconChevronRight,
   IconFileDescription,
   IconLock,
+  IconLockOpen,
   IconPointFilled,
   IconTable,
 } from "@tabler/icons-react";
@@ -191,14 +192,22 @@ export function SpaceTreeRow({
       </div>
 
       <span className={classes.text}>{getPageTitle(node.name, node.isBase, t)}</span>
-      {node.hasPassword && (
-        <IconLock
-          size={12}
-          stroke={1.8}
-          aria-label={t("Password protected")}
-          style={{ flexShrink: 0, opacity: 0.6, marginLeft: 4 }}
-        />
-      )}
+      {node.hasPassword &&
+        (node.passwordUnlocked ? (
+          <IconLockOpen
+            size={12}
+            stroke={1.8}
+            aria-label={t("Password protected, unlocked")}
+            style={{ flexShrink: 0, opacity: 0.6, marginLeft: 4 }}
+          />
+        ) : (
+          <IconLock
+            size={12}
+            stroke={1.8}
+            aria-label={t("Password protected")}
+            style={{ flexShrink: 0, opacity: 0.6, marginLeft: 4 }}
+          />
+        ))}
 
       <div className={classes.actions}>
         <NodeMenu

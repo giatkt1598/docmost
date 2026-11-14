@@ -9,15 +9,34 @@ import {
 const PAGE = '0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 const OTHER = '0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5c';
 
+const CHILD = '0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5d';
+
+const source = (pageId: string, version: number, inherited = false) => ({
+  pageId,
+  version,
+  includeSubPages: true,
+  inherited,
+  title: 'T',
+  icon: null,
+});
+
 function makeService(opts: {
   versions?: Record<string, number>;
+  // page id -> its lock sources, beyond its own password
+  inherited?: Record<string, ReturnType<typeof source>[]>;
   cookies?: Record<string, string>;
 }) {
   const repo = {
-    getVersions: jest.fn(async (ids: string[]) => {
-      const map = new Map<string, number>();
+    getLockSources: jest.fn(async (ids: string[]) => {
+      const map = new Map<string, ReturnType<typeof source>[]>();
       for (const id of ids) {
-        if (opts.versions?.[id] !== undefined) map.set(id, opts.versions[id]);
+        const list = [
+          ...(opts.versions?.[id] !== undefined
+            ? [source(id, opts.versions[id])]
+            : []),
+          ...(opts.inherited?.[id] ?? []),
+        ];
+        if (list.length) map.set(id, list);
       }
       return map;
     }),
@@ -74,7 +93,47 @@ describe('PageLockService', () => {
 
   it('accepts an unlock passed in, as the collaboration socket does', async () => {
     const service = makeService({ versions: { [PAGE]: 1 } });
-    await expect(service.isLocked(PAGE, `${PAGE}:1`)).resolves.toBe(false);
+    await expect(
+      service.isLocked(PAGE, { [PAGE]: `${PAGE}:1` }),
+    ).resolves.toBe(false);
+  });
+
+  it('locks a sub-page under a password covering sub-pages, unlocked by that page', async () => {
+    const inherited = { [CHILD]: [source(PAGE, 1, true)] };
+    const locked = makeService({ inherited });
+    const error = await locked
+      .assertUnlocked({ id: CHILD, title: 'Child' })
+      .catch((e) => e);
+    // the password to enter is the parent's
+    expect(error.getResponse()).toMatchObject({
+      page: { id: PAGE },
+      requestedPage: { id: CHILD },
+    });
+
+    const unlocked = makeService({
+      inherited,
+      cookies: { [PAGE]: `${PAGE}:1` },
+    });
+    await expect(unlocked.isLocked(CHILD)).resolves.toBe(false);
+  });
+
+  it('needs every password that protects a page', async () => {
+    const service = makeService({
+      versions: { [CHILD]: 1 },
+      inherited: { [CHILD]: [source(PAGE, 1, true)] },
+      cookies: { [PAGE]: `${PAGE}:1` },
+    });
+    await expect(service.isLocked(CHILD)).resolves.toBe(true);
+  });
+
+  it('asks for the password a move would enter or leave', async () => {
+    const service = makeService({ versions: { [PAGE]: 1 } });
+    await expect(
+      service.assertSourcesUnlocked(await service.sourcesForChildOf(PAGE)),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.assertSourcesUnlocked(await service.sourcesForChildOf(null)),
+    ).resolves.toBeUndefined();
   });
 
   it('reports the code and the title, never the content', async () => {
@@ -85,7 +144,8 @@ describe('PageLockService', () => {
     expect(error).toBeInstanceOf(ForbiddenException);
     expect(error.getResponse()).toMatchObject({
       code: PAGE_PASSWORD_REQUIRED,
-      page: { id: PAGE, title: 'Salaries' },
+      page: { id: PAGE },
+      requestedPage: { id: PAGE, title: 'Salaries' },
     });
   });
 

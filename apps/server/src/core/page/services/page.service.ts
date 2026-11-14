@@ -65,6 +65,7 @@ import { BaseViewRepo } from '@docmost/db/repos/base/base-view.repo';
 import { WsService } from '../../../ws/ws.service';
 import { CollabAccessService } from '../../../collaboration/services/collab-access.service';
 import { PagePasswordRepo } from '@docmost/db/repos/page/page-password.repo';
+import { PageLockService } from '../page-access/page-lock.service';
 
 @Injectable()
 export class PageService {
@@ -92,6 +93,7 @@ export class PageService {
     @InjectQueue(QueueName.MEDIA_QUEUE) private mediaQueue: Queue,
     private readonly environmentService: EnvironmentService,
     private readonly pagePasswordRepo: PagePasswordRepo,
+    private readonly pageLock: PageLockService,
   ) {}
 
   async findById(
@@ -323,6 +325,22 @@ export class PageService {
     );
   }
 
+  // Shown in the tree: whether a page is password protected (by itself or
+  // an ancestor covering sub-pages), and whether this request has unlocked
+  // it, so the lock shows open.
+  private async markPasswordState(items: any[]): Promise<void> {
+    if (items.length === 0) return;
+    const ids = items.map((p) => p.id);
+    const sources = await this.pagePasswordRepo.getLockSources(ids);
+    if (sources.size === 0) return;
+    const locked = await this.pageLock.lockedPageIds([...sources.keys()]);
+    for (const item of items) {
+      if (!sources.has(item.id)) continue;
+      item.hasPassword = true;
+      item.passwordUnlocked = !locked.has(item.id);
+    }
+  }
+
   async getSidebarPages(
     spaceId: string,
     pagination: PaginationOptions,
@@ -346,17 +364,6 @@ export class PageService {
         'deletedAt',
       ])
       .select((eb) => this.pageRepo.withHasChildren(eb))
-      // shown as a lock in the tree
-      .select((eb) =>
-        eb
-          .exists(
-            eb
-              .selectFrom('pagePasswords')
-              .select('pagePasswords.id')
-              .whereRef('pagePasswords.pageId', '=', 'pages.id'),
-          )
-          .as('hasPassword'),
-      )
       .where('deletedAt', 'is', null)
       .where('spaceId', '=', spaceId);
 
@@ -384,6 +391,8 @@ export class PageService {
         id: cursor.id,
       }),
     });
+
+    await this.markPasswordState(result.items as any[]);
 
     if (userId && result.items.length > 0) {
       const hasRestrictions =
@@ -1123,6 +1132,14 @@ export class PageService {
       spaceId,
       pagination,
     );
+
+    // no content preview for pages a password protects
+    const protectedIds = await this.pagePasswordRepo.getLockSources(
+      result.items.map((p) => p.id),
+    );
+    for (const item of result.items) {
+      if (protectedIds.has(item.id)) item.content = null;
+    }
 
     if (result.items.length > 0) {
       const pageIds = result.items.map((p) => p.id);

@@ -117,8 +117,9 @@ export default function PageEditor({
   const hasCollabToken = !!collabQuery?.token;
   // a password-protected page sends its unlock along with the collab token
   const { data: pageData } = usePageQuery({ pageId: slugId });
-  const unlockToken =
-    pageData?.id === pageId ? pageData.permissions?.unlockToken : undefined;
+  const unlockTokens =
+    pageData?.id === pageId ? pageData.permissions?.unlockTokens : undefined;
+  const unlockKey = unlockTokens?.join("|") || "open";
 
   useEffect(() => {
     if (!hasCollabToken) return;
@@ -193,9 +194,9 @@ export default function PageEditor({
         <HocuspocusProviderWebsocketComponent websocketProvider={socket}>
           <HocuspocusRoom
             // a new unlock (password changed) needs a new connection
-            key={unlockToken ?? "open"}
+            key={unlockKey}
             name={`page.${pageId}`}
-            token={collabTokenFor(collabQuery.token, unlockToken)}
+            token={collabTokenFor(collabQuery.token, unlockTokens)}
             flushDelay={500}
             onStateless={handleStateless}
             onAuthenticationFailed={handleAuthenticationFailed}

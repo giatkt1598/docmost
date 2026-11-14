@@ -673,6 +673,7 @@ export interface PagePasswords {
   spaceId: string;
   passwordHash: string;
   version: Generated<number>;
+  includeSubPages: Generated<boolean>;
   creatorId: string | null;
   updatedById: string | null;
   createdAt: Generated<Timestamp>;

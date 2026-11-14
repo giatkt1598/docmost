@@ -9,6 +9,8 @@ export type SpaceTreeNode = {
   hasChildren: boolean;
   isBase?: boolean;
   hasPassword?: boolean;
+  // this browser holds a valid unlock: the lock shows open
+  passwordUnlocked?: boolean;
   canEdit?: boolean;
   children: SpaceTreeNode[];
 };

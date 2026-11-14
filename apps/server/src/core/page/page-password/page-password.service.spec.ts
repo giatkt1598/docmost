@@ -24,6 +24,7 @@ function makeService(opts: {
   const pagePasswordRepo = {
     findByPageId: jest.fn(async () => opts.row ?? undefined),
     upsert: jest.fn(async (_opts: any) => 4),
+    setIncludeSubPages: jest.fn(async () => undefined),
     deleteByPageId: jest.fn(async () => undefined),
   };
   const pageAccessService = { validateCanEdit: jest.fn(async () => ({})) };
@@ -49,7 +50,7 @@ describe('PagePasswordService', () => {
   it('sets a password only for an editor of an unlocked page', async () => {
     const { service, pagePasswordRepo, pageAccessService, pageLock, collab } =
       makeService({});
-    const result = await service.setPassword('page_1', 'hunter22', user, 'ws_1');
+    const result = await service.setPassword('page_1', { password: 'hunter22' }, user, 'ws_1');
 
     expect(pageAccessService.validateCanEdit).toHaveBeenCalled();
     expect(pageLock.assertUnlocked).toHaveBeenCalled();
@@ -61,10 +62,38 @@ describe('PagePasswordService', () => {
     expect(result.unlockToken).toBe('page_1:4');
   });
 
+  it('turns sub-page cover on without a new password', async () => {
+    const passwordHash = await hashPassword('hunter22');
+    const { service, pagePasswordRepo, collab } = makeService({
+      row: { passwordHash, version: 2 },
+    });
+    const result = await service.setPassword(
+      'page_1',
+      { includeSubPages: true },
+      user,
+      'ws_1',
+    );
+    expect(pagePasswordRepo.setIncludeSubPages).toHaveBeenCalledWith(
+      'page_1',
+      true,
+      'user_1',
+    );
+    expect(pagePasswordRepo.upsert).not.toHaveBeenCalled();
+    expect(collab.recheckAccess).toHaveBeenCalled();
+    expect(result.unlockToken).toBeNull();
+  });
+
+  it('needs a password to protect a page the first time', async () => {
+    const { service } = makeService({});
+    await expect(
+      service.setPassword('page_1', { includeSubPages: true }, user, 'ws_1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('refuses a password on a database', async () => {
     const { service } = makeService({ page: { isBase: true } });
     await expect(
-      service.setPassword('page_1', 'hunter22', user, 'ws_1'),
+      service.setPassword('page_1', { password: 'hunter22' }, user, 'ws_1'),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 

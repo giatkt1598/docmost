@@ -75,9 +75,9 @@ export class AuthenticationExtension implements Extension {
   async onAuthenticate(data: onAuthenticatePayload) {
     const { documentName } = data;
     const pageId = getPageId(documentName);
-    // "<collab token>|<page unlock token>" for a password-protected page:
-    // the socket carries no cookies, so the client passes the unlock along
-    const [token, unlockToken] = (data.token ?? '').split('|');
+    // "<collab token>|<unlock token>|..." for a password-protected page: the
+    // socket carries no cookies, so the client passes its unlocks along
+    const [token, ...unlockTokens] = (data.token ?? '').split('|');
 
     let jwtPayload: JwtCollabPayload;
 
@@ -104,7 +104,7 @@ export class AuthenticationExtension implements Extension {
       throw new NotFoundException('Page not found');
     }
 
-    const access = await this.getAccess(user, page, unlockToken);
+    const access = await this.getAccess(user, page, unlockTokens);
 
     if (access === 'none') {
       this.logger.warn(`User ${user.id} not authorized to access page: ${pageId}`);
@@ -119,7 +119,7 @@ export class AuthenticationExtension implements Extension {
 
     return {
       user,
-      unlockToken,
+      unlockTokens,
     };
   }
 
@@ -176,7 +176,7 @@ export class AuthenticationExtension implements Extension {
       access = await this.getAccess(
         user,
         page,
-        connection.context?.unlockToken,
+        connection.context?.unlockTokens,
       );
     }
 
@@ -189,7 +189,7 @@ export class AuthenticationExtension implements Extension {
     const passwordLocked =
       access === 'none' &&
       !!page &&
-      (await this.isLocked(page.id, connection.context?.unlockToken));
+      (await this.isLocked(page.id, connection.context?.unlockTokens));
     connection.sendStateless(
       JSON.stringify({
         type: 'page.permissions',
@@ -207,9 +207,9 @@ export class AuthenticationExtension implements Extension {
   private async getAccess(
     user: User,
     page: Page,
-    unlockToken?: string,
+    unlockTokens: string[] = [],
   ): Promise<CollabAccess> {
-    if (await this.isLocked(page.id, unlockToken)) return 'none';
+    if (await this.isLocked(page.id, unlockTokens)) return 'none';
 
     const [spaceRoles, { hasAnyRestriction, canAccess, canEdit }] =
       await Promise.all([
@@ -231,23 +231,28 @@ export class AuthenticationExtension implements Extension {
     return canWrite && !page.deletedAt ? 'write' : 'read';
   }
 
-  // A password-protected page needs an unlock for its current password.
+  // A password-protected page needs an unlock for the current password of
+  // every page protecting it (its own, ancestors covering sub-pages).
   private async isLocked(
     pageId: string,
-    unlockToken?: string,
+    unlockTokens: string[] = [],
   ): Promise<boolean> {
-    const versions = await this.pagePasswordRepo.getVersions([pageId]);
-    const version = versions.get(pageId);
-    if (version === undefined) return false;
-    if (!unlockToken) return true;
-    try {
-      const payload = await this.tokenService.verifyJwt(
-        unlockToken,
-        JwtType.PAGE_UNLOCK,
-      );
-      return payload.pageId !== pageId || payload.pv !== version;
-    } catch {
-      return true;
+    const sources =
+      (await this.pagePasswordRepo.getLockSources([pageId])).get(pageId) ?? [];
+    if (sources.length === 0) return false;
+    const unlocked = new Map<string, number>();
+    for (const token of unlockTokens) {
+      try {
+        const payload = await this.tokenService.verifyJwt(
+          token,
+          JwtType.PAGE_UNLOCK,
+        );
+        unlocked.set(payload.pageId, payload.pv);
+      } catch {
+        // invalid or expired
+      }
     }
+    return sources.some((s) => unlocked.get(s.pageId) !== s.version);
   }
+
 }

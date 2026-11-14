@@ -55,30 +55,46 @@ export class PagePasswordService {
     });
   }
 
-  // Sets or changes the password. Every earlier unlock stops working and
-  // open editors are disconnected; the caller gets a fresh unlock.
+  // Sets or changes the password, and whether it covers the sub-pages.
+  // A new password ends every earlier unlock and the caller gets a fresh
+  // one; open editors of the page (and of its sub-pages) are rechecked.
   async setPassword(
     pageId: string,
-    password: string,
+    opts: { password?: string; includeSubPages?: boolean },
     user: User,
     workspaceId: string,
-  ): Promise<{ page: Page; unlockToken: string }> {
+  ): Promise<{ page: Page; unlockToken: string | null }> {
     const page = await this.findPage(pageId, workspaceId);
     if (page.isBase) {
       throw new BadRequestException('A database cannot have a password');
     }
     await this.assertCanManage(page, user);
 
-    const version = await this.pagePasswordRepo.upsert({
-      pageId: page.id,
-      workspaceId: page.workspaceId,
-      spaceId: page.spaceId,
-      passwordHash: await hashPassword(password),
-      userId: user.id,
-    });
+    const existing = await this.pagePasswordRepo.findByPageId(page.id);
+    let unlockToken: string | null = null;
+    if (opts.password) {
+      const version = await this.pagePasswordRepo.upsert({
+        pageId: page.id,
+        workspaceId: page.workspaceId,
+        spaceId: page.spaceId,
+        passwordHash: await hashPassword(opts.password),
+        includeSubPages:
+          opts.includeSubPages ?? existing?.includeSubPages ?? false,
+        userId: user.id,
+      });
+      unlockToken = await this.issueUnlock(page, version);
+    } else if (existing && opts.includeSubPages !== undefined) {
+      await this.pagePasswordRepo.setIncludeSubPages(
+        page.id,
+        opts.includeSubPages,
+        user.id,
+      );
+    } else {
+      throw new BadRequestException('Enter a password');
+    }
     await this.collabAccessService.recheckAccess({ pageIds: [page.id] });
 
-    return { page, unlockToken: await this.issueUnlock(page, version) };
+    return { page, unlockToken };
   }
 
   async removePassword(

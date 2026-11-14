@@ -98,6 +98,10 @@ export function PageShareModal({ readOnly }: PageShareModalProps) {
                 <PagePasswordPanel
                   pageId={page.id}
                   hasPassword={page.permissions?.hasPassword ?? false}
+                  includeSubPages={
+                    page.permissions?.passwordIncludesSubPages ?? false
+                  }
+                  inheritedFrom={page.permissions?.passwordInheritedFrom}
                   readOnly={readOnly}
                 />
               )}

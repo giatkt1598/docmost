@@ -21,6 +21,7 @@ export interface IPage {
   hasChildren: boolean;
   // set on sidebar items: the page is password protected
   hasPassword?: boolean;
+  passwordUnlocked?: boolean;
   canEdit?: boolean;
   creator: ICreator;
   lastUpdatedBy: ILastUpdatedBy;
@@ -30,9 +31,13 @@ export interface IPage {
   permissions?: {
     canEdit: boolean;
     hasRestriction: boolean;
+    // the page's own password
     hasPassword?: boolean;
-    // the unlock of a password-protected page, for the collaboration socket
-    unlockToken?: string;
+    passwordIncludesSubPages?: boolean;
+    // the ancestor whose password covers this page
+    passwordInheritedFrom?: { id: string; title: string | null; icon: string | null };
+    // the unlocks of a protected page, for the collaboration socket
+    unlockTokens?: string[];
   };
 }
 

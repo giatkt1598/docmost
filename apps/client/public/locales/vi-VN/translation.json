@@ -2380,5 +2380,12 @@
   "Set a password": "Đặt mật khẩu",
   "Remove password": "Gỡ mật khẩu",
   "Set page password": "Đã đặt mật khẩu trang",
-  "Removed page password": "Đã gỡ mật khẩu trang"
+  "Removed page password": "Đã gỡ mật khẩu trang",
+  "Enter the password": "Nhập mật khẩu",
+  "This page is protected by the password of “{{title}}”.": "Trang này được bảo vệ bằng mật khẩu của “{{title}}”.",
+  "Password protected, unlocked": "Có mật khẩu, đã mở khoá",
+  "Sub-pages are now locked with this password": "Các trang con giờ cũng được khoá bằng mật khẩu này",
+  "Sub-pages are no longer locked with this password": "Các trang con không còn bị khoá bằng mật khẩu này",
+  "This page is also locked by the password of “{{title}}”.": "Trang này cũng bị khoá bởi mật khẩu của “{{title}}”.",
+  "Make sub-pages locked with password too": "Khoá cả các trang con bằng mật khẩu này"
 }

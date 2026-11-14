@@ -27,8 +27,27 @@ export class SearchService {
   // Pages with a password among `ids`. Search finds them by title only and
   // never shows a snippet of their content.
   async protectedPageIds(ids: string[]): Promise<Set<string>> {
-    const versions = await this.pagePasswordRepo.getVersions(ids);
-    return new Set(versions.keys());
+    const sources = await this.pagePasswordRepo.getLockSources(ids);
+    return new Set(sources.keys());
+  }
+
+  // Keeps a password-protected page only when its title matches.
+  private async dropContentOnlyMatches<T extends { id: string }>(
+    rows: T[],
+    searchQuery: string,
+  ): Promise<T[]> {
+    const protectedIds = await this.protectedPageIds(rows.map((r) => r.id));
+    if (protectedIds.size === 0) return rows;
+    const titleMatches = await this.db
+      .selectFrom('pages')
+      .select('id')
+      .where('id', 'in', [...protectedIds])
+      .where(
+        sql<boolean>`to_tsvector('simple', f_unaccent(coalesce(pages.title, ''))) @@ to_tsquery('simple', f_unaccent(${searchQuery}))`,
+      )
+      .execute();
+    const keep = new Set(titleMatches.map((r) => r.id));
+    return rows.filter((r) => !protectedIds.has(r.id) || keep.has(r.id));
   }
 
   // Pages visible within the scope of the request (space membership, share,
@@ -214,26 +233,11 @@ export class SearchService {
     const queryResults = base
       .select(rankColumn)
       .$if(!browseByFilters && !titleOnly, (qb) =>
-        qb
-          .where(
-            'tsv',
-            '@@',
-            sql<string>`to_tsquery('simple', f_unaccent(${searchQuery}))`,
-          )
-          // a password-protected page matches by its title only
-          .where((eb) =>
-            eb.or([
-              eb.not(
-                eb.exists(
-                  eb
-                    .selectFrom('pagePasswords')
-                    .select('pagePasswords.id')
-                    .whereRef('pagePasswords.pageId', '=', 'pages.id'),
-                ),
-              ),
-              sql<boolean>`to_tsvector('simple', f_unaccent(coalesce(pages.title, ''))) @@ to_tsquery('simple', f_unaccent(${searchQuery}))`,
-            ]),
-          ),
+        qb.where(
+          'tsv',
+          '@@',
+          sql<string>`to_tsquery('simple', f_unaccent(${searchQuery}))`,
+        ),
       )
       .$if(!browseByFilters && titleOnly, (qb) =>
         qb.where((eb) =>
@@ -252,6 +256,9 @@ export class SearchService {
     //@ts-ignore
     let results: any[] = await queryResults.execute();
     results = await this.filterReadable(results, searchParams, opts.userId);
+    if (!browseByFilters && !titleOnly) {
+      results = await this.dropContentOnlyMatches(results, searchQuery);
+    }
 
     // Typo tolerance: when full-text matching leaves room, add the pages whose
     // title is merely similar to the query.

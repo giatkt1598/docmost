@@ -91,13 +91,27 @@ export class PageController {
       await this.pageAccessService.validateCanViewWithPermissions(page, user);
 
     // past the check above, a protected page is unlocked: the editor needs
-    // the unlock token for the collaboration socket, which gets no cookies
-    const hasPassword = await this.pageLock.hasPassword(page.id);
+    // the unlock tokens for the collaboration socket, which gets no cookies
+    const sources = await this.pageLock.lockSources(page.id);
+    const own = sources.find((s) => !s.inherited);
+    const inheritedFrom = sources.find((s) => s.inherited);
     const permissions = {
       canEdit,
       hasRestriction,
-      hasPassword,
-      ...(hasPassword && { unlockToken: this.pageLock.contextToken(page.id) }),
+      hasPassword: !!own,
+      passwordIncludesSubPages: own?.includeSubPages ?? false,
+      ...(inheritedFrom && {
+        passwordInheritedFrom: {
+          id: inheritedFrom.pageId,
+          title: inheritedFrom.title,
+          icon: inheritedFrom.icon,
+        },
+      }),
+      ...(sources.length > 0 && {
+        unlockTokens: sources
+          .map((s) => this.pageLock.contextToken(s.pageId))
+          .filter(Boolean),
+      }),
     };
 
     if (dto.format && dto.format !== 'json' && page.content) {
@@ -622,6 +636,10 @@ export class PageController {
 
     // Check page-level edit permission on the source page
     await this.pageAccessService.validateCanEdit(movedPage, user);
+    // leaving a password that covers sub-pages takes that password
+    await this.pageLock.assertSourcesUnlocked(
+      await this.pageLock.sourcesForChildOf(movedPage.parentPageId),
+    );
 
     // Moves only accessible pages; inaccessible child pages become root pages in original space
     const { childPageIds } = await this.pageService.movePageToSpace(
@@ -759,6 +777,16 @@ export class PageController {
         throw new NotFoundException('Target parent page not found');
       }
       await this.pageAccessService.validateCanEdit(targetParent, user);
+    }
+
+    // moving a page into or out of a password that covers sub-pages takes
+    // that password
+    const newParentId = dto.parentPageId ?? null;
+    if (newParentId !== (movedPage.parentPageId ?? null)) {
+      await this.pageLock.assertSourcesUnlocked([
+        ...(await this.pageLock.sourcesForChildOf(movedPage.parentPageId)),
+        ...(await this.pageLock.sourcesForChildOf(newParentId)),
+      ]);
     }
 
     return this.pageService.movePage(dto, movedPage);

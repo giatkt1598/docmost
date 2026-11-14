@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Button,
   Center,
+  Group,
   Paper,
   PasswordInput,
   Stack,
@@ -21,25 +22,32 @@ interface PageUnlockFormProps {
   page: LockedPageInfo;
   // called once the page is unlocked, to load it again
   onUnlocked: () => void | Promise<unknown>;
+  // inside a dialog: no card around it, with a Cancel button
+  onCancel?: () => void;
 }
 
-// Asks for the password of a protected page. Only the title shows until it
-// is unlocked.
-export function PageUnlockForm({ page, onUnlocked }: PageUnlockFormProps) {
+// Asks for the password of a protected page. Only titles show until it is
+// unlocked.
+export function PageUnlockForm({
+  page,
+  onUnlocked,
+  onCancel,
+}: PageUnlockFormProps) {
   const { t } = useTranslation();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const shown = page.requestedPage ?? page;
 
   // drop the copy of the document this browser may keep from before the
   // page got its password
   useEffect(() => {
     try {
-      indexedDB.deleteDatabase(`page.${page.id}`);
+      indexedDB.deleteDatabase(`page.${shown.id}`);
     } catch {
       // storage unavailable
     }
-  }, [page.id]);
+  }, [shown.id]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,42 +71,63 @@ export function PageUnlockForm({ page, onUnlocked }: PageUnlockFormProps) {
     }
   };
 
-  return (
-    <Center px="md" py={60}>
-      <Paper withBorder radius="md" p="xl" w="100%" maw={420}>
-        <form onSubmit={submit}>
-          <Stack gap="md" align="stretch">
-            <Center>
-              <ThemeIcon size={48} radius="xl" variant="light">
-                <IconLock size={26} />
-              </ThemeIcon>
-            </Center>
-            <Stack gap={4} align="center">
-              <Title order={4} ta="center" style={{ wordBreak: "break-word" }}>
-                {page.icon ? `${page.icon} ` : ""}
-                {page.title || t("Untitled")}
-              </Title>
-              <Text size="sm" c="dimmed" ta="center">
-                {t("This page is protected by a password.")}
-              </Text>
-            </Stack>
-            <PasswordInput
-              label={t("Password")}
-              value={password}
-              onChange={(e) => {
-                setPassword(e.currentTarget.value);
-                setError(null);
-              }}
-              error={error}
-              autoComplete="current-password"
-              data-autofocus
-              autoFocus
-            />
+  const form = (
+    <form onSubmit={submit}>
+      <Stack gap="md" align="stretch">
+        <Center>
+          <ThemeIcon size={48} radius="xl" variant="light">
+            <IconLock size={26} />
+          </ThemeIcon>
+        </Center>
+        <Stack gap={4} align="center">
+          <Title order={4} ta="center" style={{ wordBreak: "break-word" }}>
+            {shown.icon ? `${shown.icon} ` : ""}
+            {shown.title || t("Untitled")}
+          </Title>
+          <Text size="sm" c="dimmed" ta="center">
+            {page.requestedPage
+              ? t("This page is protected by the password of “{{title}}”.", {
+                  title: page.title || t("Untitled"),
+                })
+              : t("This page is protected by a password.")}
+          </Text>
+        </Stack>
+        <PasswordInput
+          label={t("Password")}
+          value={password}
+          onChange={(e) => {
+            setPassword(e.currentTarget.value);
+            setError(null);
+          }}
+          error={error}
+          autoComplete="current-password"
+          data-autofocus
+          autoFocus
+        />
+        {onCancel ? (
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" onClick={onCancel}>
+              {t("Cancel")}
+            </Button>
             <Button type="submit" loading={loading} disabled={!password}>
               {t("Unlock")}
             </Button>
-          </Stack>
-        </form>
+          </Group>
+        ) : (
+          <Button type="submit" loading={loading} disabled={!password}>
+            {t("Unlock")}
+          </Button>
+        )}
+      </Stack>
+    </form>
+  );
+
+  if (onCancel) return form;
+
+  return (
+    <Center px="md" py={60}>
+      <Paper withBorder radius="md" p="xl" w="100%" maw={420}>
+        {form}
       </Paper>
     </Center>
   );

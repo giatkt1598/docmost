@@ -8,6 +8,7 @@ import { queryClient } from "@/main.tsx";
 import { SpaceSelect } from "@/features/space/components/sidebar/space-select.tsx";
 import { useNavigate } from "react-router-dom";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
+import { withPageUnlock } from "@/features/page-password/with-page-unlock";
 
 interface MovePageModalProps {
   pageId: string;
@@ -32,7 +33,9 @@ export default function MovePageModal({
     if (!targetSpace) return;
 
     try {
-      await movePageToSpace({ pageId, spaceId: targetSpace.id });
+      await withPageUnlock(() =>
+        movePageToSpace({ pageId, spaceId: targetSpace.id }),
+      );
       queryClient.removeQueries({
         predicate: (item) =>
           ["pages", "sidebar-pages", "root-sidebar-pages"].includes(

@@ -24,6 +24,7 @@ import {
 import { buildPageUrl } from "@/features/page/page.utils.ts";
 import { getSpaceUrl } from "@/lib/config.ts";
 import { useQueryEmit } from "@/features/websocket/use-query-emit.ts";
+import { withPageUnlock } from "@/features/page-password/with-page-unlock";
 
 export type UseTreeMutation = {
   handleMove: (sourceId: string, op: DropOp) => Promise<void>;
@@ -87,7 +88,9 @@ export function useTreeMutation(spaceId: string): UseTreeMutation {
       setData((prev) => updateSpaceRoots(prev, spaceId, () => optimistic));
 
       try {
-        await movePageMutation.mutateAsync(payload);
+        // moving into or out of a page whose password covers its sub-pages
+        // asks for that password
+        await withPageUnlock(() => movePageMutation.mutateAsync(payload));
       } catch {
         setData((prev) => updateSpaceRoots(prev, spaceId, () => before));
         notifications.show({

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Badge,
@@ -6,6 +6,7 @@ import {
   Group,
   PasswordInput,
   Stack,
+  Switch,
   Text,
 } from "@mantine/core";
 import { IconLock, IconLockOpen } from "@tabler/icons-react";
@@ -27,6 +28,9 @@ const MIN_LENGTH = 4;
 interface PagePasswordPanelProps {
   pageId: string;
   hasPassword: boolean;
+  includeSubPages: boolean;
+  // the ancestor whose password already covers this page
+  inheritedFrom?: { id: string; title: string | null } | null;
   readOnly?: boolean;
 }
 
@@ -35,6 +39,8 @@ interface PagePasswordPanelProps {
 export function PagePasswordPanel({
   pageId,
   hasPassword,
+  includeSubPages: savedIncludeSubPages,
+  inheritedFrom,
   readOnly,
 }: PagePasswordPanelProps) {
   const { t } = useTranslation();
@@ -45,14 +51,28 @@ export function PagePasswordPanel({
   const [confirm, setConfirm] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [includeSubPages, setIncludeSubPages] = useState(savedIncludeSubPages);
+  const [savingSubPages, setSavingSubPages] = useState(false);
 
-  const refresh = (protectedNow: boolean) => {
-    // the lock in the page tree
-    setTreeData((prev) =>
-      treeModel.update(prev, pageId, {
-        hasPassword: protectedNow,
-      } as Partial<SpaceTreeNode>),
-    );
+  useEffect(() => {
+    setIncludeSubPages(savedIncludeSubPages);
+  }, [savedIncludeSubPages]);
+
+  // the locks in the page tree: this page, and its loaded sub-pages when the
+  // password covers them (whoever sets it holds the unlock, so they show open)
+  const refresh = (protectedNow: boolean, coversSubPages: boolean) => {
+    const mark = (node: SpaceTreeNode, isRoot: boolean): SpaceTreeNode => ({
+      ...node,
+      ...(isRoot
+        ? { hasPassword: protectedNow, passwordUnlocked: true }
+        : { hasPassword: protectedNow && coversSubPages, passwordUnlocked: true }),
+      children: node.children?.map((c) => mark(c, false)) ?? [],
+    });
+    setTreeData((prev) => {
+      const node = treeModel.find(prev, pageId);
+      if (!node) return prev;
+      return treeModel.update(prev, pageId, mark(node, true));
+    });
     return Promise.all([
       queryClient.invalidateQueries({ queryKey: ["pages"] }),
       queryClient.invalidateQueries({ queryKey: ["sidebar-pages"] }),
@@ -81,8 +101,8 @@ export function PagePasswordPanel({
     }
     setSaving(true);
     try {
-      await setPagePassword(pageId, password);
-      await refresh(true);
+      await setPagePassword(pageId, { password, includeSubPages });
+      await refresh(true, includeSubPages);
       notifications.show({
         message: hasPassword ? t("Password changed") : t("Password set"),
       });
@@ -91,6 +111,31 @@ export function PagePasswordPanel({
       setError(err?.response?.data?.message ?? t("Failed to save password"));
     } finally {
       setSaving(false);
+    }
+  };
+
+  // with a password in place, the switch saves at once; before, it goes
+  // with the new password
+  const toggleSubPages = async (next: boolean) => {
+    setIncludeSubPages(next);
+    if (!hasPassword) return;
+    setSavingSubPages(true);
+    try {
+      await setPagePassword(pageId, { includeSubPages: next });
+      await refresh(true, next);
+      notifications.show({
+        message: next
+          ? t("Sub-pages are now locked with this password")
+          : t("Sub-pages are no longer locked with this password"),
+      });
+    } catch (err: any) {
+      setIncludeSubPages(!next);
+      notifications.show({
+        color: "red",
+        message: err?.response?.data?.message ?? t("Failed to save password"),
+      });
+    } finally {
+      setSavingSubPages(false);
     }
   };
 
@@ -109,7 +154,7 @@ export function PagePasswordPanel({
       onConfirm: async () => {
         try {
           await removePagePassword(pageId);
-          await refresh(false);
+          await refresh(false, false);
           notifications.show({ message: t("Password removed") });
         } catch (err: any) {
           notifications.show({
@@ -139,6 +184,22 @@ export function PagePasswordPanel({
           "With a password, everyone, editors included, must enter it before seeing the content. The title stays visible. Search, exports and AI do not reveal the content.",
         )}
       </Text>
+
+      {inheritedFrom && (
+        <Alert variant="light" color="orange" icon={<IconLock size={16} />}>
+          {t("This page is also locked by the password of “{{title}}”.", {
+            title: inheritedFrom.title || t("Untitled"),
+          })}
+        </Alert>
+      )}
+
+      <Switch
+        label={t("Include sub-pages")}
+        description={t("Make sub-pages locked with password too")}
+        checked={includeSubPages}
+        disabled={readOnly || savingSubPages}
+        onChange={(e) => toggleSubPages(e.currentTarget.checked)}
+      />
 
       {readOnly ? (
         <Alert variant="light" color="gray">
