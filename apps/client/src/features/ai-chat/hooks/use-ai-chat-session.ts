@@ -64,10 +64,11 @@ export function useAiChatSession(opts: {
       const message = text.trim();
       if (!message || streaming) return;
       setError(null);
+      const clientId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       setMessages((list) => [
         ...list,
-        { role: "user", content: message },
-        { role: "assistant", content: "", toolCalls: [] },
+        { role: "user", content: message, clientId: `${clientId}-q` },
+        { role: "assistant", content: "", toolCalls: [], clientId },
       ]);
       setStreaming(true);
       const abort = new AbortController();

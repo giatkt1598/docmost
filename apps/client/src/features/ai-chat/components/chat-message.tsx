@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Badge,
@@ -31,7 +31,12 @@ import { useMutation } from "@tanstack/react-query";
 import { historyAtoms } from "@/features/page-history/atoms/history-atoms.ts";
 import { undoAiPageEdit } from "@/features/ai-chat/services/ai-chat-service";
 import { useTranslation } from "react-i18next";
-import { renderAiMarkdown } from "@/features/ai/render-ai-markdown";
+import { renderAiMarkdownSync } from "@/features/ai/render-ai-markdown";
+import {
+  REVEAL_MS,
+  renderStreamingMarkdown,
+  useSmoothText,
+} from "@/features/ai-chat/streaming/streaming";
 import {
   IChatMessage,
   IChatToolCall,
@@ -206,7 +211,8 @@ function ToolChip({ call }: { call: IChatToolCall }) {
                       ? t("Searched the page for “{{query}}”", {
                           query: call.input?.query ?? "",
                         })
-                      : PAGE_EDIT_TOOLS.has(call.name) && !OTHER_TOOL_LABELS[call.name]
+                      : PAGE_EDIT_TOOLS.has(call.name) &&
+                          !OTHER_TOOL_LABELS[call.name]
                         ? t("Edited the page")
                         : call.name === "undo_ai_edit"
                           ? t("Undid an AI edit")
@@ -234,7 +240,49 @@ function ToolChip({ call }: { call: IChatToolCall }) {
   );
 }
 
-export function ChatMessage({
+// A saved answer, rendered once per content change.
+function StaticContent({ text }: { text: string }) {
+  const html = useMemo(() => renderAiMarkdownSync(text), [text]);
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+// The answer being written: revealed a few words per frame with new words
+// fading in. Reports `onSettled` once every word has shown and faded, so the
+// saved rendering can take over without cutting a fade short.
+function StreamingContent({
+  text,
+  finished,
+  skip,
+  onSettled,
+}: {
+  text: string;
+  finished: boolean;
+  skip: boolean;
+  onSettled: () => void;
+}) {
+  const { shown, marks, caughtUp } = useSmoothText(text, finished, skip);
+  const html = useMemo(
+    () => renderStreamingMarkdown(shown, marks),
+    [shown, marks],
+  );
+  const fading = marks.length > 0;
+
+  useEffect(() => {
+    if (!caughtUp) return undefined;
+    if (!fading) {
+      onSettled();
+      return undefined;
+    }
+    const timer = setTimeout(onSettled, REVEAL_MS);
+    return () => clearTimeout(timer);
+  }, [caughtUp, fading, onSettled]);
+
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+// Memoized: while a reply streams only the last message changes, so the
+// earlier ones are not re-rendered on every chunk.
+export const ChatMessage = memo(function ChatMessage({
   message,
   streaming,
   compact,
@@ -246,16 +294,13 @@ export function ChatMessage({
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [html, setHtml] = useState("");
-
+  // a reply streamed in this view keeps the smooth renderer until every word
+  // has shown; history renders directly
+  const [live, setLive] = useState(!!streaming);
   useEffect(() => {
-    if (message.role !== "assistant") return;
-    let cancelled = false;
-    renderAiMarkdown(message.content).then((h) => !cancelled && setHtml(h));
-    return () => {
-      cancelled = true;
-    };
-  }, [message.content, message.role]);
+    if (streaming) setLive(true);
+  }, [streaming]);
+  const settle = useCallback(() => setLive(false), []);
 
   if (message.role === "user") {
     return (
@@ -312,8 +357,18 @@ export function ChatMessage({
                 navigate(href);
               }
             }}
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          >
+            {live && message.role === "assistant" ? (
+              <StreamingContent
+                text={message.content}
+                finished={!streaming}
+                skip={!!message.error}
+                onSettled={settle}
+              />
+            ) : (
+              <StaticContent text={message.content} />
+            )}
+          </div>
         </Typography>
       ) : (
         streaming &&
@@ -341,4 +396,4 @@ export function ChatMessage({
       )}
     </Box>
   );
-}
+});

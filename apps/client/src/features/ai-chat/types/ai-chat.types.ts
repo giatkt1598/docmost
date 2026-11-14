@@ -23,6 +23,9 @@ export interface IChatSelection {
 export interface IChatMessage {
   // undefined while the reply is still streaming
   id?: string;
+  // client-only: keeps a message's identity while it streams, before the
+  // server gives it an id
+  clientId?: string;
   role: "user" | "assistant";
   content: string;
   toolCalls?: IChatToolCall[] | null;

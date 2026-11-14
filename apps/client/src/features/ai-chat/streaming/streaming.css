@@ -1,0 +1,21 @@
+/* Words of a streaming AI answer fade in. streaming.ts gives each span a
+   negative delay, so a span rebuilt on the next frame keeps its place in the
+   fade instead of starting over. The duration matches REVEAL_MS. */
+.ai-reveal {
+  animation: ai-reveal 400ms ease-out both;
+}
+
+@keyframes ai-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-reveal {
+    animation: none;
+  }
+}

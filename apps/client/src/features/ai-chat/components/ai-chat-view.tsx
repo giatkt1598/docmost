@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   Box,
   Button,
@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { useAiChatSession } from "@/features/ai-chat/hooks/use-ai-chat-session";
 import { ChatMessage } from "@/features/ai-chat/components/chat-message";
 import { ChatInput } from "@/features/ai-chat/components/chat-input";
+import { useStickToBottom } from "@/features/ai-chat/streaming/streaming";
 import {
   IAiChat,
   IChatSelection,
@@ -45,21 +46,30 @@ export function AiChatView({
     onChatCreated,
     getSelection,
   });
-  const viewportRef = useRef<HTMLDivElement>(null);
+  // glides along with the reply while it streams, lets go when the person
+  // scrolls up
+  const scroller = useStickToBottom<HTMLDivElement, HTMLDivElement>();
   const sentInitial = useRef(false);
+
+  const send = useCallback(
+    (text: string) => {
+      scroller.stick();
+      return session.send(text);
+    },
+    [scroller.stick, session.send],
+  );
 
   useEffect(() => {
     if (initialMessage && !chatId && !sentInitial.current) {
       sentInitial.current = true;
-      session.send(initialMessage);
+      send(initialMessage);
     }
   }, [initialMessage, chatId]);
 
-  // keep the newest message in view while the reply streams in
+  // an opened chat starts at its latest message
   useEffect(() => {
-    const viewport = viewportRef.current;
-    if (viewport) viewport.scrollTo({ top: viewport.scrollHeight });
-  }, [session.messages]);
+    if (!session.loading) scroller.stick();
+  }, [session.loading, scroller.stick]);
 
   const suggestions = pageId
     ? [t("Summarize this page"), t("What are the key points of this page?")]
@@ -68,64 +78,67 @@ export function AiChatView({
   return (
     <Stack gap="sm" h="100%" style={{ minHeight: 0 }}>
       <ScrollArea
-        viewportRef={viewportRef}
+        viewportRef={scroller.scroll}
+        viewportProps={{ onScroll: scroller.onScroll }}
         style={{ flex: 1 }}
         type="auto"
         offsetScrollbars
       >
-        {session.loading ? (
-          <Center py="xl">
-            <Loader size="sm" />
-          </Center>
-        ) : session.messages.length === 0 ? (
-          <Stack align="center" gap="xs" py={compact ? "md" : 60}>
-            <IconSparkles size={28} />
-            <Title order={compact ? 5 : 3} ta="center">
-              {t("How can I help?")}
-            </Title>
-            <Text size="sm" c="dimmed" ta="center" maw={420}>
-              {t(
-                "I can search and read the pages you have access to and answer from them.",
-              )}
-            </Text>
-            <Stack gap={6} mt="sm">
-              {suggestions.map((s) => (
-                <Button
-                  key={s}
-                  variant="default"
-                  size="xs"
-                  radius="xl"
-                  onClick={() => session.send(s)}
-                >
-                  {s}
-                </Button>
+        <div ref={scroller.content}>
+          {session.loading ? (
+            <Center py="xl">
+              <Loader size="sm" />
+            </Center>
+          ) : session.messages.length === 0 ? (
+            <Stack align="center" gap="xs" py={compact ? "md" : 60}>
+              <IconSparkles size={28} />
+              <Title order={compact ? 5 : 3} ta="center">
+                {t("How can I help?")}
+              </Title>
+              <Text size="sm" c="dimmed" ta="center" maw={420}>
+                {t(
+                  "I can search and read the pages you have access to and answer from them.",
+                )}
+              </Text>
+              <Stack gap={6} mt="sm">
+                {suggestions.map((s) => (
+                  <Button
+                    key={s}
+                    variant="default"
+                    size="xs"
+                    radius="xl"
+                    onClick={() => send(s)}
+                  >
+                    {s}
+                  </Button>
+                ))}
+              </Stack>
+            </Stack>
+          ) : (
+            <Stack gap="lg" py="sm" px={compact ? 0 : "xs"}>
+              {session.messages.map((message, i) => (
+                <ChatMessage
+                  key={message.clientId ?? message.id ?? `pending-${i}`}
+                  message={message}
+                  compact={compact}
+                  streaming={
+                    session.streaming && i === session.messages.length - 1
+                  }
+                />
               ))}
             </Stack>
-          </Stack>
-        ) : (
-          <Stack gap="lg" py="sm" px={compact ? 0 : "xs"}>
-            {session.messages.map((message, i) => (
-              <ChatMessage
-                key={message.id ?? `pending-${i}`}
-                message={message}
-                compact={compact}
-                streaming={
-                  session.streaming && i === session.messages.length - 1
-                }
-              />
-            ))}
-          </Stack>
-        )}
-        {session.error && (
-          <Text size="sm" c="red" ta="center">
-            {session.error}
-          </Text>
-        )}
+          )}
+          {session.error && (
+            <Text size="sm" c="red" ta="center">
+              {session.error}
+            </Text>
+          )}
+        </div>
       </ScrollArea>
 
       <Box>
         <ChatInput
-          onSend={session.send}
+          onSend={send}
           onStop={session.stop}
           streaming={session.streaming}
           autoFocus={!compact}
