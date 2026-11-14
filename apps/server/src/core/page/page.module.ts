@@ -14,6 +14,7 @@ import { PagePermissionService } from './page-permission/page-permission.service
 import { PagePasswordController } from './page-password/page-password.controller';
 import { PagePasswordService } from './page-password/page-password.service';
 import { TokenModule } from '../auth/token.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   controllers: [
@@ -37,6 +38,7 @@ import { TokenModule } from '../auth/token.module';
     TransclusionModule,
     LabelModule,
     TokenModule,
+    NotificationModule,
   ],
 })
 export class PageModule {}

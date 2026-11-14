@@ -69,20 +69,31 @@ export class PagePasswordController {
     @AuthWorkspace() workspace: Workspace,
     @Res({ passthrough: true }) res: FastifyReply,
   ) {
-    const { page, unlockToken } = await this.pagePasswordService.setPassword(
-      dto.pageId,
-      { password: dto.password, includeSubPages: dto.includeSubPages },
-      user,
-      workspace.id,
-    );
+    const { page, unlockToken, ownerOverride, previousSetterIds } =
+      await this.pagePasswordService.setPassword(
+        dto.pageId,
+        { password: dto.password, includeSubPages: dto.includeSubPages },
+        user,
+        workspace.id,
+      );
     if (unlockToken) this.setUnlockCookie(res, page.id, unlockToken);
 
     this.auditService.log({
-      event: AuditEvent.PAGE_PASSWORD_SET,
+      event: ownerOverride
+        ? AuditEvent.PAGE_PASSWORD_RESET_BY_OWNER
+        : AuditEvent.PAGE_PASSWORD_SET,
       resourceType: AuditResource.PAGE,
       resourceId: page.id,
       spaceId: page.spaceId,
     });
+    if (ownerOverride) {
+      await this.pagePasswordService.notifyOwnerOverride(
+        page,
+        user,
+        'reset',
+        previousSetterIds,
+      );
+    }
 
     return { hasPassword: true };
   }
@@ -95,19 +106,30 @@ export class PagePasswordController {
     @AuthWorkspace() workspace: Workspace,
     @Res({ passthrough: true }) res: FastifyReply,
   ) {
-    const page = await this.pagePasswordService.removePassword(
-      dto.pageId,
-      user,
-      workspace.id,
-    );
+    const { page, ownerOverride, previousSetterIds } =
+      await this.pagePasswordService.removePassword(
+        dto.pageId,
+        user,
+        workspace.id,
+      );
     res.clearCookie(pageUnlockCookieName(page.id), { path: '/' });
 
     this.auditService.log({
-      event: AuditEvent.PAGE_PASSWORD_REMOVED,
+      event: ownerOverride
+        ? AuditEvent.PAGE_PASSWORD_REMOVED_BY_OWNER
+        : AuditEvent.PAGE_PASSWORD_REMOVED,
       resourceType: AuditResource.PAGE,
       resourceId: page.id,
       spaceId: page.spaceId,
     });
+    if (ownerOverride) {
+      await this.pagePasswordService.notifyOwnerOverride(
+        page,
+        user,
+        'removed',
+        previousSetterIds,
+      );
+    }
 
     return { hasPassword: false };
   }

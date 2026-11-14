@@ -23,6 +23,18 @@ import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@docmost/db/types/kysely.types';
 import { SpaceMemberRepo } from '@docmost/db/repos/space/space-member.repo';
 import { PagePermissionRepo } from '@docmost/db/repos/page/page-permission.repo';
+import { NotificationType } from '../../notification/notification.constants';
+import { NotificationService } from '../../notification/notification.service';
+import { UserRole } from '../../../common/helpers/types/permission';
+
+// The people who set a password: whoever created it and whoever last
+// changed it.
+function setterIds(
+  row: { creatorId: string | null; updatedById: string | null } | undefined,
+): string[] {
+  if (!row) return [];
+  return [...new Set([row.creatorId, row.updatedById].filter(Boolean))];
+}
 
 @Injectable()
 export class PagePasswordService {
@@ -36,6 +48,7 @@ export class PagePasswordService {
     @InjectKysely() private readonly db: KyselyDB,
     private readonly spaceMemberRepo: SpaceMemberRepo,
     private readonly pagePermissionRepo: PagePermissionRepo,
+    private readonly notificationService: NotificationService,
   ) {}
 
   // The lock state of pages the user can see, for the sidebar after an
@@ -73,11 +86,42 @@ export class PagePasswordService {
     return page;
   }
 
-  // Editors manage the password, and only from an unlocked page: knowing
-  // the current password is part of being allowed to change it.
+  // Who may manage a page's password: workspace admins (and the owner) and
+  // the page's creator, who must also be able to edit it, and only from an
+  // unlocked page: knowing the current password is part of being allowed to
+  // change it.
   private async assertCanManage(page: Page, user: User) {
+    const isAdmin =
+      user.role === UserRole.OWNER || user.role === UserRole.ADMIN;
+    if (!isAdmin && page.creatorId !== user.id) {
+      throw new ForbiddenException(
+        'Only workspace admins and the page creator can manage its password',
+      );
+    }
     await this.pageAccessService.validateCanEdit(page, user);
     await this.pageLock.assertUnlocked(page);
+  }
+
+  // The workspace owner (only the owner, not admins) may reset or remove a
+  // page's password without knowing it, e.g. when it is forgotten. It is an
+  // override when the owner has not unlocked the page's own password; the
+  // caller audits it and tells the page creator. Otherwise the usual checks
+  // apply.
+  private async authorizeManage(
+    page: Page,
+    user: User,
+    allowOwnerOverride: boolean,
+  ): Promise<{ ownerOverride: boolean }> {
+    if (allowOwnerOverride && user.role === UserRole.OWNER) {
+      const own = (await this.pageLock.lockSources(page.id)).find(
+        (s) => !s.inherited,
+      );
+      if (own && (await this.pageLock.lockedSources([own])).length > 0) {
+        return { ownerOverride: true };
+      }
+    }
+    await this.assertCanManage(page, user);
+    return { ownerOverride: false };
   }
 
   private issueUnlock(page: Page, version: number): Promise<string> {
@@ -97,12 +141,23 @@ export class PagePasswordService {
     opts: { password?: string; includeSubPages?: boolean },
     user: User,
     workspaceId: string,
-  ): Promise<{ page: Page; unlockToken: string | null }> {
+  ): Promise<{
+    page: Page;
+    unlockToken: string | null;
+    ownerOverride: boolean;
+    // who had set the password being replaced
+    previousSetterIds: string[];
+  }> {
     const page = await this.findPage(pageId, workspaceId);
     if (page.isBase) {
       throw new BadRequestException('A database cannot have a password');
     }
-    await this.assertCanManage(page, user);
+    // the owner may reset a forgotten password, never just toggle sub-pages
+    const { ownerOverride } = await this.authorizeManage(
+      page,
+      user,
+      !!opts.password,
+    );
 
     const existing = await this.pagePasswordRepo.findByPageId(page.id);
     let unlockToken: string | null = null;
@@ -128,18 +183,54 @@ export class PagePasswordService {
     }
     await this.collabAccessService.recheckAccess({ pageIds: [page.id] });
 
-    return { page, unlockToken };
+    return {
+      page,
+      unlockToken,
+      ownerOverride,
+      previousSetterIds: setterIds(existing),
+    };
   }
 
   async removePassword(
     pageId: string,
     user: User,
     workspaceId: string,
-  ): Promise<Page> {
+  ): Promise<{
+    page: Page;
+    ownerOverride: boolean;
+    previousSetterIds: string[];
+  }> {
     const page = await this.findPage(pageId, workspaceId);
-    await this.assertCanManage(page, user);
+    const { ownerOverride } = await this.authorizeManage(page, user, true);
+    const existing = await this.pagePasswordRepo.findByPageId(page.id);
     await this.pagePasswordRepo.deleteByPageId(page.id);
-    return page;
+    return { page, ownerOverride, previousSetterIds: setterIds(existing) };
+  }
+
+  // Tells the people who set the password and the page creator that the
+  // workspace owner reset or removed it without knowing it.
+  async notifyOwnerOverride(
+    page: Page,
+    owner: User,
+    action: 'reset' | 'removed',
+    previousSetterIds: string[] = [],
+  ): Promise<void> {
+    const recipients = new Set(
+      [page.creatorId, ...previousSetterIds].filter(
+        (id): id is string => !!id && id !== owner.id,
+      ),
+    );
+    for (const userId of recipients) {
+      await this.notificationService.create({
+        userId,
+        workspaceId: page.workspaceId,
+        type: NotificationType.PAGE_PASSWORD_OVERRIDDEN,
+        actorId: owner.id,
+        pageId: page.id,
+        spaceId: page.spaceId,
+        data: { action },
+      });
+    }
   }
 
   // Checks the password and returns an unlock for the current one. Also

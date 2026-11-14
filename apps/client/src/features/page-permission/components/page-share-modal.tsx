@@ -10,6 +10,9 @@ import { useShareForPageQuery } from "@/features/share/queries/share-query.ts";
 import { SharePublishPanel } from "@/features/share/components/share-publish-panel.tsx";
 import { PageAccessTab } from "@/features/page-permission/components/page-access-tab";
 import { PagePasswordPanel } from "@/features/page-password/components/page-password-panel";
+import useUserRole from "@/hooks/use-user-role.tsx";
+import { useAtomValue } from "jotai";
+import { currentUserAtom } from "@/features/user/atoms/current-user-atom.ts";
 
 interface PageShareModalProps {
   readOnly?: boolean;
@@ -24,6 +27,8 @@ export function PageShareModal({ readOnly }: PageShareModalProps) {
   const { data: share } = useShareForPageQuery(page?.id);
   const isRestricted = page?.permissions?.hasRestriction ?? false;
   const [tab, setTab] = useState<string | null>("access");
+  const { isAdmin } = useUserRole();
+  const currentUser = useAtomValue(currentUserAtom);
 
   return (
     <>
@@ -103,6 +108,7 @@ export function PageShareModal({ readOnly }: PageShareModalProps) {
                   }
                   inheritedFrom={page.permissions?.passwordInheritedFrom}
                   readOnly={readOnly}
+                  canManage={isAdmin || page.creatorId === currentUser?.user?.id}
                 />
               )}
             </Tabs.Panel>

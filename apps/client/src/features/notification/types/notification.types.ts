@@ -13,7 +13,8 @@ export type NotificationType =
   | "siem_destination.failing"
   | "siem_destination.disabled"
   | "siem_destination.recovered"
-  | "base.row_assigned";
+  | "base.row_assigned"
+  | "page.password_overridden";
 
 export type INotification = {
   id: string;

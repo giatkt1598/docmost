@@ -97,7 +97,11 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
             title={`${lockedPage.icon || ""}  ${getPageTitle(lockedPage.title, false, t)}`}
             withAppName={false}
           />
-          <PageUnlockForm page={lockedPage} onUnlocked={() => refetch()} />
+          <PageUnlockForm
+            page={lockedPage}
+            onUnlocked={() => refetch()}
+            allowOwnerReset
+          />
         </>
       );
     }

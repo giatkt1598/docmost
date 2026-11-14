@@ -2387,5 +2387,14 @@
   "Sub-pages are now locked with this password": "Các trang con giờ cũng được khoá bằng mật khẩu này",
   "Sub-pages are no longer locked with this password": "Các trang con không còn bị khoá bằng mật khẩu này",
   "This page is also locked by the password of “{{title}}”.": "Trang này cũng bị khoá bởi mật khẩu của “{{title}}”.",
-  "Make sub-pages locked with password too": "Khoá cả các trang con bằng mật khẩu này"
+  "Make sub-pages locked with password too": "Khoá cả các trang con bằng mật khẩu này",
+  "Forgot the password? Reset it as workspace owner": "Quên mật khẩu? Đặt lại với quyền owner workspace",
+  "Reset as workspace owner": "Đặt lại với quyền owner workspace",
+  "You can set a new password or remove it without knowing the current one. This is recorded in the audit log, and the page creator and whoever set the password are notified.": "Bạn có thể đặt mật khẩu mới hoặc gỡ mật khẩu mà không cần biết mật khẩu hiện tại. Thao tác này được ghi vào audit log, và người tạo trang cùng người đã đặt mật khẩu sẽ nhận được thông báo.",
+  "Set new password": "Đặt mật khẩu mới",
+  "Only workspace admins and the page creator can manage its password.": "Chỉ admin workspace và người tạo trang mới quản lý được mật khẩu.",
+  "<bold>{{name}}</bold> (workspace owner) removed the password of a page": "<bold>{{name}}</bold> (owner workspace) đã gỡ mật khẩu của một trang",
+  "<bold>{{name}}</bold> (workspace owner) reset the password of a page": "<bold>{{name}}</bold> (owner workspace) đã đặt lại mật khẩu của một trang",
+  "Owner reset page password": "Owner đã đặt lại mật khẩu trang",
+  "Owner removed page password": "Owner đã gỡ mật khẩu trang"
 }

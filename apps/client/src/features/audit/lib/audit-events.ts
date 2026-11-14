@@ -95,6 +95,8 @@ export const AUDIT_EVENT_GROUPS: AuditEventGroup[] = [
       "page.permission_role_changed": "Changed page permission role",
       "page.password_set": "Set page password",
       "page.password_removed": "Removed page password",
+      "page.password_reset_by_owner": "Owner reset page password",
+      "page.password_removed_by_owner": "Owner removed page password",
       "page.verification_created": "Added page verification",
       "page.verification_updated": "Updated page verification",
       "page.verification_removed": "Removed page verification",

@@ -71,6 +71,10 @@ export function NotificationItem({
         return "SIEM destination <bold>{{name}}</bold> recovered";
       case "base.row_assigned":
         return "<bold>{{name}}</bold> assigned you to a record";
+      case "page.password_overridden":
+        return notification.data?.action === "removed"
+          ? "<bold>{{name}}</bold> (workspace owner) removed the password of a page"
+          : "<bold>{{name}}</bold> (workspace owner) reset the password of a page";
       default:
         return "";
     }

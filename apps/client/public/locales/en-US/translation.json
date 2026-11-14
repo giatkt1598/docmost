@@ -2570,5 +2570,14 @@
   "Sub-pages are now locked with this password": "Sub-pages are now locked with this password",
   "Sub-pages are no longer locked with this password": "Sub-pages are no longer locked with this password",
   "This page is also locked by the password of “{{title}}”.": "This page is also locked by the password of “{{title}}”.",
-  "Make sub-pages locked with password too": "Make sub-pages locked with password too"
+  "Make sub-pages locked with password too": "Make sub-pages locked with password too",
+  "Forgot the password? Reset it as workspace owner": "Forgot the password? Reset it as workspace owner",
+  "Reset as workspace owner": "Reset as workspace owner",
+  "You can set a new password or remove it without knowing the current one. This is recorded in the audit log, and the page creator and whoever set the password are notified.": "You can set a new password or remove it without knowing the current one. This is recorded in the audit log, and the page creator and whoever set the password are notified.",
+  "Set new password": "Set new password",
+  "Only workspace admins and the page creator can manage its password.": "Only workspace admins and the page creator can manage its password.",
+  "<bold>{{name}}</bold> (workspace owner) removed the password of a page": "<bold>{{name}}</bold> (workspace owner) removed the password of a page",
+  "<bold>{{name}}</bold> (workspace owner) reset the password of a page": "<bold>{{name}}</bold> (workspace owner) reset the password of a page",
+  "Owner reset page password": "Owner reset page password",
+  "Owner removed page password": "Owner removed page password"
 }

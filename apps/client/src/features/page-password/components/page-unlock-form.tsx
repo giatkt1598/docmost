@@ -17,6 +17,8 @@ import {
   LockedPageInfo,
   unlockPage,
 } from "@/features/page-password/page-password";
+import useUserRole from "@/hooks/use-user-role.tsx";
+import { OwnerPasswordReset } from "@/features/page-password/components/owner-password-reset";
 
 interface PageUnlockFormProps {
   page: LockedPageInfo;
@@ -24,6 +26,8 @@ interface PageUnlockFormProps {
   onUnlocked: () => void | Promise<unknown>;
   // inside a dialog: no card around it, with a Cancel button
   onCancel?: () => void;
+  // offer the workspace owner to reset a forgotten password
+  allowOwnerReset?: boolean;
 }
 
 // Asks for the password of a protected page. Only titles show until it is
@@ -32,8 +36,10 @@ export function PageUnlockForm({
   page,
   onUnlocked,
   onCancel,
+  allowOwnerReset,
 }: PageUnlockFormProps) {
   const { t } = useTranslation();
+  const { isOwner } = useUserRole();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -122,12 +128,20 @@ export function PageUnlockForm({
     </form>
   );
 
+  const ownerReset =
+    allowOwnerReset && isOwner ? (
+      <OwnerPasswordReset pageId={page.id} onDone={onUnlocked} />
+    ) : null;
+
   if (onCancel) return form;
 
   return (
     <Center px="md" py={60}>
       <Paper withBorder radius="md" p="xl" w="100%" maw={420}>
-        {form}
+        <Stack gap="lg">
+          {form}
+          {ownerReset}
+        </Stack>
       </Paper>
     </Center>
   );

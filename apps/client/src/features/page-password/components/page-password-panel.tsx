@@ -29,6 +29,8 @@ interface PagePasswordPanelProps {
   // the ancestor whose password already covers this page
   inheritedFrom?: { id: string; title: string | null } | null;
   readOnly?: boolean;
+  // workspace admins and the page creator
+  canManage?: boolean;
 }
 
 // Share > Password: turn the password on, change it or remove it. The
@@ -38,8 +40,10 @@ export function PagePasswordPanel({
   hasPassword,
   includeSubPages: savedIncludeSubPages,
   inheritedFrom,
-  readOnly,
+  readOnly: pageReadOnly,
+  canManage = true,
 }: PagePasswordPanelProps) {
+  const readOnly = pageReadOnly || !canManage;
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -188,7 +192,11 @@ export function PagePasswordPanel({
 
       {readOnly ? (
         <Alert variant="light" color="gray">
-          {t("Only people who can edit this page can manage its password.")}
+          {canManage
+            ? t("Only people who can edit this page can manage its password.")
+            : t(
+                "Only workspace admins and the page creator can manage its password.",
+              )}
         </Alert>
       ) : editing ? (
         <form onSubmit={save}>
